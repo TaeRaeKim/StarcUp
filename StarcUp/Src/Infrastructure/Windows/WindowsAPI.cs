@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace StarcUp
+namespace StarcUp.Infrastructure.Windows
 {
+    /// <summary>
+    /// Windows API 함수 및 상수 정의
+    /// </summary>
     public static class WindowsAPI
     {
         [DllImport("user32.dll")]
@@ -57,6 +60,14 @@ namespace StarcUp
             public int Top;
             public int Right;
             public int Bottom;
+
+            public int Width => Right - Left;
+            public int Height => Bottom - Top;
+
+            public override string ToString()
+            {
+                return $"RECT: Left={Left}, Top={Top}, Right={Right}, Bottom={Bottom} (Size: {Width}x{Height})";
+            }
         }
     }
 }
