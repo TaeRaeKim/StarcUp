@@ -1,11 +1,16 @@
-﻿using System;
+﻿using StarcUp.Business.Interfaces;
+using StarcUp.DependencyInjection;
+using System;
+using System.ComponentModel.Design;
 using System.Windows.Forms;
+using ServiceContainer = StarcUp.DependencyInjection.ServiceContainer;
 
 namespace StarcUp
 {
     public static class Program
     {
-        private static PointerMonitor pointerMonitor;
+        private static ServiceContainer _container;
+        private static IOverlayService _overlayService;
 
         [STAThread]
         static void Main()
@@ -14,48 +19,54 @@ namespace StarcUp
             Application.SetCompatibleTextRenderingDefault(false);
 
             Console.WriteLine("스타크래프트 오버레이 프로그램 시작");
-            Console.WriteLine("스타크래프트를 실행하면 포인터 값 모니터링이 시작됩니다.");
-            Console.WriteLine("포인터 값이 변경될 때마다 자동으로 출력됩니다.");
-            Console.WriteLine();
+            Console.WriteLine("=================================");
 
-            // 포인터 모니터 초기화
-            pointerMonitor = new PointerMonitor();
+            try
+            {
+                // 서비스 컨테이너 초기화 및 서비스 등록
+                _container = new ServiceContainer();
+                RegisterServices();
 
-            // 포인터 값 변경 이벤트 구독
-            pointerMonitor.ValueChanged += OnPointerValueChanged;
+                // 메인 오버레이 서비스 시작
+                _overlayService = _container.Resolve<IOverlayService>();
+                _overlayService.Start();
 
-            // 오버레이 폼을 생성하되 메인 폼으로 실행하지 않음
-            OverlayForm overlayForm = new OverlayForm();
+                Console.WriteLine("서비스 초기화 완료. 스타크래프트를 실행해주세요.");
 
-            // 스타크래프트 감지 시 포인터 모니터링 시작
-            overlayForm.GameFound += OnGameFound;
-            overlayForm.GameLost += OnGameLost;
-
-            // 메시지 루프만 실행 (폼을 표시하지 않음)
-            Application.Run();
-
-            // 프로그램 종료 시 정리
-            pointerMonitor?.Dispose();
+                // 메시지 루프 실행
+                Application.Run();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"애플리케이션 시작 실패: {ex.Message}");
+                MessageBox.Show($"애플리케이션 시작 실패: {ex.Message}", "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cleanup();
+            }
         }
 
-        private static void OnGameFound(IntPtr gameWindow)
+        private static void RegisterServices()
         {
-            Console.WriteLine("=== 스타크래프트 감지됨 ===");
-            Console.WriteLine("포인터 모니터링을 시작합니다...");
-            pointerMonitor?.StartMonitoring();
+            // 서비스 등록은 ServiceContainer에서 처리
+            ServiceRegistration.RegisterServices(_container);
         }
 
-        private static void OnGameLost()
+        private static void Cleanup()
         {
-            Console.WriteLine("=== 스타크래프트 종료됨 ===");
-            Console.WriteLine("포인터 모니터링을 중지합니다.");
-            pointerMonitor?.StopMonitoring();
-        }
-
-        private static void OnPointerValueChanged(int oldValue, int newValue)
-        {
-            // 포인터 값 변경 시 추가 정보 출력 (선택사항)
-            Console.WriteLine($"[변경 감지] {oldValue} → {newValue} (차이: {newValue - oldValue:+#;-#;0})");
+            try
+            {
+                Console.WriteLine("애플리케이션 종료 중...");
+                _overlayService?.Stop();
+                _overlayService?.Dispose();
+                Console.WriteLine("정리 완료.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"정리 중 오류 발생: {ex.Message}");
+            }
         }
     }
 }
