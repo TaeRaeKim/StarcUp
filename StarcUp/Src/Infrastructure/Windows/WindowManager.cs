@@ -23,6 +23,7 @@ namespace StarcUp.Infrastructure.Windows
     {
         private IntPtr _winEventHook;
         private IntPtr _foregroundEventHook;
+        private IntPtr _lastActiveWindow = IntPtr.Zero;
         private WindowsAPI.WinEventDelegate _winEventDelegate;
         private WindowsAPI.WinEventDelegate _foregroundEventDelegate;
         private bool _isDisposed;
@@ -212,7 +213,9 @@ namespace StarcUp.Infrastructure.Windows
                     return;
                 }
 
+                WindowDeactivated?.Invoke(_lastActiveWindow);
                 WindowActivated?.Invoke(hwnd);
+                _lastActiveWindow = hwnd;
             }
         }
 
