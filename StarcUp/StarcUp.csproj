@@ -50,6 +50,7 @@
   <ItemGroup>
     <Compile Include="Src\Business\Services\HybridStarcraftDetector.cs" />
     <Compile Include="Src\Infrastructure\Process\ProcessEventMonitor.cs" />
+    <Compile Include="Src\Infrastructure\Windows\WindowInfo.cs" />
     <Compile Include="Src\Presentation\Forms\OverlayNotificationForm.cs">
       <SubType>Form</SubType>
     </Compile>
