@@ -21,11 +21,12 @@ namespace StarcUp.Business.Services
         private bool _isDetecting;
         private bool _isDisposed;
 
-        public event EventHandler<GameEventArgs> GameFound;
-        public event EventHandler<GameEventArgs> GameLost;
-        public event EventHandler<GameEventArgs> WindowChanged;
-        public event EventHandler<GameEventArgs> WindowActivated;
-        public event EventHandler<GameEventArgs> WindowDeactivated;
+        public event EventHandler<GameEventArgs> HandleFound;
+        public event EventHandler<GameEventArgs> HandleLost;
+        public event EventHandler<GameEventArgs> HandleChanged;
+        public event EventHandler<GameEventArgs> WindowMove;
+        public event EventHandler<GameEventArgs> WindowFocusIn;
+        public event EventHandler<GameEventArgs> WindowFocusOut;
 
         public bool IsGameRunning => _currentGame != null;
         public GameInfo CurrentGame => _currentGame;
@@ -74,8 +75,8 @@ namespace StarcUp.Business.Services
 
             if (_currentGame != null)
             {
-                var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.GAME_LOST);
-                GameLost?.Invoke(this, eventArgs);
+                var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.HANDLE_LOST);
+                HandleLost?.Invoke(this, eventArgs);
                 _currentGame = null;
             }
 
@@ -111,8 +112,8 @@ namespace StarcUp.Business.Services
                             _currentGame = newGameInfo;
                             SetupWindowEvents();
 
-                            var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.GAME_FOUND);
-                            GameFound?.Invoke(this, eventArgs);
+                            var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.HANDLE_FOUND);
+                            HandleFound?.Invoke(this, eventArgs);
                             Console.WriteLine($"게임 발견: {_currentGame}");
                         }
                         else if (_currentGame.WindowHandle != newGameInfo.WindowHandle)
@@ -121,8 +122,8 @@ namespace StarcUp.Business.Services
                             _currentGame = newGameInfo;
                             SetupWindowEvents();
 
-                            var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.WINDOW_CHANGED);
-                            WindowChanged?.Invoke(this, eventArgs);
+                            var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.HANDLE_CHANGED);
+                            HandleChanged?.Invoke(this, eventArgs);
                             Console.WriteLine($"윈도우 변경: {_currentGame}");
                         }
                         else
@@ -137,8 +138,8 @@ namespace StarcUp.Business.Services
                     // 게임이 종료됨
                     if (_currentGame != null)
                     {
-                        var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.GAME_LOST);
-                        GameLost?.Invoke(this, eventArgs);
+                        var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.HANDLE_LOST);
+                        HandleLost?.Invoke(this, eventArgs);
                         Console.WriteLine($"게임 종료: {_currentGame}");
                         _currentGame = null;
                     }
@@ -175,6 +176,7 @@ namespace StarcUp.Business.Services
                 gameInfo.IsFullscreen = windowInfo.IsFullscreen;
                 gameInfo.IsMinimized = windowInfo.IsMinimized;
                 gameInfo.IsActive = _windowManager.GetForegroundWindow() == gameInfo.WindowHandle;
+                Console.WriteLine($"게임 정보 업데이트: {gameInfo}");
             }
             catch (Exception ex)
             {
@@ -194,14 +196,13 @@ namespace StarcUp.Business.Services
         {
             if (_currentGame?.WindowHandle == windowHandle)
             {
-                // 게임 윈도우 정보 업데이트
                 try
                 {
                     var process = Process.GetProcessById(_currentGame.ProcessId);
                     UpdateGameInfo(_currentGame, process);
 
-                    var eventArgs = new GameEventArgs(_currentGame, "WindowPositionChanged");
-                    WindowChanged?.Invoke(this, eventArgs);
+                    var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.WINDOW_MOVE);
+                    WindowMove?.Invoke(this, eventArgs);
                 }
                 catch (Exception ex)
                 {
@@ -215,8 +216,8 @@ namespace StarcUp.Business.Services
             if (_currentGame?.WindowHandle == windowHandle)
             {
                 _currentGame.IsActive = true;
-                var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.WINDOW_ACTIVATED);
-                WindowActivated?.Invoke(this, eventArgs);
+                var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.WINDOW_FOCUSIN);
+                WindowFocusIn?.Invoke(this, eventArgs);
                 Console.WriteLine("게임 윈도우 활성화됨");
             }
         }
@@ -226,8 +227,8 @@ namespace StarcUp.Business.Services
             if (_currentGame != null)
             {
                 _currentGame.IsActive = false;
-                var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.WINDOW_DEACTIVATED);
-                WindowDeactivated?.Invoke(this, eventArgs);
+                var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.WINDOW_FOCUSOUT);
+                WindowFocusOut?.Invoke(this, eventArgs);
                 Console.WriteLine("게임 윈도우 비활성화됨");
             }
         }

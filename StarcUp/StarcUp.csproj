@@ -75,7 +75,10 @@
     <Compile Include="Src\Presentation\Controls\OverlayControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Src\Presentation\Forms\MainForm.cs">
+    <Compile Include="Src\Presentation\Forms\ControlForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Src\Presentation\Forms\OverlayForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <EmbeddedResource Include="Properties\Resources.resx">

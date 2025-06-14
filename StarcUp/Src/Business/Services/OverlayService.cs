@@ -8,13 +8,13 @@ using StarcUp.Presentation.Forms;
 namespace StarcUp.Business.Services
 {
     /// <summary>
-    /// 오버레이 서비스 (메인 컨트롤러)
+    /// 오버레이 서비스 (메인 컨트롤러) - 수동 시작 모드
     /// </summary>
     public class OverlayService : IOverlayService
     {
         private readonly IGameDetectionService _gameDetection;
         private readonly IPointerMonitorService _pointerMonitor;
-        private MainForm _overlayForm;
+        private OverlayForm _overlayForm;
         private bool _isRunning;
         private bool _isDisposed;
 
@@ -29,52 +29,68 @@ namespace StarcUp.Business.Services
             _gameDetection = gameDetection ?? throw new ArgumentNullException(nameof(gameDetection));
             _pointerMonitor = pointerMonitor ?? throw new ArgumentNullException(nameof(pointerMonitor));
 
+            // 이벤트 구독은 미리 설정하지만 서비스는 시작하지 않음
             SubscribeToEvents();
         }
 
         public void Start()
         {
             if (_isRunning)
+            {
+                Console.WriteLine("오버레이 서비스가 이미 실행 중입니다.");
                 return;
+            }
 
-            Console.WriteLine("오버레이 서비스 시작...");
+            Console.WriteLine("오버레이 서비스 시작... (포인터 추적 모드)");
 
             try
             {
                 // 오버레이 폼 생성 (처음에는 숨김)
-                _overlayForm = new MainForm();
+                _overlayForm = new OverlayForm();
 
-                // 게임 감지 시작
-                _gameDetection.StartDetection();
+                // 게임 감지 서비스가 이미 실행 중인지 확인하고 필요하면 시작
+                if (!_gameDetection.IsGameRunning)
+                {
+                    Console.WriteLine("게임 감지 서비스 시작 (오버레이에서)");
+                    _gameDetection.StartDetection();
+                }
 
                 _isRunning = true;
-                Console.WriteLine("오버레이 서비스 활성화됨");
+                Console.WriteLine("오버레이 서비스 활성화됨 - 포인터 추적 대기 중");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"오버레이 서비스 시작 실패: {ex.Message}");
                 Stop();
+                throw; // 상위로 예외 전파
             }
         }
 
         public void Stop()
         {
             if (!_isRunning)
+            {
+                Console.WriteLine("오버레이 서비스가 이미 중지되어 있습니다.");
                 return;
+            }
 
-            Console.WriteLine("오버레이 서비스 중지...");
+            Console.WriteLine("오버레이 서비스 중지... (포인터 추적만 중지, 게임 감지는 유지)");
 
             try
             {
-                _gameDetection.StopDetection();
+                // 포인터 모니터링 중지
                 _pointerMonitor.StopMonitoring();
 
-                _overlayForm?.Hide();
-                _overlayForm?.Dispose();
-                _overlayForm = null;
+                // 오버레이 폼 정리
+                if (_overlayForm != null)
+                {
+                    _overlayForm.Hide();
+                    _overlayForm.Dispose();
+                    _overlayForm = null;
+                }
 
                 _isRunning = false;
-                Console.WriteLine("오버레이 서비스 중지됨");
+                Console.WriteLine("오버레이 서비스 중지됨 (게임 감지는 계속 실행 중)");
             }
             catch (Exception ex)
             {
@@ -84,16 +100,16 @@ namespace StarcUp.Business.Services
 
         private void SubscribeToEvents()
         {
-            _gameDetection.GameFound += OnGameFound;
-            _gameDetection.GameLost += OnGameLost;
-            _gameDetection.WindowChanged += OnWindowChanged;
-            _gameDetection.WindowActivated += OnWindowActivated;
-            _gameDetection.WindowDeactivated += OnWindowDeactivated;
+            _gameDetection.HandleFound += OnHandleFound;
+            _gameDetection.HandleLost += OnHandleLost;
+            _gameDetection.WindowMove += OnWindowMove;
+            _gameDetection.WindowFocusIn += OnWindowFocusIn;
+            _gameDetection.WindowFocusOut += OnWindowFocusOut;
 
             _pointerMonitor.ValueChanged += OnPointerValueChanged;
         }
 
-        private void OnGameFound(object sender, GameEventArgs e)
+        private void OnHandleFound(object sender, GameEventArgs e)
         {
             Console.WriteLine($"게임 발견됨: {e.GameInfo}");
 
@@ -107,7 +123,7 @@ namespace StarcUp.Business.Services
             }
         }
 
-        private void OnGameLost(object sender, GameEventArgs e)
+        private void OnHandleLost(object sender, GameEventArgs e)
         {
             Console.WriteLine($"게임 종료됨: {e.GameInfo}");
 
@@ -118,7 +134,7 @@ namespace StarcUp.Business.Services
             HideOverlay();
         }
 
-        private void OnWindowChanged(object sender, GameEventArgs e)
+        private void OnWindowMove(object sender, GameEventArgs e)
         {
             Console.WriteLine($"윈도우 변경됨: {e.GameInfo}");
 
@@ -129,7 +145,7 @@ namespace StarcUp.Business.Services
             }
         }
 
-        private void OnWindowActivated(object sender, GameEventArgs e)
+        private void OnWindowFocusIn(object sender, GameEventArgs e)
         {
             Console.WriteLine("게임 윈도우 활성화됨");
 
@@ -139,7 +155,7 @@ namespace StarcUp.Business.Services
             }
         }
 
-        private void OnWindowDeactivated(object sender, GameEventArgs e)
+        private void OnWindowFocusOut(object sender, GameEventArgs e)
         {
             Console.WriteLine("게임 윈도우 비활성화됨");
             HideOverlay();
@@ -147,12 +163,10 @@ namespace StarcUp.Business.Services
 
         private void OnPointerValueChanged(object sender, PointerEventArgs e)
         {
-            Console.WriteLine($"포인터 값 변경: {e.PointerValue}");
-
             // 오버레이 UI 업데이트
             _overlayForm?.UpdatePointerValue(e.PointerValue);
 
-            // 외부로 이벤트 전파
+            // 외부로 이벤트 전파 (컨트롤 폼에서 수신)
             PointerValueChanged?.Invoke(this, e);
         }
 

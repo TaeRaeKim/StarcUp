@@ -9,11 +9,12 @@ namespace StarcUp.Business.Interfaces
     /// </summary>
     public interface IGameDetectionService : IDisposable
     {
-        event EventHandler<GameEventArgs> GameFound;
-        event EventHandler<GameEventArgs> GameLost;
-        event EventHandler<GameEventArgs> WindowChanged;
-        event EventHandler<GameEventArgs> WindowActivated;
-        event EventHandler<GameEventArgs> WindowDeactivated;
+        event EventHandler<GameEventArgs> HandleFound;
+        event EventHandler<GameEventArgs> HandleLost;
+        event EventHandler<GameEventArgs> HandleChanged;
+        event EventHandler<GameEventArgs> WindowMove;
+        event EventHandler<GameEventArgs> WindowFocusIn;
+        event EventHandler<GameEventArgs> WindowFocusOut;
 
         bool IsGameRunning { get; }
         GameInfo CurrentGame { get; }

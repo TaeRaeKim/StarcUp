@@ -1,10 +1,9 @@
 ﻿using System;
-using System.Runtime.InteropServices;
 
 namespace StarcUp.Infrastructure.Windows
 {
     /// <summary>
-    /// 윈도우 매니저 인터페이스
+    /// 새롭게 작성된 윈도우 매니저 인터페이스
     /// </summary>
     public interface IWindowManager : IDisposable
     {
@@ -14,12 +13,16 @@ namespace StarcUp.Infrastructure.Windows
 
         bool SetupWindowEventHook(IntPtr windowHandle, uint processId);
         bool SetupForegroundEventHook();
+
         void RemoveAllHooks();
 
         WindowInfo GetWindowInfo(IntPtr windowHandle);
-        bool IsWindowMinimized(IntPtr windowHandle);
-        bool IsWindowMaximized(IntPtr windowHandle);
-        IntPtr GetForegroundWindow();
-    }
 
+        bool IsWindowMinimized(IntPtr windowHandle);
+
+        bool IsWindowMaximized(IntPtr windowHandle);
+
+        IntPtr GetForegroundWindow();
+
+    }
 }

@@ -29,11 +29,13 @@
         // 이벤트 타입들
         public static class EventTypes
         {
-            public const string GAME_FOUND = "GameFound";
-            public const string GAME_LOST = "GameLost";
-            public const string WINDOW_CHANGED = "WindowChanged";
-            public const string WINDOW_ACTIVATED = "WindowActivated";
-            public const string WINDOW_DEACTIVATED = "WindowDeactivated";
+            public const string HANDLE_FOUND = "HandleFound";
+            public const string HANDLE_LOST = "HandleLost";
+            public const string HANDLE_CHANGED = "HandleChanged";
+            public const string WINDOW_MOVE = "WindowMove";
+            public const string WINDOW_FOCUSIN = "WindowFocusIn";
+            public const string WINDOW_FOCUSOUT = "WindowFocusOut";
+
             public const string POINTER_VALUE_CHANGED = "PointerValueChanged";
         }
     }

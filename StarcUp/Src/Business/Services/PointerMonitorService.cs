@@ -107,7 +107,6 @@ namespace StarcUp.Business.Services
                 if (_currentValue == null)
                 {
                     _currentValue = newValue;
-                    Console.WriteLine($"초기 포인터 값: {_currentValue}");
                 }
                 else if (_currentValue.NewValue != newValue.NewValue)
                 {
@@ -116,9 +115,7 @@ namespace StarcUp.Business.Services
 
                     var eventArgs = new PointerEventArgs(pointerValue, GameConstants.EventTypes.POINTER_VALUE_CHANGED);
                     ValueChanged?.Invoke(this, eventArgs);
-
-                    Console.WriteLine($"포인터 값 변경: {pointerValue}");
-                }
+                    }
             }
             catch (Exception ex)
             {
