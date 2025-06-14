@@ -308,7 +308,7 @@ namespace StarcUp.Presentation.Forms
         {
             if (this.InvokeRequired)
             {
-                this.BeginInvoke(new Action<object, GameEventArgs>(OnGameFound), sender, e);
+                this.BeginInvoke(new Action<object, GameEventArgs>(OnHandleFound), sender, e);
                 return;
             }
 
@@ -325,7 +325,7 @@ namespace StarcUp.Presentation.Forms
         {
             if (this.InvokeRequired)
             {
-                this.BeginInvoke(new Action<object, GameEventArgs>(OnGameLost), sender, e);
+                this.BeginInvoke(new Action<object, GameEventArgs>(OnHandleLost), sender, e);
                 return;
             }
 
