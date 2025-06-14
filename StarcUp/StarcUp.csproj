@@ -36,6 +36,7 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Management" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -47,6 +48,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Src\Business\Services\HybridStarcraftDetector.cs" />
+    <Compile Include="Src\Infrastructure\Process\ProcessEventMonitor.cs" />
+    <Compile Include="Src\Presentation\Forms\OverlayNotificationForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <None Include="Docs\pr\20250614\Flow.md" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

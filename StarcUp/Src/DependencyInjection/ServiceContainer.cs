@@ -109,12 +109,15 @@ namespace StarcUp.DependencyInjection
     }
 
     /// <summary>
-    /// 서비스 등록을 담당하는 클래스
+    /// 하이브리드 감지 시스템 서비스 등록
     /// </summary>
     public static class ServiceRegistration
     {
         public static void RegisterServices(ServiceContainer container)
         {
+            Console.WriteLine("🚀 하이브리드 감지 시스템 서비스 등록 중...");
+            Console.WriteLine();
+
             // Infrastructure Services
             container.RegisterSingleton<StarcUp.Infrastructure.Memory.IMemoryReader>(
                 c => new StarcUp.Infrastructure.Memory.MemoryReader());
@@ -127,18 +130,24 @@ namespace StarcUp.DependencyInjection
                 c => new StarcUp.Business.Services.MemoryService(
                     c.Resolve<StarcUp.Infrastructure.Memory.IMemoryReader>()));
 
+            // 🎯 하이브리드 게임 감지 서비스 등록
             container.RegisterSingleton<StarcUp.Business.Interfaces.IGameDetectionService>(
-                c => new StarcUp.Business.Services.GameDetectionService(
+                c => new StarcUp.Business.Services.HybridStarcraftDetector(
                     c.Resolve<StarcUp.Infrastructure.Windows.IWindowManager>()));
 
-            container.RegisterSingleton<StarcUp.Business.Interfaces.IPointerMonitorService>(
-                c => new StarcUp.Business.Services.PointerMonitorService(
-                    c.Resolve<StarcUp.Business.Interfaces.IMemoryService>()));
-
-            container.RegisterSingleton<StarcUp.Business.Interfaces.IOverlayService>(
-                c => new StarcUp.Business.Services.OverlayService(
-                    c.Resolve<StarcUp.Business.Interfaces.IGameDetectionService>(),
-                    c.Resolve<StarcUp.Business.Interfaces.IPointerMonitorService>()));
+            Console.WriteLine("✅ 서비스 등록 완료:");
+            Console.WriteLine("   📖 MemoryReader - 메모리 읽기 서비스");
+            Console.WriteLine("   🪟 WindowManager - 윈도우 관리 서비스");
+            Console.WriteLine("   🧠 MemoryService - 메모리 비즈니스 로직");
+            Console.WriteLine("   🎮 HybridStarcraftDetector - 하이브리드 게임 감지");
+            Console.WriteLine();
+            Console.WriteLine("🎯 하이브리드 감지 시스템 특징:");
+            Console.WriteLine("   ⚡ 게임 시작: 2초 간격 폴링 (안정적)");
+            Console.WriteLine("   🎯 게임 종료: Process.Exited 이벤트 (즉시)");
+            Console.WriteLine("   🔄 자동 모드 전환: 폴링 ↔ 이벤트");
+            Console.WriteLine("   📊 성능 최적화: CPU 사용량 최소화");
+            Console.WriteLine("   🛡️ 관리자 권한: 완전히 불필요");
+            Console.WriteLine();
         }
     }
 }

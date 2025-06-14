@@ -3,55 +3,69 @@ using System.Drawing;
 using System.Windows.Forms;
 using StarcUp.Business.Interfaces;
 using StarcUp.Business.Models;
+using StarcUp.Business.Services;
 using StarcUp.Common.Events;
 
 namespace StarcUp.Presentation.Forms
 {
     /// <summary>
-    /// 메인 컨트롤 폼 - 사용자가 추적을 시작/정지할 수 있는 컨트롤 패널
+    /// 하이브리드 감지 시스템을 활용한 향상된 컨트롤 폼
     /// </summary>
     public partial class ControlForm : Form
     {
-        private readonly IOverlayService _overlayService;
         private readonly IGameDetectionService _gameDetectionService;
-        private readonly IPointerMonitorService _pointerMonitorService;
+        private readonly IMemoryService _memoryService;
+        private readonly HybridStarcraftDetector _hybridDetector; // 직접 참조로 상태 정보 접근
 
         // UI 컨트롤들
-        private Button _startTrackingButton;
-        private Button _stopTrackingButton;
-        private Label _statusLabel;
+        private GroupBox _detectionStatusGroup;
+        private Label _detectionModeLabel;
         private Label _gameStatusLabel;
-        private Label _pointerValueLabel;
-        private GroupBox _gameInfoGroup;
-        private GroupBox _trackingGroup;
-        private GroupBox _settingsGroup;
-        private CheckBox _autoStartCheckbox;
-        private CheckBox _showOnlyActiveCheckbox;
-        private NumericUpDown _offsetXNumeric;
-        private NumericUpDown _offsetYNumeric;
+        private Label _processInfoLabel;
+        private Label _performanceLabel;
+        private Button _showStatusButton;
+
+        private GroupBox _gameMonitorGroup;
+        private Label _connectionStatusLabel;
+        private Button _connectToProcessButton;
+
+        private GroupBox _overlayStatusGroup;
+        private Label _overlayActiveLabel;
+        private Button _showOverlayNotificationButton;
+
+        private GroupBox _memoryInfoGroup;
+        private ListBox _threadStackListBox;
+        private Button _refreshMemoryButton;
+
         private NotifyIcon _notifyIcon;
 
-        private bool _isTracking = false;
+        // 오버레이 관련
+        private OverlayNotificationForm _overlayNotificationForm;
+        private bool _isConnectedToProcess = false;
+        private bool _isOverlayActive = false;
         private bool _isDisposed = false;
 
-        public ControlForm(IOverlayService overlayService,
-                          IGameDetectionService gameDetectionService,
-                          IPointerMonitorService pointerMonitorService)
+        public ControlForm(IGameDetectionService gameDetectionService, IMemoryService memoryService)
         {
-            _overlayService = overlayService ?? throw new ArgumentNullException(nameof(overlayService));
             _gameDetectionService = gameDetectionService ?? throw new ArgumentNullException(nameof(gameDetectionService));
-            _pointerMonitorService = pointerMonitorService ?? throw new ArgumentNullException(nameof(pointerMonitorService));
+            _memoryService = memoryService ?? throw new ArgumentNullException(nameof(memoryService));
+            _hybridDetector = gameDetectionService as HybridStarcraftDetector; // 타입 캐스팅
 
             InitializeComponent();
             SetupEventHandlers();
             SetupNotifyIcon();
-            UpdateButtonStates();
+            UpdateUI();
+
+            // 주기적으로 상태 업데이트
+            var statusTimer = new Timer { Interval = 1000 };
+            statusTimer.Tick += (s, e) => UpdateDetectionStatus();
+            statusTimer.Start();
         }
 
         private void InitializeComponent()
         {
-            this.Text = "StarcUp - 스타크래프트 오버레이 컨트롤";
-            this.Size = new Size(400, 500);
+            this.Text = "StarcUp - 하이브리드 스타크래프트 감지";
+            this.Size = new Size(600, 750);
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -63,158 +77,168 @@ namespace StarcUp.Presentation.Forms
 
         private void CreateControls()
         {
-            // 게임 정보 그룹
-            _gameInfoGroup = new GroupBox
+            // 감지 상태 그룹 (새로 추가)
+            _detectionStatusGroup = new GroupBox
             {
-                Text = "게임 상태",
-                Size = new Size(360, 80),
+                Text = "🎯 하이브리드 감지 상태",
+                Size = new Size(560, 100),
                 Location = new Point(10, 10)
+            };
+
+            _detectionModeLabel = new Label
+            {
+                Text = "감지 모드: 폴링 모드 (2초 간격)",
+                Location = new Point(10, 25),
+                Size = new Size(300, 20),
+                Font = new Font("맑은 고딕", 9, FontStyle.Bold),
+                ForeColor = Color.Blue
+            };
+
+            _performanceLabel = new Label
+            {
+                Text = "성능 영향: 최소 (폴링 대기 중)",
+                Location = new Point(10, 50),
+                Size = new Size(300, 20),
+                ForeColor = Color.Green
+            };
+
+            _showStatusButton = new Button
+            {
+                Text = "상세 상태",
+                Size = new Size(80, 25),
+                Location = new Point(450, 25),
+                BackColor = Color.LightBlue
+            };
+
+            _detectionStatusGroup.Controls.AddRange(new Control[] {
+                _detectionModeLabel, _performanceLabel, _showStatusButton
+            });
+
+            // 게임 모니터링 그룹
+            _gameMonitorGroup = new GroupBox
+            {
+                Text = "게임 프로세스 모니터링",
+                Size = new Size(560, 120),
+                Location = new Point(10, 120)
             };
 
             _gameStatusLabel = new Label
             {
-                Text = "게임: 감지되지 않음",
+                Text = "게임 상태: 스타크래프트 프로세스 감지 중...",
                 Location = new Point(10, 25),
-                Size = new Size(340, 20),
+                Size = new Size(540, 20),
+                ForeColor = Color.Orange,
+                Font = new Font("맑은 고딕", 9, FontStyle.Bold)
+            };
+
+            _processInfoLabel = new Label
+            {
+                Text = "프로세스 정보: --",
+                Location = new Point(10, 50),
+                Size = new Size(540, 20),
+                Font = new Font("Consolas", 8, FontStyle.Regular)
+            };
+
+            _connectionStatusLabel = new Label
+            {
+                Text = "메모리 연결 상태: 연결되지 않음",
+                Location = new Point(10, 75),
+                Size = new Size(300, 20),
                 ForeColor = Color.Red
             };
 
-            _gameInfoGroup.Controls.Add(_gameStatusLabel);
-
-            // 추적 컨트롤 그룹
-            _trackingGroup = new GroupBox
+            _connectToProcessButton = new Button
             {
-                Text = "포인터 추적",
-                Size = new Size(360, 120),
-                Location = new Point(10, 100)
-            };
-
-            _startTrackingButton = new Button
-            {
-                Text = "포인터 추적 시작",
-                Size = new Size(120, 30),
-                Location = new Point(10, 25),
-                BackColor = Color.LightGreen
-            };
-
-            _stopTrackingButton = new Button
-            {
-                Text = "포인터 추적 중지",
-                Size = new Size(120, 30),
-                Location = new Point(140, 25),
-                BackColor = Color.LightCoral,
+                Text = "프로세스에 연결",
+                Size = new Size(120, 25),
+                Location = new Point(420, 73),
+                BackColor = Color.LightBlue,
                 Enabled = false
             };
 
-            _statusLabel = new Label
-            {
-                Text = "상태: 게임 감지 대기 중",
-                Location = new Point(10, 65),
-                Size = new Size(340, 20)
-            };
-
-            _pointerValueLabel = new Label
-            {
-                Text = "포인터 값: --",
-                Location = new Point(10, 85),
-                Size = new Size(340, 20),
-                Font = new Font("Consolas", 9, FontStyle.Regular)
-            };
-
-            _trackingGroup.Controls.AddRange(new Control[] {
-                _startTrackingButton, _stopTrackingButton, _statusLabel, _pointerValueLabel
+            _gameMonitorGroup.Controls.AddRange(new Control[] {
+                _gameStatusLabel, _processInfoLabel, _connectionStatusLabel, _connectToProcessButton
             });
 
-            // 설정 그룹
-            _settingsGroup = new GroupBox
+            // 오버레이 상태 그룹
+            _overlayStatusGroup = new GroupBox
             {
-                Text = "설정",
-                Size = new Size(360, 150),
-                Location = new Point(10, 230)
+                Text = "오버레이 상태",
+                Size = new Size(560, 80),
+                Location = new Point(10, 250)
             };
 
-            _autoStartCheckbox = new CheckBox
+            _overlayActiveLabel = new Label
             {
-                Text = "게임 감지 시 자동으로 포인터 추적 시작",
+                Text = "오버레이: 비활성화 (게임 감지 대기 중)",
                 Location = new Point(10, 25),
-                Size = new Size(280, 20),
-                Checked = false
+                Size = new Size(400, 20),
+                Font = new Font("맑은 고딕", 9, FontStyle.Bold),
+                ForeColor = Color.Gray
             };
 
-            _showOnlyActiveCheckbox = new CheckBox
+            _showOverlayNotificationButton = new Button
             {
-                Text = "게임이 활성화된 경우에만 오버레이 표시",
-                Location = new Point(10, 50),
-                Size = new Size(300, 20),
-                Checked = true
+                Text = "알림 다시 보기",
+                Size = new Size(120, 25),
+                Location = new Point(420, 23),
+                BackColor = Color.LightYellow,
+                Enabled = false
             };
 
-            // 오프셋 설정
-            var offsetXLabel = new Label
+            _overlayStatusGroup.Controls.AddRange(new Control[] {
+                _overlayActiveLabel, _showOverlayNotificationButton
+            });
+
+            // 메모리 정보 그룹
+            _memoryInfoGroup = new GroupBox
             {
-                Text = "X 오프셋:",
-                Location = new Point(10, 80),
-                Size = new Size(60, 20)
+                Text = "ThreadStack 메모리 정보",
+                Size = new Size(560, 320),
+                Location = new Point(10, 340)
             };
 
-            _offsetXNumeric = new NumericUpDown
+            _threadStackListBox = new ListBox
             {
-                Location = new Point(75, 78),
-                Size = new Size(60, 20),
-                Minimum = 0,
-                Maximum = 500,
-                Value = 15
+                Location = new Point(10, 25),
+                Size = new Size(540, 250),
+                Font = new Font("Consolas", 9, FontStyle.Regular),
+                ScrollAlwaysVisible = true,
+                SelectionMode = SelectionMode.One
             };
 
-            var offsetYLabel = new Label
+            _refreshMemoryButton = new Button
             {
-                Text = "Y 오프셋:",
-                Location = new Point(150, 80),
-                Size = new Size(60, 20)
+                Text = "메모리 정보 새로고침",
+                Size = new Size(150, 30),
+                Location = new Point(10, 285),
+                BackColor = Color.LightGreen,
+                Enabled = false
             };
 
-            _offsetYNumeric = new NumericUpDown
-            {
-                Location = new Point(215, 78),
-                Size = new Size(60, 20),
-                Minimum = 0,
-                Maximum = 500,
-                Value = 10
-            };
-
-            var resetButton = new Button
-            {
-                Text = "기본값 복원",
-                Location = new Point(10, 110),
-                Size = new Size(100, 25)
-            };
-            resetButton.Click += ResetButton_Click;
-
-            _settingsGroup.Controls.AddRange(new Control[] {
-                _autoStartCheckbox, _showOnlyActiveCheckbox,
-                offsetXLabel, _offsetXNumeric, offsetYLabel, _offsetYNumeric,
-                resetButton
+            _memoryInfoGroup.Controls.AddRange(new Control[] {
+                _threadStackListBox, _refreshMemoryButton
             });
         }
 
         private void LayoutControls()
         {
             this.Controls.AddRange(new Control[] {
-                _gameInfoGroup, _trackingGroup, _settingsGroup
+                _detectionStatusGroup, _gameMonitorGroup, _overlayStatusGroup, _memoryInfoGroup
             });
         }
 
         private void SetupEventHandlers()
         {
-            _startTrackingButton.Click += StartTrackingButton_Click;
-            _stopTrackingButton.Click += StopTrackingButton_Click;
+            _connectToProcessButton.Click += ConnectToProcessButton_Click;
+            _refreshMemoryButton.Click += RefreshMemoryButton_Click;
+            _showOverlayNotificationButton.Click += ShowOverlayNotificationButton_Click;
+            _showStatusButton.Click += ShowStatusButton_Click;
 
-            // 게임 감지 서비스 이벤트 (항상 감지)
-            _gameDetectionService.HandleFound += OnHandleFound;
-            _gameDetectionService.HandleLost += OnHandleLost;
-
-            // 포인터 모니터링 서비스 이벤트
-            _pointerMonitorService.ValueChanged += OnPointerValueChanged;
+            // 게임 감지 서비스 이벤트
+            _gameDetectionService.HandleFound += OnGameFound;
+            _gameDetectionService.HandleLost += OnGameLost;
+            _gameDetectionService.HandleChanged += OnGameChanged;
 
             // 폼 이벤트
             this.FormClosing += ControlForm_FormClosing;
@@ -226,14 +250,14 @@ namespace StarcUp.Presentation.Forms
             _notifyIcon = new NotifyIcon
             {
                 Icon = this.Icon,
-                Text = "StarcUp - 스타크래프트 오버레이",
+                Text = "StarcUp - 하이브리드 스타크래프트 감지",
                 Visible = true
             };
 
             var contextMenu = new ContextMenuStrip();
             contextMenu.Items.Add("열기", null, (s, e) => ShowForm());
-            contextMenu.Items.Add("포인터 추적 시작", null, (s, e) => StartTracking());
-            contextMenu.Items.Add("포인터 추적 중지", null, (s, e) => StopTracking());
+            contextMenu.Items.Add("-");
+            contextMenu.Items.Add("감지 상태", null, (s, e) => ShowDetectionStatus());
             contextMenu.Items.Add("-");
             contextMenu.Items.Add("종료", null, (s, e) => ExitApplication());
 
@@ -241,122 +265,333 @@ namespace StarcUp.Presentation.Forms
             _notifyIcon.DoubleClick += (s, e) => ShowForm();
         }
 
-        private void StartTrackingButton_Click(object sender, EventArgs e)
+        private void UpdateDetectionStatus()
         {
-            StartTracking();
-        }
-
-        private void StopTrackingButton_Click(object sender, EventArgs e)
-        {
-            StopTracking();
-        }
-
-        private void StartTracking()
-        {
-            if (_isTracking)
+            if (_hybridDetector == null || _isDisposed)
                 return;
 
             try
             {
-                Console.WriteLine("사용자가 포인터 추적 시작을 요청했습니다.");
+                // 현재 모드 확인
+                bool isPollingMode = _hybridDetector.IsPollingMode;
+                bool isGameRunning = _hybridDetector.IsGameRunning;
 
-                // 오버레이 서비스 시작 (게임 감지는 이미 실행 중)
-                _overlayService.Start();
-
-                _isTracking = true;
-                UpdateButtonStates();
-                UpdateStatus("포인터 추적 시작됨");
-
-                // 토스트 알림
-                _notifyIcon.ShowBalloonTip(2000, "StarcUp", "포인터 추적이 시작되었습니다.", ToolTipIcon.Info);
+                if (isPollingMode)
+                {
+                    _detectionModeLabel.Text = "감지 모드: 🔍 폴링 모드 (2초 간격)";
+                    _detectionModeLabel.ForeColor = Color.Blue;
+                    _performanceLabel.Text = "성능 영향: 최소 (2초마다 프로세스 확인)";
+                    _performanceLabel.ForeColor = Color.Green;
+                }
+                else if (isGameRunning)
+                {
+                    _detectionModeLabel.Text = "감지 모드: 🎯 이벤트 모드 (Process.Exited)";
+                    _detectionModeLabel.ForeColor = Color.Purple;
+                    _performanceLabel.Text = "성능 영향: 없음 (이벤트 대기 중)";
+                    _performanceLabel.ForeColor = Color.DarkGreen;
+                }
+                else
+                {
+                    _detectionModeLabel.Text = "감지 모드: ⏸️ 대기 중";
+                    _detectionModeLabel.ForeColor = Color.Gray;
+                    _performanceLabel.Text = "성능 영향: 없음";
+                    _performanceLabel.ForeColor = Color.Gray;
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"포인터 추적 시작 중 오류가 발생했습니다:\n{ex.Message}", "오류",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Console.WriteLine($"감지 상태 업데이트 실패: {ex.Message}");
             }
         }
 
-        private void StopTracking()
+        private void ShowStatusButton_Click(object sender, EventArgs e)
         {
-            if (!_isTracking)
+            ShowDetectionStatus();
+        }
+
+        private void ShowDetectionStatus()
+        {
+            if (_hybridDetector == null)
+            {
+                MessageBox.Show("감지 서비스 정보를 가져올 수 없습니다.", "상태 정보",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
+            }
 
             try
             {
-                Console.WriteLine("사용자가 포인터 추적 중지를 요청했습니다.");
-
-                // 오버레이 서비스만 중지 (게임 감지는 계속 실행)
-                _overlayService.Stop();
-
-                _isTracking = false;
-                UpdateButtonStates();
-                UpdateStatus("포인터 추적 중지됨 (게임 감지는 계속됨)");
-                UpdatePointerValue(null);
-
-                // 토스트 알림
-                _notifyIcon.ShowBalloonTip(2000, "StarcUp", "포인터 추적이 중지되었습니다.", ToolTipIcon.Info);
+                string statusInfo = _hybridDetector.GetStatusInfo();
+                MessageBox.Show(statusInfo, "하이브리드 감지 상태",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"포인터 추적 중지 중 오류가 발생했습니다:\n{ex.Message}", "오류",
+                MessageBox.Show($"상태 정보 조회 실패: {ex.Message}", "오류",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void OnHandleFound(object sender, GameEventArgs e)
+        private void ConnectToProcessButton_Click(object sender, EventArgs e)
         {
-            if (this.InvokeRequired)
+            ConnectToProcess();
+        }
+
+        private void RefreshMemoryButton_Click(object sender, EventArgs e)
+        {
+            RefreshMemoryInfo();
+        }
+
+        private void ShowOverlayNotificationButton_Click(object sender, EventArgs e)
+        {
+            ShowOverlayNotification();
+        }
+
+        private void ConnectToProcess()
+        {
+            if (!_gameDetectionService.IsGameRunning)
             {
-                this.BeginInvoke(new Action<object, GameEventArgs>(OnHandleFound), sender, e);
+                MessageBox.Show("스타크래프트 프로세스가 감지되지 않았습니다.", "연결 실패",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            UpdateGameStatus($"게임: {e.GameInfo.ProcessName} (PID: {e.GameInfo.ProcessId}) - 연결됨", Color.Green);
-
-            // 자동 시작 옵션이 켜져있고 아직 추적하지 않는 경우에만 자동 시작
-            if (_autoStartCheckbox.Checked && !_isTracking)
+            try
             {
-                StartTracking();
+                var gameInfo = _gameDetectionService.CurrentGame;
+                bool success = _memoryService.ConnectToProcess(gameInfo.ProcessId);
+
+                if (success)
+                {
+                    _isConnectedToProcess = true;
+                    UpdateConnectionStatus("메모리 연결 상태: 연결됨", Color.Green);
+                    _refreshMemoryButton.Enabled = true;
+
+                    // 자동으로 메모리 정보 새로고침
+                    RefreshMemoryInfo();
+
+                    _notifyIcon.ShowBalloonTip(2000, "StarcUp",
+                        $"프로세스 {gameInfo.ProcessId}에 성공적으로 연결되었습니다.", ToolTipIcon.Info);
+                }
+                else
+                {
+                    MessageBox.Show("프로세스에 연결할 수 없습니다.\n관리자 권한으로 실행해주세요.", "연결 실패",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"프로세스 연결 중 오류가 발생했습니다:\n{ex.Message}", "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            UpdateUI();
         }
 
-        private void OnHandleLost(object sender, GameEventArgs e)
+        private void RefreshMemoryInfo()
         {
-            if (this.InvokeRequired)
+            if (!_isConnectedToProcess || !_memoryService.IsConnected)
             {
-                this.BeginInvoke(new Action<object, GameEventArgs>(OnHandleLost), sender, e);
+                MessageBox.Show("프로세스에 연결되지 않았습니다.", "메모리 정보 오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            UpdateGameStatus("게임: 감지되지 않음", Color.Red);
-            // 게임이 종료되어도 포인터 값만 초기화 (추적 상태는 유지)
-            UpdatePointerValue(null);
+            try
+            {
+                _threadStackListBox.Items.Clear();
+                _threadStackListBox.Items.Add("=== ThreadStack 메모리 정보 조회 중... ===");
+                Application.DoEvents();
+
+                // TEB 주소들 가져오기
+                var tebInfos = _memoryService.GetTebAddresses();
+
+                _threadStackListBox.Items.Clear();
+                _threadStackListBox.Items.Add($"=== 총 {tebInfos.Count}개의 스레드 발견 ===");
+                _threadStackListBox.Items.Add("");
+
+                if (tebInfos.Count == 0)
+                {
+                    _threadStackListBox.Items.Add("❌ 스레드 정보를 찾을 수 없습니다.");
+                    return;
+                }
+
+                // 각 스레드의 StackStart 주소 조회
+                for (int i = 0; i < tebInfos.Count; i++)
+                {
+                    var tebInfo = tebInfos[i];
+
+                    _threadStackListBox.Items.Add($"🔸 스레드 #{i + 1}:");
+                    _threadStackListBox.Items.Add($"   Thread ID: {tebInfo.ThreadId}");
+                    _threadStackListBox.Items.Add($"   TEB Address: 0x{tebInfo.TebAddress.ToInt64():X16}");
+
+                    // StackStart 주소 가져오기
+                    IntPtr stackStart = _memoryService.GetStackStart(i);
+                    if (stackStart != IntPtr.Zero)
+                    {
+                        _threadStackListBox.Items.Add($"   ✅ StackStart: 0x{stackStart.ToInt64():X16}");
+                    }
+                    else
+                    {
+                        _threadStackListBox.Items.Add($"   ❌ StackStart: 가져올 수 없음");
+                    }
+
+                    _threadStackListBox.Items.Add("");
+                }
+
+                _threadStackListBox.Items.Add("=== 메모리 정보 조회 완료 ===");
+                Console.WriteLine($"메모리 정보 새로고침 완료 - {tebInfos.Count}개 스레드");
+            }
+            catch (Exception ex)
+            {
+                _threadStackListBox.Items.Clear();
+                _threadStackListBox.Items.Add("❌ 메모리 정보 조회 실패:");
+                _threadStackListBox.Items.Add($"   오류: {ex.Message}");
+
+                Console.WriteLine($"메모리 정보 새로고침 실패: {ex.Message}");
+            }
         }
 
-        private void OnPointerValueChanged(object sender, PointerEventArgs e)
+        private void ShowOverlayNotification()
         {
-            if (this.InvokeRequired)
+            if (!_gameDetectionService.IsGameRunning)
             {
-                this.BeginInvoke(new Action<object, PointerEventArgs>(OnPointerValueChanged), sender, e);
+                MessageBox.Show("스타크래프트 프로세스가 감지되지 않았습니다.", "알림 표시 실패",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            UpdatePointerValue(e.PointerValue);
-        }
-
-        private void UpdateButtonStates()
-        {
-            _startTrackingButton.Enabled = !_isTracking;
-            _stopTrackingButton.Enabled = _isTracking;
-        }
-
-        private void UpdateStatus(string status)
-        {
-            if (_statusLabel != null)
+            try
             {
-                _statusLabel.Text = $"상태: {status}";
+                // 기존 알림 폼이 있다면 닫기
+                _overlayNotificationForm?.CloseForm();
+
+                // 새 알림 폼 생성 및 표시
+                _overlayNotificationForm = new OverlayNotificationForm(_gameDetectionService.CurrentGame);
+                _overlayNotificationForm.OverlayActivationRequested += OnOverlayActivationRequested;
+                _overlayNotificationForm.FormClosed += OnOverlayNotificationClosed;
+                _overlayNotificationForm.Show();
+
+                Console.WriteLine("오버레이 알림 폼 표시됨");
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"오버레이 알림 표시 실패: {ex.Message}");
+                MessageBox.Show($"오버레이 알림 표시 중 오류가 발생했습니다:\n{ex.Message}", "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void OnGameFound(object sender, GameEventArgs e)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<object, GameEventArgs>(OnGameFound), sender, e);
+                return;
+            }
+
+            UpdateGameStatus($"게임 상태: 🎮 스타크래프트 발견! ({e.GameInfo.ProcessName})", Color.Green);
+            UpdateProcessInfo($"프로세스 정보: PID={e.GameInfo.ProcessId}, Handle=0x{e.GameInfo.WindowHandle.ToInt64():X}");
+            UpdateOverlayStatus("오버레이: 게임 감지됨 - 활성화 가능", Color.Blue);
+
+            _connectToProcessButton.Enabled = true;
+            _showOverlayNotificationButton.Enabled = true;
+
+            // 🎉 자동으로 오버레이 알림 폼 표시
+            ShowOverlayNotification();
+
+            _notifyIcon.ShowBalloonTip(3000, "StarcUp",
+                $"🎮 스타크래프트가 감지되었습니다!\nPID: {e.GameInfo.ProcessId}\n감지 모드가 이벤트 모드로 전환됩니다.", ToolTipIcon.Info);
+
+            Console.WriteLine($"게임 발견: {e.GameInfo}");
+        }
+
+        private void OnGameLost(object sender, GameEventArgs e)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<object, GameEventArgs>(OnGameLost), sender, e);
+                return;
+            }
+
+            UpdateGameStatus("게임 상태: 스타크래프트 프로세스 감지 중...", Color.Orange);
+            UpdateProcessInfo("프로세스 정보: --");
+            UpdateOverlayStatus("오버레이: 비활성화 (게임 감지 대기 중)", Color.Gray);
+
+            // 오버레이 알림 폼 닫기
+            _overlayNotificationForm?.CloseForm();
+            _isOverlayActive = false;
+
+            // 메모리 연결 해제
+            if (_isConnectedToProcess)
+            {
+                _memoryService.Disconnect();
+                _isConnectedToProcess = false;
+                UpdateConnectionStatus("메모리 연결 상태: 연결되지 않음 (게임 종료)", Color.Red);
+                _threadStackListBox.Items.Clear();
+                _refreshMemoryButton.Enabled = false;
+            }
+
+            _connectToProcessButton.Enabled = false;
+            _showOverlayNotificationButton.Enabled = false;
+
+            _notifyIcon.ShowBalloonTip(2000, "StarcUp",
+                "🛑 스타크래프트가 종료되었습니다.\n감지 모드가 폴링 모드로 전환됩니다.", ToolTipIcon.Warning);
+
+            Console.WriteLine($"게임 종료: {e.GameInfo}");
+        }
+
+        private void OnGameChanged(object sender, GameEventArgs e)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<object, GameEventArgs>(OnGameChanged), sender, e);
+                return;
+            }
+
+            UpdateProcessInfo($"프로세스 정보: PID={e.GameInfo.ProcessId}, Handle=0x{e.GameInfo.WindowHandle.ToInt64():X} (변경됨)");
+
+            // 기존 연결이 있다면 재연결 필요
+            if (_isConnectedToProcess)
+            {
+                _memoryService.Disconnect();
+                _isConnectedToProcess = false;
+                UpdateConnectionStatus("메모리 연결 상태: 재연결 필요 (프로세스 변경)", Color.Orange);
+                _threadStackListBox.Items.Clear();
+                _refreshMemoryButton.Enabled = false;
+            }
+
+            // 새로운 게임에 대한 알림 표시
+            ShowOverlayNotification();
+
+            Console.WriteLine($"게임 변경: {e.GameInfo}");
+        }
+
+        private void OnOverlayActivationRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                Console.WriteLine("사용자가 오버레이 활성화를 요청했습니다.");
+
+                _isOverlayActive = true;
+                UpdateOverlayStatus("오버레이: 활성화됨 ✓", Color.Green);
+
+                _notifyIcon.ShowBalloonTip(2000, "StarcUp",
+                    "오버레이가 활성화되었습니다!", ToolTipIcon.Info);
+
+                // 여기서 실제 오버레이 로직을 구현할 수 있습니다
+                // 예: 실제 게임 오버레이 폼 생성 및 표시
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"오버레이 활성화 처리 실패: {ex.Message}");
+            }
+        }
+
+        private void OnOverlayNotificationClosed(object sender, EventArgs e)
+        {
+            Console.WriteLine("오버레이 알림 폼이 닫혔습니다.");
+            _overlayNotificationForm = null;
         }
 
         private void UpdateGameStatus(string status, Color color)
@@ -368,34 +603,46 @@ namespace StarcUp.Presentation.Forms
             }
         }
 
-        private void UpdatePointerValue(PointerValue pointerValue)
+        private void UpdateProcessInfo(string info)
         {
-            if (_pointerValueLabel != null)
+            if (_processInfoLabel != null)
             {
-                if (pointerValue != null)
-                {
-                    string text = $"포인터 값: {pointerValue.NewValue}";
-                    if (pointerValue.HasChanged)
-                    {
-                        text += $" (변화: {pointerValue.Difference:+#;-#;0})";
-                    }
-                    _pointerValueLabel.Text = text;
-                    _pointerValueLabel.ForeColor = pointerValue.HasChanged ? Color.Blue : Color.Black;
-                }
-                else
-                {
-                    _pointerValueLabel.Text = "포인터 값: --";
-                    _pointerValueLabel.ForeColor = Color.Gray;
-                }
+                _processInfoLabel.Text = info;
             }
         }
 
-        private void ResetButton_Click(object sender, EventArgs e)
+        private void UpdateConnectionStatus(string status, Color color)
         {
-            _offsetXNumeric.Value = 15;
-            _offsetYNumeric.Value = 10;
-            _autoStartCheckbox.Checked = false;
-            _showOnlyActiveCheckbox.Checked = true;
+            if (_connectionStatusLabel != null)
+            {
+                _connectionStatusLabel.Text = status;
+                _connectionStatusLabel.ForeColor = color;
+            }
+        }
+
+        private void UpdateOverlayStatus(string status, Color color)
+        {
+            if (_overlayActiveLabel != null)
+            {
+                _overlayActiveLabel.Text = status;
+                _overlayActiveLabel.ForeColor = color;
+            }
+        }
+
+        private void UpdateUI()
+        {
+            if (_gameDetectionService.IsGameRunning)
+            {
+                _connectToProcessButton.Enabled = !_isConnectedToProcess;
+                _showOverlayNotificationButton.Enabled = true;
+            }
+            else
+            {
+                _connectToProcessButton.Enabled = false;
+                _showOverlayNotificationButton.Enabled = false;
+            }
+
+            _refreshMemoryButton.Enabled = _isConnectedToProcess && _memoryService.IsConnected;
         }
 
         private void ControlForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -427,12 +674,15 @@ namespace StarcUp.Presentation.Forms
 
         private void ExitApplication()
         {
-            if (_isTracking)
+            if (_isConnectedToProcess)
             {
-                StopTracking();
+                _memoryService.Disconnect();
             }
 
-            // 게임 감지 서비스도 완전히 중지
+            // 오버레이 알림 폼 정리
+            _overlayNotificationForm?.CloseForm();
+
+            // 게임 감지 서비스 중지
             _gameDetectionService.StopDetection();
 
             _notifyIcon.Visible = false;
@@ -465,15 +715,17 @@ namespace StarcUp.Presentation.Forms
         {
             if (!_isDisposed && disposing)
             {
-                if (_isTracking)
+                if (_isConnectedToProcess)
                 {
-                    StopTracking();
+                    _memoryService.Disconnect();
                 }
 
+                _overlayNotificationForm?.CloseForm();
                 _notifyIcon?.Dispose();
                 _isDisposed = true;
             }
             base.Dispose(disposing);
         }
     }
+
 }

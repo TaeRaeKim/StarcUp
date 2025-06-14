@@ -2,9 +2,7 @@
 using StarcUp.DependencyInjection;
 using StarcUp.Presentation.Forms;
 using System;
-using System.ComponentModel.Design;
 using System.Windows.Forms;
-using ServiceContainer = StarcUp.DependencyInjection.ServiceContainer;
 
 namespace StarcUp
 {
@@ -19,8 +17,8 @@ namespace StarcUp
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            Console.WriteLine("StarcUp - 스타크래프트 오버레이 컨트롤 프로그램");
-            Console.WriteLine("================================================");
+            Console.WriteLine("StarcUp - 스타크래프트 메모리 모니터");
+            Console.WriteLine("=====================================");
 
             try
             {
@@ -31,8 +29,8 @@ namespace StarcUp
                 // 메인 컨트롤 폼 생성 및 표시
                 CreateControlForm();
 
-                Console.WriteLine("컨트롤 폼이 준비되었습니다.");
-                Console.WriteLine("'추적 시작' 버튼을 클릭하여 오버레이를 활성화하세요.");
+                Console.WriteLine("프로그램이 시작되었습니다.");
+                Console.WriteLine("스타크래프트 프로세스를 자동으로 감지합니다.");
 
                 // 메시지 루프 실행
                 Application.Run(_controlForm);
@@ -59,17 +57,16 @@ namespace StarcUp
         {
             try
             {
-                // 필요한 서비스들 가져오기
-                var overlayService = _container.Resolve<IOverlayService>();
+                // 필요한 서비스들 가져오기 (오버레이 관련 제거)
                 var gameDetectionService = _container.Resolve<IGameDetectionService>();
-                var pointerMonitorService = _container.Resolve<IPointerMonitorService>();
+                var memoryService = _container.Resolve<IMemoryService>();
 
-                // 컨트롤 폼 생성
-                _controlForm = new ControlForm(overlayService, gameDetectionService, pointerMonitorService);
+                // 컨트롤 폼 생성 (단순한 모니터링 전용)
+                _controlForm = new ControlForm(gameDetectionService, memoryService);
 
-                // 게임 감지 서비스는 즉시 시작 (게임 상태 모니터링)
+                // 게임 감지 서비스 즉시 시작 (자동 모니터링)
                 gameDetectionService.StartDetection();
-                Console.WriteLine("게임 감지 서비스 시작됨 - 게임 상태를 실시간으로 모니터링합니다.");
+                Console.WriteLine("게임 감지 서비스 시작됨 - 스타크래프트 프로세스를 모니터링합니다.");
 
                 Console.WriteLine("컨트롤 폼 생성 완료");
             }
