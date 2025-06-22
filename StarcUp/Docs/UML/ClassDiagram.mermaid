@@ -1,0 +1,472 @@
+classDiagram
+    %% Entry Point
+    class Program {
+        -ServiceContainer _container
+        -ControlForm _controlForm
+        +Main() void
+        -RegisterServices() void
+        -CreateControlForm() void
+        -Cleanup() void
+    }
+
+    %% Service Container (DI)
+    class ServiceContainer {
+        -Dictionary~Type, object~ _singletonServices
+        -Dictionary~Type, Func~ _transientFactories
+        +RegisterSingleton~T~(T instance) void
+        +RegisterSingleton~T~(Func factory) void
+        +RegisterTransient~T~() void
+        +Resolve~T~() T
+        +IsRegistered~T~() bool
+        +Dispose() void
+    }
+
+    class ServiceRegistration {
+        <<static>>
+        +RegisterServices(ServiceContainer container) void
+    }
+
+    %% Business Layer - Interfaces
+    class IGameDetectionService {
+        <<interface>>
+        +event EventHandler~GameEventArgs~ HandleFound
+        +event EventHandler~GameEventArgs~ HandleLost
+        +event EventHandler~GameEventArgs~ HandleChanged
+        +event EventHandler~GameEventArgs~ WindowMove
+        +event EventHandler~GameEventArgs~ WindowFocusIn
+        +event EventHandler~GameEventArgs~ WindowFocusOut
+        +bool IsGameRunning
+        +GameInfo CurrentGame
+        +StartDetection() void
+        +StopDetection() void
+    }
+
+    class IMemoryService {
+        <<interface>>
+        +bool IsConnected
+        +int ConnectedProcessId
+        +ConnectToProcess(int processId) bool
+        +Disconnect() void
+        +GetStackStart(int threadIndex) IntPtr
+        +GetTebAddresses() List~TebInfo~
+    }
+
+    class IOverlayService {
+        <<interface>>
+        +event EventHandler~PointerEventArgs~ PointerValueChanged
+        +bool IsRunning
+        +Start() void
+        +Stop() void
+    }
+
+    class IPointerMonitorService {
+        <<interface>>
+        +event EventHandler~PointerEventArgs~ ValueChanged
+        +bool IsMonitoring
+        +PointerValue CurrentValue
+        +StartMonitoring(int processId) void
+        +StopMonitoring() void
+    }
+
+    %% Business Layer - Services
+    class HybridStarcraftDetector {
+        -IWindowManager _windowManager
+        -Timer _pollingTimer
+        -Process _currentGameProcess
+        -GameInfo _currentGame
+        -bool _isPollingMode
+        -bool _isDetecting
+        +bool IsPollingMode
+        +StartDetection() void
+        +StopDetection() void
+        +GetStatusInfo() string
+        -StartPollingMode() void
+        -StopPollingMode() void
+        -PollingCallback(object state) void
+        -CheckForStarcraftProcess() void
+        -OnGameProcessFound(Process process, string processName) void
+        -WaitForMainWindow(Process process, string processName) void
+        -StartEventMode(Process process) void
+        -StopEventMode() void
+        -OnGameProcessExited(object sender, EventArgs e) void
+    }
+
+    class MemoryService {
+        -IMemoryReader _memoryReader
+        +bool IsConnected
+        +int ConnectedProcessId
+        +ConnectToProcess(int processId) bool
+        +Disconnect() void
+        +GetStackStart(int threadIndex) IntPtr
+        +GetTebAddresses() List~TebInfo~
+    }
+
+    class OverlayService {
+        -IGameDetectionService _gameDetection
+        -IPointerMonitorService _pointerMonitor
+        -OverlayForm _overlayForm
+        -bool _isRunning
+        +bool IsRunning
+        +Start() void
+        +Stop() void
+        -SubscribeToEvents() void
+        -OnHandleFound(object sender, GameEventArgs e) void
+        -OnHandleLost(object sender, GameEventArgs e) void
+        -ShowOverlay(GameInfo gameInfo) void
+        -HideOverlay() void
+        -UpdateOverlayPosition(GameInfo gameInfo) void
+    }
+
+    class PointerMonitorService {
+        -IMemoryService _memoryService
+        -Timer _monitorTimer
+        -PointerValue _currentValue
+        -bool _isMonitoring
+        -IntPtr _stackStartAddress
+        +bool IsMonitoring
+        +PointerValue CurrentValue
+        +StartMonitoring(int processId) void
+        +StopMonitoring() void
+        -MonitorPointerValue(object sender, ElapsedEventArgs e) void
+        -GenerateDummyPointerValue() PointerValue
+    }
+
+    %% Business Layer - Models
+    class GameInfo {
+        +int ProcessId
+        +IntPtr WindowHandle
+        +string ProcessName
+        +Rectangle WindowBounds
+        +bool IsFullscreen
+        +bool IsMinimized
+        +bool IsActive
+        +DateTime DetectedAt
+        +GameInfo()
+        +GameInfo(int processId, IntPtr windowHandle, string processName)
+        +ToString() string
+    }
+
+    class TebInfo {
+        +uint ThreadId
+        +IntPtr TebAddress
+        +int Index
+        +DateTime DiscoveredAt
+        +TebInfo()
+        +TebInfo(uint threadId, IntPtr tebAddress, int index)
+        +ToString() string
+    }
+
+    class PointerValue {
+        +int OldValue
+        +int NewValue
+        +int Difference
+        +DateTime Timestamp
+        +IntPtr Address
+        +bool HasChanged
+        +PointerValue()
+        +PointerValue(int oldValue, int newValue, IntPtr address)
+        +ToString() string
+    }
+
+    class OverlaySettings {
+        +bool ShowOverlay
+        +int OffsetX
+        +int OffsetY
+        +int WindowModeOffsetX
+        +int WindowModeOffsetY
+        +string FontFamily
+        +float FontSize
+        +Color TextColor
+        +bool ShowOnlyWhenActive
+        +int RefreshIntervalMs
+        +GetOffset(bool isFullscreen) Point
+    }
+
+    %% Infrastructure Layer - Memory
+    class IMemoryReader {
+        <<interface>>
+        +bool IsConnected
+        +int ConnectedProcessId
+        +ConnectToProcess(int processId) bool
+        +Disconnect() void
+        +GetTebAddresses() List~TebInfo~
+        +GetStackStart(int threadIndex) IntPtr
+        +GetStackTop(int threadIndex) IntPtr
+        +ReadPointer(IntPtr address) IntPtr
+        +ReadProcessMemory(IntPtr address, byte[] buffer, int size) bool
+    }
+
+    class MemoryReader {
+        -Process _process
+        -IntPtr _processHandle
+        +bool IsConnected
+        +int ConnectedProcessId
+        +ConnectToProcess(int processId) bool
+        +Disconnect() void
+        +GetTebAddresses() List~TebInfo~
+        +GetStackStart(int threadIndex) IntPtr
+        +GetStackTop(int threadIndex) IntPtr
+        +ReadPointer(IntPtr address) IntPtr
+        +ReadProcessMemory(IntPtr address, byte[] buffer, int size) bool
+        -GetTebAddress(uint threadId) IntPtr
+        -GetKernel32ModuleInfo(out MODULEINFO moduleInfo) bool
+        -IsInRange(IntPtr address, IntPtr baseAddress, uint size) bool
+    }
+
+    class MemoryAPI {
+        <<static>>
+        +OpenProcess(uint processAccess, bool inheritHandle, int processId) IntPtr
+        +CloseHandle(IntPtr handle) bool
+        +ReadProcessMemory(IntPtr processHandle, IntPtr baseAddress, byte[] buffer, int bufferSize, out IntPtr bytesRead) bool
+        +CreateToolhelp32Snapshot(uint flags, uint processId) IntPtr
+        +Thread32First(IntPtr snapshot, ref THREADENTRY32 threadEntry) bool
+        +Thread32Next(IntPtr snapshot, ref THREADENTRY32 threadEntry) bool
+        +OpenThread(uint desiredAccess, bool inheritHandle, uint threadId) IntPtr
+        +NtQueryInformationThread(IntPtr threadHandle, int threadInformationClass, out THREAD_BASIC_INFORMATION threadInformation, int threadInformationLength, IntPtr returnLength) int
+    }
+
+    %% Infrastructure Layer - Windows
+    class IWindowManager {
+        <<interface>>
+        +event Action~IntPtr~ WindowPositionChanged
+        +event Action~IntPtr~ WindowActivated
+        +event Action~IntPtr~ WindowDeactivated
+        +SetupWindowEventHook(IntPtr windowHandle, uint processId) bool
+        +SetupForegroundEventHook() bool
+        +RemoveAllHooks() void
+        +GetWindowInfo(IntPtr windowHandle) WindowInfo
+        +IsWindowMinimized(IntPtr windowHandle) bool
+        +IsWindowMaximized(IntPtr windowHandle) bool
+        +GetForegroundWindow() IntPtr
+    }
+
+    class WindowManager {
+        -List~IntPtr~ _eventHooks
+        -WindowsAPI.WinEventDelegate _winEventDelegate
+        +SetupWindowEventHook(IntPtr windowHandle, uint processId) bool
+        +SetupForegroundEventHook() bool
+        +RemoveAllHooks() void
+        +GetWindowInfo(IntPtr windowHandle) WindowInfo
+        +IsWindowMinimized(IntPtr windowHandle) bool
+        +IsWindowMaximized(IntPtr windowHandle) bool
+        +GetForegroundWindow() IntPtr
+        -WinEventCallback(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime) void
+    }
+
+    class WindowInfo {
+        +IntPtr Handle
+        +WindowsAPI.RECT WindowRect
+        +WindowsAPI.RECT ClientRect
+        +bool IsVisible
+        +bool IsMinimized
+        +bool IsMaximized
+        +bool IsFullscreen
+        +string Title
+        +uint ProcessId
+        +WindowInfo(IntPtr handle)
+        +RefreshInfo() void
+        +ToString() string
+    }
+
+    class WindowsAPI {
+        <<static>>
+        +FindWindow(string lpClassName, string lpWindowName) IntPtr
+        +GetWindowRect(IntPtr hWnd, out RECT lpRect) bool
+        +GetClientRect(IntPtr hWnd, out RECT lpRect) bool
+        +IsWindow(IntPtr hWnd) bool
+        +IsWindowVisible(IntPtr hWnd) bool
+        +IsZoomed(IntPtr hWnd) bool
+        +IsIconic(IntPtr hWnd) bool
+        +GetForegroundWindow() IntPtr
+        +SetWinEventHook(uint eventMin, uint eventMax, IntPtr hmodWinEventProc, WinEventDelegate lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags) IntPtr
+        +UnhookWinEvent(IntPtr hWinEventHook) bool
+        +IsValidWindow(IntPtr hWnd) bool
+        +GetWindowTitle(IntPtr hWnd) string
+        +IsFullscreen(IntPtr hWnd) bool
+    }
+
+    class ProcessEventMonitor {
+        -ManagementEventWatcher _processStartWatcher
+        -ManagementEventWatcher _processStopWatcher
+        -HashSet~string~ _targetProcessNames
+        -bool _isMonitoring
+        +event EventHandler~ProcessEventArgs~ ProcessStarted
+        +event EventHandler~ProcessEventArgs~ ProcessStopped
+        +AddTargetProcess(string processName) void
+        +StartMonitoringAsync() Task~bool~
+        +StopMonitoring() void
+        +GetRunningTargetProcesses() Process[]
+        -SetupProcessStartWatcher() Task
+        -SetupProcessStopWatcher() Task
+        -CheckExistingProcesses() Task
+        -OnProcessStarted(object sender, EventArrivedEventArgs e) void
+        -OnProcessStopped(object sender, EventArrivedEventArgs e) void
+    }
+
+    %% Presentation Layer - Forms
+    class ControlForm {
+        -IGameDetectionService _gameDetectionService
+        -IMemoryService _memoryService
+        -HybridStarcraftDetector _hybridDetector
+        -GroupBox _detectionStatusGroup
+        -Label _detectionModeLabel
+        -Label _gameStatusLabel
+        -Label _processInfoLabel
+        -Button _connectToProcessButton
+        -ListBox _threadStackListBox
+        -NotifyIcon _notifyIcon
+        -OverlayNotificationForm _overlayNotificationForm
+        +ControlForm(IGameDetectionService gameDetectionService, IMemoryService memoryService)
+        -InitializeComponent() void
+        -CreateControls() void
+        -SetupEventHandlers() void
+        -UpdateDetectionStatus() void
+        -ConnectToProcess() void
+        -RefreshMemoryInfo() void
+        -ShowOverlayNotification() void
+        -OnGameFound(object sender, GameEventArgs e) void
+        -OnGameLost(object sender, GameEventArgs e) void
+    }
+
+    class OverlayForm {
+        -OverlayControl _overlayControl
+        -bool _isInitialized
+        -Timer _refreshTimer
+        +UpdatePointerValue(PointerValue pointerValue) void
+        +UpdateStatus(string status) void
+        +Show() void
+        +Hide() void
+        -InitializeComponent() void
+        -SetupOverlay() void
+        -CreateOverlayControl() void
+        -EnsureOverlayProperties() void
+    }
+
+    class OverlayNotificationForm {
+        -GameInfo _gameInfo
+        -Timer _animationTimer
+        -Timer _autoHideTimer
+        -Panel _mainPanel
+        -Label _titleLabel
+        -Button _activateButton
+        -Button _closeButton
+        +event EventHandler OverlayActivationRequested
+        +OverlayNotificationForm(GameInfo gameInfo)
+        +CloseForm() void
+        -CreateSampleImage() void
+        -SetupTimers() void
+        -PositionForm() void
+        -ActivateButton_Click(object sender, EventArgs e) void
+    }
+
+    %% Presentation Layer - Controls
+    class OverlayControl {
+        -string _statusText
+        -string _pointerText
+        -Color _statusColor
+        -Color _pointerColor
+        -Font _statusFont
+        -Font _pointerFont
+        -SolidBrush _backgroundBrush
+        -SolidBrush _statusBrush
+        -SolidBrush _pointerBrush
+        +UpdateStatus(string status) void
+        +UpdatePointerValue(PointerValue pointerValue) void
+        +SetTheme(Color statusColor, Color pointerColor, Color backgroundColor) void
+        -InitializeFonts() void
+        -DrawBackground(Graphics g) void
+        -DrawTexts(Graphics g) void
+        -CreateRoundedRectangle(Rectangle rect, int radius) GraphicsPath
+    }
+
+    %% Common Layer - Events
+    class GameEventArgs {
+        +GameInfo GameInfo
+        +string EventType
+        +GameEventArgs(GameInfo gameInfo, string eventType)
+        +ToString() string
+    }
+
+    class PointerEventArgs {
+        +PointerValue PointerValue
+        +string EventType
+        +PointerEventArgs(PointerValue pointerValue, string eventType)
+        +ToString() string
+    }
+
+    class ProcessEventArgs {
+        +ProcessInfo ProcessInfo
+        +ProcessEventType EventType
+        +ProcessEventArgs(ProcessInfo processInfo, ProcessEventType eventType)
+        +ToString() string
+    }
+
+    %% Common Layer - Constants
+    class GameConstants {
+        <<static>>
+        +string[] STARCRAFT_PROCESS_NAMES
+        +int GAME_CHECK_INTERVAL_MS
+        +int POINTER_MONITOR_INTERVAL_MS
+        +EventTypes
+    }
+
+    %% Relationships
+    Program --> ServiceContainer
+    Program --> ControlForm
+    ServiceContainer --> ServiceRegistration
+
+    %% Business Layer Relationships
+    HybridStarcraftDetector --|> IGameDetectionService
+    MemoryService --|> IMemoryService
+    OverlayService --|> IOverlayService
+    PointerMonitorService --|> IPointerMonitorService
+
+    HybridStarcraftDetector --> IWindowManager
+    HybridStarcraftDetector --> GameInfo
+    HybridStarcraftDetector --> ProcessEventMonitor
+
+    MemoryService --> IMemoryReader
+    MemoryService --> TebInfo
+
+    OverlayService --> IGameDetectionService
+    OverlayService --> IPointerMonitorService
+    OverlayService --> OverlayForm
+    OverlayService --> OverlaySettings
+
+    PointerMonitorService --> IMemoryService
+    PointerMonitorService --> PointerValue
+
+    %% Infrastructure Layer Relationships
+    MemoryReader --|> IMemoryReader
+    MemoryReader --> MemoryAPI
+    MemoryReader --> TebInfo
+
+    WindowManager --|> IWindowManager
+    WindowManager --> WindowsAPI
+    WindowManager --> WindowInfo
+
+    ProcessEventMonitor --> ProcessEventArgs
+
+    %% Presentation Layer Relationships
+    ControlForm --> IGameDetectionService
+    ControlForm --> IMemoryService
+    ControlForm --> HybridStarcraftDetector
+    ControlForm --> OverlayNotificationForm
+
+    OverlayForm --> OverlayControl
+    OverlayForm --> PointerValue
+
+    OverlayNotificationForm --> GameInfo
+
+    OverlayControl --> PointerValue
+
+    %% Event Relationships
+    GameEventArgs --> GameInfo
+    PointerEventArgs --> PointerValue
+    ProcessEventArgs --> ProcessEventArgs
+
+    %% Service Container manages all services
+    ServiceContainer ..> IGameDetectionService
+    ServiceContainer ..> IMemoryService
+    ServiceContainer ..> IMemoryReader
+    ServiceContainer ..> IWindowManager

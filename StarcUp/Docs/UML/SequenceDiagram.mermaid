@@ -1,0 +1,200 @@
+sequenceDiagram
+    participant User
+    participant Program
+    participant ServiceContainer
+    participant ControlForm
+    participant HybridDetector as HybridStarcraftDetector
+    participant WindowManager
+    participant MemoryService
+    participant MemoryReader
+    participant OverlayNotification as OverlayNotificationForm
+    participant OverlayService
+    participant OverlayForm
+    participant PointerMonitor as PointerMonitorService
+
+    %% 1. 애플리케이션 시작 플로우
+    Note over User, PointerMonitor: 애플리케이션 시작 및 초기화
+    User->>Program: 애플리케이션 실행
+    Program->>ServiceContainer: new ServiceContainer()
+    Program->>ServiceContainer: RegisterServices()
+    
+    ServiceContainer->>MemoryReader: new MemoryReader() (싱글톤)
+    ServiceContainer->>WindowManager: new WindowManager() (싱글톤)
+    ServiceContainer->>MemoryService: new MemoryService(memoryReader)
+    ServiceContainer->>HybridDetector: new HybridStarcraftDetector(windowManager)
+    
+    Program->>ControlForm: new ControlForm(gameDetection, memoryService)
+    ControlForm->>HybridDetector: 이벤트 구독 (HandleFound, HandleLost, etc.)
+    
+    Program->>HybridDetector: StartDetection()
+    HybridDetector->>WindowManager: SetupForegroundEventHook()
+    
+    Note over HybridDetector: 폴링 모드 시작 (2초 간격)
+    HybridDetector->>HybridDetector: StartPollingMode()
+    
+    Program->>ControlForm: Show()
+    ControlForm-->>User: 컨트롤 폼 표시
+
+    %% 2. 게임 감지 플로우 (폴링 모드)
+    Note over User, PointerMonitor: 게임 프로세스 감지 (폴링 모드)
+    
+    loop 2초마다 폴링
+        HybridDetector->>HybridDetector: CheckForStarcraftProcess()
+        Note over HybridDetector: Process.GetProcessesByName("StarCraft")
+        
+        opt 스타크래프트 프로세스 발견
+            HybridDetector->>HybridDetector: OnGameProcessFound()
+            HybridDetector->>HybridDetector: WaitForMainWindow()
+            HybridDetector->>HybridDetector: CreateGameInfo()
+            HybridDetector->>WindowManager: SetupWindowEventHook()
+            
+            Note over HybridDetector: 폴링 모드 → 이벤트 모드 전환
+            HybridDetector->>HybridDetector: StopPollingMode()
+            HybridDetector->>HybridDetector: StartEventMode()
+            
+            HybridDetector->>ControlForm: HandleFound 이벤트 발생
+            ControlForm->>ControlForm: OnGameFound()
+            ControlForm->>ControlForm: UpdateGameStatus()
+            ControlForm->>OverlayNotification: new OverlayNotificationForm(gameInfo)
+            OverlayNotification->>OverlayNotification: SetupOverlayProperties()
+            OverlayNotification->>OverlayNotification: CreateSampleImage()
+            OverlayNotification-->>User: 오버레이 알림 표시
+        end
+    end
+
+    %% 3. 사용자 오버레이 활성화
+    Note over User, PointerMonitor: 사용자가 오버레이 활성화 선택
+    User->>OverlayNotification: "오버레이 활성화" 버튼 클릭
+    OverlayNotification->>ControlForm: OverlayActivationRequested 이벤트
+    ControlForm->>ControlForm: OnOverlayActivationRequested()
+    ControlForm->>ControlForm: UpdateOverlayStatus()
+    OverlayNotification->>OverlayNotification: CloseForm()
+
+    %% 4. 메모리 연결 플로우
+    Note over User, PointerMonitor: 프로세스 메모리 연결
+    User->>ControlForm: "프로세스에 연결" 버튼 클릭
+    ControlForm->>MemoryService: ConnectToProcess(processId)
+    MemoryService->>MemoryReader: ConnectToProcess(processId)
+    MemoryReader->>MemoryReader: OpenProcess() (Windows API)
+    MemoryReader-->>MemoryService: 연결 성공/실패
+    MemoryService-->>ControlForm: 연결 결과
+    
+    opt 연결 성공
+        ControlForm->>ControlForm: UpdateConnectionStatus()
+        ControlForm->>MemoryService: GetTebAddresses()
+        MemoryService->>MemoryReader: GetTebAddresses()
+        MemoryReader->>MemoryReader: CreateToolhelp32Snapshot() (Windows API)
+        MemoryReader->>MemoryReader: Thread32First/Next() (Windows API)
+        MemoryReader-->>MemoryService: List<TebInfo>
+        MemoryService-->>ControlForm: TEB 정보 리스트
+        ControlForm->>ControlForm: RefreshMemoryInfo()
+        ControlForm-->>User: 메모리 정보 표시
+    end
+
+    %% 5. 오버레이 서비스 시작 (선택적)
+    Note over User, PointerMonitor: 오버레이 서비스 시작 (사용자 요청 시)
+    opt 오버레이 서비스 시작
+        ControlForm->>OverlayService: new OverlayService(gameDetection, pointerMonitor)
+        OverlayService->>HybridDetector: 이벤트 구독
+        OverlayService->>PointerMonitor: 이벤트 구독
+        
+        OverlayService->>OverlayService: Start()
+        OverlayService->>OverlayForm: new OverlayForm()
+        OverlayForm->>OverlayForm: SetupOverlay()
+        OverlayForm->>OverlayForm: CreateOverlayControl()
+        
+        OverlayService->>PointerMonitor: StartMonitoring(processId)
+        PointerMonitor->>MemoryService: ConnectToProcess(processId)
+        PointerMonitor->>MemoryService: GetStackStart()
+        PointerMonitor->>PointerMonitor: Timer 시작 (100ms 간격)
+        
+        loop 100ms마다 포인터 모니터링
+            PointerMonitor->>PointerMonitor: MonitorPointerValue()
+            PointerMonitor->>PointerMonitor: GenerateDummyPointerValue()
+            
+            opt 포인터 값 변화 감지
+                PointerMonitor->>OverlayService: ValueChanged 이벤트
+                OverlayService->>OverlayForm: UpdatePointerValue()
+                OverlayForm->>OverlayForm: 오버레이 UI 업데이트
+                OverlayForm-->>User: 포인터 값 표시
+            end
+        end
+    end
+
+    %% 6. 윈도우 이벤트 처리
+    Note over User, PointerMonitor: 게임 윈도우 이벤트 처리
+    opt 게임 윈도우 이벤트 발생
+        WindowManager->>WindowManager: WinEventCallback() (Windows API)
+        
+        alt 윈도우 위치 변경
+            WindowManager->>HybridDetector: WindowPositionChanged 이벤트
+            HybridDetector->>ControlForm: WindowMove 이벤트
+            ControlForm->>OverlayService: OnWindowMove()
+            OverlayService->>OverlayForm: UpdateOverlayPosition()
+        else 윈도우 활성화
+            WindowManager->>HybridDetector: WindowActivated 이벤트
+            HybridDetector->>ControlForm: WindowFocusIn 이벤트
+            ControlForm->>OverlayService: OnWindowFocusIn()
+            OverlayService->>OverlayForm: ShowOverlay()
+        else 윈도우 비활성화
+            WindowManager->>HybridDetector: WindowDeactivated 이벤트
+            HybridDetector->>ControlForm: WindowFocusOut 이벤트
+            ControlForm->>OverlayService: OnWindowFocusOut()
+            OverlayService->>OverlayForm: HideOverlay()
+        end
+    end
+
+    %% 7. 게임 종료 감지 (이벤트 모드)
+    Note over User, PointerMonitor: 게임 종료 감지 (이벤트 모드)
+    opt 게임 프로세스 종료
+        HybridDetector->>HybridDetector: OnGameProcessExited() (Process.Exited 이벤트)
+        HybridDetector->>HybridDetector: StopEventMode()
+        
+        Note over HybridDetector: 이벤트 모드 → 폴링 모드 전환
+        HybridDetector->>HybridDetector: StartPollingMode()
+        
+        HybridDetector->>ControlForm: HandleLost 이벤트 발생
+        ControlForm->>ControlForm: OnGameLost()
+        ControlForm->>OverlayNotification: CloseForm()
+        ControlForm->>MemoryService: Disconnect()
+        MemoryService->>MemoryReader: Disconnect()
+        ControlForm->>ControlForm: UpdateGameStatus()
+        ControlForm-->>User: 게임 종료 알림
+        
+        opt 오버레이 서비스 활성화 중
+            ControlForm->>OverlayService: OnHandleLost()
+            OverlayService->>PointerMonitor: StopMonitoring()
+            OverlayService->>OverlayForm: HideOverlay()
+        end
+    end
+
+    %% 8. 애플리케이션 종료
+    Note over User, PointerMonitor: 애플리케이션 종료
+    opt 사용자가 애플리케이션 종료
+        User->>ControlForm: 트레이 메뉴에서 "종료" 선택
+        ControlForm->>ControlForm: ExitApplication()
+        
+        opt 메모리 연결 상태
+            ControlForm->>MemoryService: Disconnect()
+            MemoryService->>MemoryReader: Disconnect()
+        end
+        
+        opt 오버레이 알림 활성화
+            ControlForm->>OverlayNotification: CloseForm()
+        end
+        
+        ControlForm->>HybridDetector: StopDetection()
+        HybridDetector->>HybridDetector: StopPollingMode() 또는 StopEventMode()
+        HybridDetector->>WindowManager: RemoveAllHooks()
+        
+        opt 오버레이 서비스 활성화
+            ControlForm->>OverlayService: Stop()
+            OverlayService->>PointerMonitor: StopMonitoring()
+            OverlayService->>OverlayForm: Dispose()
+        end
+        
+        ControlForm->>Program: 종료 신호
+        Program->>ServiceContainer: Dispose()
+        ServiceContainer->>ServiceContainer: 모든 서비스 정리
+        Program-->>User: 애플리케이션 종료
+    end
