@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Drawing;
 
-namespace StarcUp.Business.Models
+namespace StarcUp.Business.Memory
 {
     /// <summary>
     /// TEB (Thread Environment Block) 정보 모델

@@ -1,4 +1,8 @@
-﻿using System;
+﻿using StarcUp.Business.GameDetection;
+using StarcUp.Business.Memory;
+using StarcUp.Infrastructure.Memory;
+using StarcUp.Infrastructure.Windows;
+using System;
 using System.Collections.Generic;
 
 namespace StarcUp.DependencyInjection
@@ -119,21 +123,21 @@ namespace StarcUp.DependencyInjection
             Console.WriteLine();
 
             // Infrastructure Services
-            container.RegisterSingleton<StarcUp.Infrastructure.Memory.IMemoryReader>(
-                c => new StarcUp.Infrastructure.Memory.MemoryReader());
+            container.RegisterSingleton<IMemoryReader>(
+                c => new MemoryReader());
 
-            container.RegisterSingleton<StarcUp.Infrastructure.Windows.IWindowManager>(
-                c => new StarcUp.Infrastructure.Windows.WindowManager());
+            container.RegisterSingleton<IWindowManager>(
+                c => new WindowManager());
 
             // Business Services
-            container.RegisterSingleton<StarcUp.Business.Interfaces.IMemoryService>(
-                c => new StarcUp.Business.Services.MemoryService(
-                    c.Resolve<StarcUp.Infrastructure.Memory.IMemoryReader>()));
+            container.RegisterSingleton<IMemoryService>(
+                c => new MemoryService(
+                    c.Resolve<IMemoryReader>()));
 
             // 🎯 하이브리드 게임 감지 서비스 등록
-            container.RegisterSingleton<StarcUp.Business.Interfaces.IGameDetectionService>(
-                c => new StarcUp.Business.Services.GameDetectionService(
-                    c.Resolve<StarcUp.Infrastructure.Windows.IWindowManager>()));
+            container.RegisterSingleton<IGameDetectionService>(
+                c => new GameDetectionService(
+                    c.Resolve<IWindowManager>()));
 
             Console.WriteLine("✅ 서비스 등록 완료:");
             Console.WriteLine("   📖 MemoryReader - 메모리 읽기 서비스");

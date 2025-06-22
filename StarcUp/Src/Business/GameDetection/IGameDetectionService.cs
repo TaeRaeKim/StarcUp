@@ -1,8 +1,7 @@
-﻿using StarcUp.Business.Models;
-using StarcUp.Common.Events;
+﻿using StarcUp.Common.Events;
 using System;
 
-namespace StarcUp.Business.Interfaces
+namespace StarcUp.Business.GameDetection
 {
     /// <summary>
     /// 게임 감지 서비스 인터페이스

@@ -48,7 +48,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Src\Business\Services\GameDetectionService.cs" />
+    <Compile Include="Src\Business\GameDetection\GameDetectionService.cs" />
     <Compile Include="Src\Infrastructure\Process\ProcessEventMonitor.cs" />
     <Compile Include="Src\Infrastructure\Windows\WindowInfo.cs" />
     <Compile Include="Src\Presentation\Forms\OverlayNotificationForm.cs">
@@ -57,14 +57,14 @@
     <None Include="Docs\pr\20250614\Flow.md" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Src\Business\Interfaces\IGameDetectionService.cs" />
-    <Compile Include="Src\Business\Interfaces\IMemoryService.cs" />
-    <Compile Include="Src\Business\Interfaces\IPointerMonitorService.cs" />
-    <Compile Include="Src\Business\Models\GameInfo.cs" />
-    <Compile Include="Src\Business\Models\PointerValue.cs" />
-    <Compile Include="Src\Business\Models\TebInfo.cs" />
-    <Compile Include="Src\Business\Services\MemoryService.cs" />
-    <Compile Include="Src\Business\Services\PointerMonitorService.cs" />
+    <Compile Include="Src\Business\GameDetection\IGameDetectionService.cs" />
+    <Compile Include="Src\Business\Memory\IMemoryService.cs" />
+    <Compile Include="Src\Business\Monitoring\IPointerMonitorService.cs" />
+    <Compile Include="Src\Business\GameDetection\GameInfo.cs" />
+    <Compile Include="Src\Business\Monitoring\PointerValue.cs" />
+    <Compile Include="Src\Business\Memory\TebInfo.cs" />
+    <Compile Include="Src\Business\Memory\MemoryService.cs" />
+    <Compile Include="Src\Business\Monitoring\PointerMonitorService.cs" />
     <Compile Include="Src\Common\Constants\GameConstants.cs" />
     <Compile Include="Src\Common\Events\GameEventArgs.cs" />
     <Compile Include="Src\Common\Events\PointerEventArgs.cs" />

@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
-using StarcUp.Business.Interfaces;
-using StarcUp.Business.Models;
-using StarcUp.Business.Services;
+using StarcUp.Business.GameDetection;
+using StarcUp.Business.Memory;
 using StarcUp.Common.Events;
 
 namespace StarcUp.Presentation.Forms

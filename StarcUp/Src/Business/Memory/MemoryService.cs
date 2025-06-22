@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using StarcUp.Business.Interfaces;
-using StarcUp.Business.Models;
 using StarcUp.Infrastructure.Memory;
 
-namespace StarcUp.Business.Services
+namespace StarcUp.Business.Memory
 {
     /// <summary>
     /// 메모리 서비스

@@ -1,8 +1,7 @@
-﻿using StarcUp.Business.Models;
-using StarcUp.Common.Events;
+﻿using StarcUp.Common.Events;
 using System;
 
-namespace StarcUp.Business.Interfaces
+namespace StarcUp.Business.Monitoring
 {
     /// <summary>
     /// 포인터 모니터링 서비스 인터페이스

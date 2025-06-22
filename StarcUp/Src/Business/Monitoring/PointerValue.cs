@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Drawing;
 
-namespace StarcUp.Business.Models
+namespace StarcUp.Business.Monitoring
 {
     /// <summary>
     /// 포인터 값 변화 정보 모델

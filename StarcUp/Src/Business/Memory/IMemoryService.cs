@@ -1,8 +1,7 @@
-﻿using StarcUp.Business.Models;
-using System;
+﻿using System;
 using System.Collections.Generic;
 
-namespace StarcUp.Business.Interfaces
+namespace StarcUp.Business.Memory
 {
 
     /// <summary>

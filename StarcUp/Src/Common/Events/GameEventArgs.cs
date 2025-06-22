@@ -1,5 +1,5 @@
-﻿using System;
-using StarcUp.Business.Models;
+﻿using StarcUp.Business.GameDetection;
+using System;
 
 namespace StarcUp.Common.Events
 {

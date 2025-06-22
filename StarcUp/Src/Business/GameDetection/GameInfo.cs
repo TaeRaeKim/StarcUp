@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Drawing;
 
-namespace StarcUp.Business.Models
+namespace StarcUp.Business.GameDetection
 {
     /// <summary>
     /// 게임 정보 모델

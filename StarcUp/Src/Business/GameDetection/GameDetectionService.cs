@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading;
-using StarcUp.Business.Interfaces;
-using StarcUp.Business.Models;
 using StarcUp.Common.Constants;
 using StarcUp.Common.Events;
 using StarcUp.Infrastructure.Windows;
 
-namespace StarcUp.Business.Services
+namespace StarcUp.Business.GameDetection
 {
     /// <summary>
     /// 하이브리드 스타크래프트 감지 서비스

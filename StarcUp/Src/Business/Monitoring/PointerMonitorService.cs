@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Timers;
-using StarcUp.Business.Interfaces;
-using StarcUp.Business.Models;
+using StarcUp.Business.Memory;
 using StarcUp.Common.Constants;
 using StarcUp.Common.Events;
 
-namespace StarcUp.Business.Services
+namespace StarcUp.Business.Monitoring
 {
     /// <summary>
     /// 포인터 모니터링 서비스

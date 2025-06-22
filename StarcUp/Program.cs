@@ -1,4 +1,5 @@
-﻿using StarcUp.Business.Interfaces;
+﻿using StarcUp.Business.GameDetection;
+using StarcUp.Business.Memory;
 using StarcUp.DependencyInjection;
 using StarcUp.Presentation.Forms;
 using System;
