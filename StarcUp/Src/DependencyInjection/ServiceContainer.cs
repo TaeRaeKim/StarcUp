@@ -132,7 +132,7 @@ namespace StarcUp.DependencyInjection
 
             // 🎯 하이브리드 게임 감지 서비스 등록
             container.RegisterSingleton<StarcUp.Business.Interfaces.IGameDetectionService>(
-                c => new StarcUp.Business.Services.HybridStarcraftDetector(
+                c => new StarcUp.Business.Services.GameDetectionService(
                     c.Resolve<StarcUp.Infrastructure.Windows.IWindowManager>()));
 
             Console.WriteLine("✅ 서비스 등록 완료:");

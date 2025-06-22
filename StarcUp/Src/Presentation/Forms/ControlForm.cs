@@ -15,7 +15,7 @@ namespace StarcUp.Presentation.Forms
     {
         private readonly IGameDetectionService _gameDetectionService;
         private readonly IMemoryService _memoryService;
-        private readonly HybridStarcraftDetector _hybridDetector; // 직접 참조로 상태 정보 접근
+        private readonly GameDetectionService _hybridDetector; // 직접 참조로 상태 정보 접근
 
         // UI 컨트롤들
         private GroupBox _detectionStatusGroup;
@@ -49,7 +49,7 @@ namespace StarcUp.Presentation.Forms
         {
             _gameDetectionService = gameDetectionService ?? throw new ArgumentNullException(nameof(gameDetectionService));
             _memoryService = memoryService ?? throw new ArgumentNullException(nameof(memoryService));
-            _hybridDetector = gameDetectionService as HybridStarcraftDetector; // 타입 캐스팅
+            _hybridDetector = gameDetectionService as GameDetectionService; // 타입 캐스팅
 
             InitializeComponent();
             SetupEventHandlers();

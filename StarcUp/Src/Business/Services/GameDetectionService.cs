@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Drawing;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Threading;
 using StarcUp.Business.Interfaces;
 using StarcUp.Business.Models;
 using StarcUp.Common.Constants;
@@ -12,15 +10,27 @@ using StarcUp.Infrastructure.Windows;
 namespace StarcUp.Business.Services
 {
     /// <summary>
-    /// 이벤트 기반 게임 감지 서비스
+    /// 하이브리드 스타크래프트 감지 서비스
+    /// - 게임 시작: 2초 간격 폴링
+    /// - 게임 종료: Process.Exited 이벤트
+    /// - 게임 종료 후: 다시 폴링 모드로 전환
     /// </summary>
     public class GameDetectionService : IGameDetectionService
     {
+        #region Private Fields
+
         private readonly IWindowManager _windowManager;
-        private readonly ProcessEventMonitor _processMonitor;
+        private Timer _pollingTimer;
+        private Process _currentGameProcess;
         private GameInfo _currentGame;
+        private bool _isPollingMode;
         private bool _isDetecting;
         private bool _isDisposed;
+        private readonly object _lockObject = new object();
+
+        #endregion
+
+        #region Events
 
         public event EventHandler<GameEventArgs> HandleFound;
         public event EventHandler<GameEventArgs> HandleLost;
@@ -29,17 +39,21 @@ namespace StarcUp.Business.Services
         public event EventHandler<GameEventArgs> WindowFocusIn;
         public event EventHandler<GameEventArgs> WindowFocusOut;
 
+        #endregion
+
+        #region Properties
+
         public bool IsGameRunning => _currentGame != null;
         public GameInfo CurrentGame => _currentGame;
+        public bool IsPollingMode => _isPollingMode;
+
+        #endregion
+
+        #region Constructor
 
         public GameDetectionService(IWindowManager windowManager)
         {
             _windowManager = windowManager ?? throw new ArgumentNullException(nameof(windowManager));
-
-            // 프로세스 이벤트 모니터 초기화
-            _processMonitor = new ProcessEventMonitor(GameConstants.STARCRAFT_PROCESS_NAMES);
-            _processMonitor.ProcessStarted += OnProcessStarted;
-            _processMonitor.ProcessStopped += OnProcessStopped;
 
             // 윈도우 매니저 이벤트 구독
             _windowManager.WindowPositionChanged += OnWindowPositionChanged;
@@ -47,41 +61,35 @@ namespace StarcUp.Business.Services
             _windowManager.WindowDeactivated += OnWindowDeactivated;
         }
 
+        #endregion
+
+        #region Public Methods
+
         public void StartDetection()
         {
             if (_isDetecting)
                 return;
 
-            Console.WriteLine("[GameDetectionService] 이벤트 기반 게임 감지 시작...");
+            Console.WriteLine("[HybridStarcraftDetector] 🚀 하이브리드 스타크래프트 감지 시작");
+            Console.WriteLine("  📊 모드: 폴링 방식 (2초 간격)");
+            Console.WriteLine("  🎯 대상: StarCraft, StarCraft_BW, StarCraft Remastered");
+            Console.WriteLine("  ⚡ 전략: 시작=폴링, 종료=이벤트");
 
-            Task.Run(async () =>
+            try
             {
-                try
-                {
-                    // 포어그라운드 윈도우 이벤트 후킹 설정
-                    _windowManager.SetupForegroundEventHook();
+                // 윈도우 이벤트 후킹 설정
+                _windowManager.SetupForegroundEventHook();
 
-                    // 프로세스 이벤트 모니터링 시작
-                    bool success = await _processMonitor.StartMonitoringAsync();
+                // 폴링 모드로 시작
+                StartPollingMode();
 
-                    if (success)
-                    {
-                        _isDetecting = true;
-                        Console.WriteLine("[GameDetectionService] 이벤트 기반 게임 감지 활성화됨");
-                        Console.WriteLine("  - 프로세스 생성/종료 이벤트 감지");
-                        Console.WriteLine("  - 윈도우 포커스 이벤트 감지");
-                        Console.WriteLine("  - 실시간 모니터링 시작됨");
-                    }
-                    else
-                    {
-                        Console.WriteLine("[GameDetectionService] ⚠️ 프로세스 이벤트 모니터링 시작 실패 - 폴백 모드로 전환할 수 있음");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[GameDetectionService] 게임 감지 시작 실패: {ex.Message}");
-                }
-            });
+                _isDetecting = true;
+                Console.WriteLine("[HybridStarcraftDetector] ✅ 감지 시스템 활성화됨");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[HybridStarcraftDetector] ❌ 감지 시작 실패: {ex.Message}");
+            }
         }
 
         public void StopDetection()
@@ -89,122 +97,333 @@ namespace StarcUp.Business.Services
             if (!_isDetecting)
                 return;
 
-            Console.WriteLine("[GameDetectionService] 이벤트 기반 게임 감지 중지...");
+            Console.WriteLine("[HybridStarcraftDetector] 🛑 하이브리드 감지 중지...");
 
             try
             {
-                // 프로세스 이벤트 모니터링 중지
-                _processMonitor.StopMonitoring();
+                // 폴링 중지
+                StopPollingMode();
+
+                // 게임 프로세스 이벤트 해제
+                StopEventMode();
 
                 // 윈도우 이벤트 후킹 해제
                 _windowManager.RemoveAllHooks();
 
-                if (_currentGame != null)
+                lock (_lockObject)
                 {
-                    var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.HANDLE_LOST);
-                    HandleLost?.Invoke(this, eventArgs);
-                    _currentGame = null;
+                    if (_currentGame != null)
+                    {
+                        var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.HANDLE_LOST);
+                        HandleLost?.Invoke(this, eventArgs);
+                        _currentGame = null;
+                    }
                 }
 
                 _isDetecting = false;
-                Console.WriteLine("[GameDetectionService] 이벤트 기반 게임 감지 중지됨");
+                Console.WriteLine("[HybridStarcraftDetector] ✅ 감지 시스템 중지됨");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GameDetectionService] 게임 감지 중지 실패: {ex.Message}");
+                Console.WriteLine($"[HybridStarcraftDetector] ❌ 감지 중지 실패: {ex.Message}");
             }
         }
 
-        private void OnProcessStarted(object sender, ProcessEventArgs e)
+        #endregion
+
+        #region Polling Mode (게임 시작 감지)
+
+        private void StartPollingMode()
         {
+            if (_isPollingMode)
+                return;
+
+            Console.WriteLine("[HybridStarcraftDetector] 🔍 폴링 모드 시작 (2초 간격)");
+
+            lock (_lockObject)
+            {
+                _pollingTimer = new Timer(PollingCallback, null, 0, 2000); // 즉시 시작, 2초 간격
+                _isPollingMode = true;
+            }
+
+            Console.WriteLine("  - 방식: Process.GetProcessesByName()");
+            Console.WriteLine("  - 간격: 2초");
+            Console.WriteLine("  - CPU 영향: 최소");
+        }
+
+        private void StopPollingMode()
+        {
+            if (!_isPollingMode)
+                return;
+
+            Console.WriteLine("[HybridStarcraftDetector] ⏹️ 폴링 모드 중지");
+
+            lock (_lockObject)
+            {
+                _pollingTimer?.Dispose();
+                _pollingTimer = null;
+                _isPollingMode = false;
+            }
+        }
+
+        private void PollingCallback(object state)
+        {
+            if (_isDisposed || !_isPollingMode)
+                return;
+
             try
             {
-                Console.WriteLine($"[GameDetectionService] 🎮 스타크래프트 프로세스 감지: {e.ProcessInfo}");
+                CheckForStarcraftProcess();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[HybridStarcraftDetector] 폴링 중 오류: {ex.Message}");
+            }
+        }
 
-                // 잠시 대기 후 윈도우 핸들 확인 (프로세스가 완전히 시작될 때까지)
-                Task.Delay(1000).ContinueWith(_ =>
+        private void CheckForStarcraftProcess()
+        {
+            if (_currentGame != null)
+                return; // 이미 게임이 실행 중이면 확인 안함
+
+            Process foundProcess = null;
+            string foundProcessName = null;
+
+            // 스타크래프트 프로세스 검색
+            foreach (string processName in GameConstants.STARCRAFT_PROCESS_NAMES)
+            {
+                try
                 {
-                    try
+                    Process[] processes = Process.GetProcessesByName(processName);
+                    if (processes.Length > 0)
                     {
-                        Process process = Process.GetProcessById(e.ProcessInfo.ProcessId);
+                        foundProcess = processes[0];
+                        foundProcessName = processName;
 
-                        if (process != null && !process.HasExited)
+                        // 나머지 프로세스들 정리
+                        for (int i = 1; i < processes.Length; i++)
                         {
-                            // 메인 윈도우 핸들이 생성될 때까지 대기
-                            int attempts = 0;
-                            while (process.MainWindowHandle == IntPtr.Zero && attempts < 20)
-                            {
-                                System.Threading.Thread.Sleep(500);
-                                process.Refresh();
-                                attempts++;
-                            }
-
-                            if (process.MainWindowHandle != IntPtr.Zero)
-                            {
-                                var newGameInfo = CreateGameInfo(process);
-
-                                if (_currentGame == null)
-                                {
-                                    // 새 게임 발견
-                                    _currentGame = newGameInfo;
-                                    SetupWindowEvents();
-
-                                    var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.HANDLE_FOUND);
-                                    HandleFound?.Invoke(this, eventArgs);
-                                    Console.WriteLine($"[GameDetectionService] ✅ 게임 연결 완료: {_currentGame}");
-                                }
-                                else
-                                {
-                                    // 기존 게임이 있는 경우 (멀티 인스턴스 등)
-                                    Console.WriteLine($"[GameDetectionService] ⚠️ 기존 게임이 이미 실행 중: {_currentGame}");
-                                }
-                            }
-                            else
-                            {
-                                Console.WriteLine($"[GameDetectionService] ⚠️ 메인 윈도우 핸들을 찾을 수 없음: {e.ProcessInfo.ProcessName}");
-                            }
+                            processes[i].Dispose();
                         }
-
-                        process?.Dispose();
+                        break;
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[GameDetectionService] 프로세스 시작 처리 실패: {ex.Message}");
-                    }
-                });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[HybridStarcraftDetector] 프로세스 확인 실패 ({processName}): {ex.Message}");
+                }
             }
-            catch (Exception ex)
+
+            if (foundProcess != null)
             {
-                Console.WriteLine($"[GameDetectionService] 프로세스 시작 이벤트 처리 실패: {ex.Message}");
+                OnGameProcessFound(foundProcess, foundProcessName);
+                foundProcess.Dispose();
             }
         }
 
-        private void OnProcessStopped(object sender, ProcessEventArgs e)
+        private void OnGameProcessFound(Process process, string processName)
+        {
+            lock (_lockObject)
+            {
+                Console.WriteLine($"[HybridStarcraftDetector] 🎮 게임 프로세스 발견: {processName} (PID: {process.Id})");
+
+                // 메인 윈도우 핸들 확인 (잠시 대기)
+                if (process.MainWindowHandle == IntPtr.Zero)
+                {
+                    Console.WriteLine("  ⏳ 메인 윈도우 생성 대기 중...");
+
+                    // 별도 스레드에서 윈도우 핸들 대기
+                    var waitProcess = Process.GetProcessById(process.Id);
+                    System.Threading.Tasks.Task.Run(() => WaitForMainWindow(waitProcess, processName));
+                    return;
+                }
+
+                // 즉시 게임 정보 생성
+                CreateGameInfo(process, processName);
+            }
+        }
+
+        private void WaitForMainWindow(Process process, string processName)
         {
             try
             {
-                Console.WriteLine($"[GameDetectionService] 🛑 스타크래프트 프로세스 종료: {e.ProcessInfo}");
-
-                if (_currentGame != null && _currentGame.ProcessId == e.ProcessInfo.ProcessId)
+                int attempts = 0;
+                while (attempts < 20) // 최대 10초 대기
                 {
-                    var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.HANDLE_LOST);
-                    HandleLost?.Invoke(this, eventArgs);
-                    Console.WriteLine($"[GameDetectionService] ❌ 게임 연결 해제: {_currentGame}");
-                    _currentGame = null;
+                    Thread.Sleep(500);
+                    process.Refresh();
+
+                    if (process.HasExited)
+                    {
+                        Console.WriteLine("  ❌ 프로세스가 예상보다 빨리 종료됨");
+                        return;
+                    }
+
+                    if (process.MainWindowHandle != IntPtr.Zero)
+                    {
+                        Console.WriteLine("  ✅ 메인 윈도우 핸들 확인됨");
+
+                        lock (_lockObject)
+                        {
+                            CreateGameInfo(process, processName);
+                        }
+                        return;
+                    }
+
+                    attempts++;
+                }
+
+                Console.WriteLine("  ⚠️ 메인 윈도우 핸들을 찾을 수 없음 (백그라운드 프로세스일 가능성)");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  ❌ 윈도우 대기 중 오류: {ex.Message}");
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        private void CreateGameInfo(Process process, string processName)
+        {
+            try
+            {
+                _currentGame = new GameInfo(process.Id, process.MainWindowHandle, processName)
+                {
+                    DetectedAt = DateTime.Now,
+                    IsActive = false
+                };
+
+                // 게임 정보 업데이트
+                UpdateGameInfo(_currentGame, process);
+
+                // 윈도우 이벤트 설정
+                SetupWindowEvents();
+
+                // 폴링 모드 중지하고 이벤트 모드로 전환
+                StopPollingMode();
+                StartEventMode(process);
+
+                // 게임 발견 이벤트 발생
+                var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.HANDLE_FOUND);
+                HandleFound?.Invoke(this, eventArgs);
+
+                Console.WriteLine($"[HybridStarcraftDetector] ✅ 게임 연결 완료: {_currentGame}");
+                Console.WriteLine("[HybridStarcraftDetector] 🔄 이벤트 모드로 전환 완료");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[HybridStarcraftDetector] 게임 정보 생성 실패: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Event Mode (게임 종료 감지)
+
+        private void StartEventMode(Process process)
+        {
+            try
+            {
+                Console.WriteLine("[HybridStarcraftDetector] 🎯 이벤트 모드 시작");
+                Console.WriteLine("  - 방식: Process.Exited 이벤트");
+                Console.WriteLine("  - CPU 영향: 0% (이벤트 대기)");
+
+                // 새로운 Process 객체로 이벤트 모니터링
+                _currentGameProcess = Process.GetProcessById(process.Id);
+                _currentGameProcess.EnableRaisingEvents = true;
+                _currentGameProcess.Exited += OnGameProcessExited;
+
+                Console.WriteLine($"  ✅ 프로세스 종료 감지 활성화: PID {process.Id}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[HybridStarcraftDetector] ❌ 이벤트 모드 시작 실패: {ex.Message}");
+
+                // 이벤트 모드 실패 시 백업 폴링으로 전환
+                Console.WriteLine("  🔄 백업: 1초 간격 폴링으로 대체");
+                StartBackupPolling();
+            }
+        }
+
+        private void StopEventMode()
+        {
+            try
+            {
+                if (_currentGameProcess != null)
+                {
+                    _currentGameProcess.Exited -= OnGameProcessExited;
+                    _currentGameProcess.Dispose();
+                    _currentGameProcess = null;
+
+                    Console.WriteLine("[HybridStarcraftDetector] ⏹️ 이벤트 모드 중지");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GameDetectionService] 프로세스 종료 이벤트 처리 실패: {ex.Message}");
+                Console.WriteLine($"[HybridStarcraftDetector] 이벤트 모드 중지 실패: {ex.Message}");
             }
         }
 
-        private GameInfo CreateGameInfo(Process process)
+        private void OnGameProcessExited(object sender, EventArgs e)
         {
-            var gameInfo = new GameInfo(process.Id, process.MainWindowHandle, process.ProcessName);
-            UpdateGameInfo(gameInfo, process);
-            return gameInfo;
+            try
+            {
+                Console.WriteLine("[HybridStarcraftDetector] 🛑 게임 종료 이벤트 감지");
+
+                lock (_lockObject)
+                {
+                    if (_currentGame != null)
+                    {
+                        var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.HANDLE_LOST);
+                        HandleLost?.Invoke(this, eventArgs);
+
+                        Console.WriteLine($"[HybridStarcraftDetector] ❌ 게임 연결 해제: {_currentGame}");
+                        _currentGame = null;
+                    }
+
+                    // 이벤트 모드 정리
+                    StopEventMode();
+
+                    // 폴링 모드로 다시 전환
+                    if (_isDetecting)
+                    {
+                        Console.WriteLine("[HybridStarcraftDetector] 🔄 폴링 모드로 재전환");
+                        StartPollingMode();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[HybridStarcraftDetector] 게임 종료 처리 실패: {ex.Message}");
+            }
         }
+
+        private void StartBackupPolling()
+        {
+            // Process.Exited 이벤트가 실패한 경우의 백업 폴링 (1초 간격)
+            Timer backupTimer = null;
+            backupTimer = new Timer(_ =>
+            {
+                try
+                {
+                    if (_currentGameProcess?.HasExited == true)
+                    {
+                        OnGameProcessExited(null, EventArgs.Empty);
+                        backupTimer?.Dispose();
+                    }
+                }
+                catch
+                {
+                    backupTimer?.Dispose();
+                }
+            }, null, 1000, 1000);
+        }
+
+        #endregion
+
+        #region Helper Methods
 
         private void UpdateGameInfo(GameInfo gameInfo, Process process)
         {
@@ -215,7 +434,7 @@ namespace StarcUp.Business.Services
             {
                 var windowInfo = _windowManager.GetWindowInfo(gameInfo.WindowHandle);
 
-                gameInfo.WindowBounds = new Rectangle(
+                gameInfo.WindowBounds = new System.Drawing.Rectangle(
                     windowInfo.WindowRect.Left,
                     windowInfo.WindowRect.Top,
                     windowInfo.WindowRect.Width,
@@ -224,12 +443,10 @@ namespace StarcUp.Business.Services
                 gameInfo.IsFullscreen = windowInfo.IsFullscreen;
                 gameInfo.IsMinimized = windowInfo.IsMinimized;
                 gameInfo.IsActive = _windowManager.GetForegroundWindow() == gameInfo.WindowHandle;
-
-                Console.WriteLine($"[GameDetectionService] 게임 정보 업데이트: {gameInfo}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GameDetectionService] 게임 정보 업데이트 중 오류: {ex.Message}");
+                Console.WriteLine($"[HybridStarcraftDetector] 게임 정보 업데이트 실패: {ex.Message}");
             }
         }
 
@@ -238,9 +455,13 @@ namespace StarcUp.Business.Services
             if (_currentGame != null)
             {
                 _windowManager.SetupWindowEventHook(_currentGame.WindowHandle, (uint)_currentGame.ProcessId);
-                Console.WriteLine($"[GameDetectionService] 윈도우 이벤트 후킹 설정: Handle=0x{_currentGame.WindowHandle:X}");
+                Console.WriteLine($"  🪟 윈도우 이벤트 후킹 설정: Handle=0x{_currentGame.WindowHandle:X}");
             }
         }
+
+        #endregion
+
+        #region Window Event Handlers
 
         private void OnWindowPositionChanged(IntPtr windowHandle)
         {
@@ -257,7 +478,7 @@ namespace StarcUp.Business.Services
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[GameDetectionService] 윈도우 위치 변경 처리 중 오류: {ex.Message}");
+                    Console.WriteLine($"[HybridStarcraftDetector] 윈도우 위치 변경 처리 실패: {ex.Message}");
                 }
             }
         }
@@ -269,7 +490,7 @@ namespace StarcUp.Business.Services
                 _currentGame.IsActive = true;
                 var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.WINDOW_FOCUSIN);
                 WindowFocusIn?.Invoke(this, eventArgs);
-                Console.WriteLine("[GameDetectionService] 🔥 게임 윈도우 활성화됨");
+                Console.WriteLine("[HybridStarcraftDetector] 🔥 게임 윈도우 활성화됨");
             }
         }
 
@@ -280,9 +501,37 @@ namespace StarcUp.Business.Services
                 _currentGame.IsActive = false;
                 var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.WINDOW_FOCUSOUT);
                 WindowFocusOut?.Invoke(this, eventArgs);
-                Console.WriteLine("[GameDetectionService] 🔸 게임 윈도우 비활성화됨");
+                Console.WriteLine("[HybridStarcraftDetector] 🔸 게임 윈도우 비활성화됨");
             }
         }
+
+        #endregion
+
+        #region Status and Diagnostics
+
+        /// <summary>
+        /// 현재 감지 시스템 상태 정보
+        /// </summary>
+        public string GetStatusInfo()
+        {
+            lock (_lockObject)
+            {
+                return $@"
+[HybridStarcraftDetector] 상태 정보:
+- 감지 활성화: {_isDetecting}
+- 현재 모드: {(_isPollingMode ? "폴링 모드 (2초 간격)" : "이벤트 모드 (Process.Exited)")}
+- 게임 실행 중: {IsGameRunning}
+- 현재 게임: {CurrentGame?.ProcessName ?? "없음"}
+- 게임 PID: {CurrentGame?.ProcessId ?? 0}
+- 게임 활성화: {CurrentGame?.IsActive ?? false}
+- 성능 영향: {(_isPollingMode ? "최소 (2초 폴링)" : "없음 (이벤트 대기)")}
+";
+            }
+        }
+
+        #endregion
+
+        #region Dispose
 
         public void Dispose()
         {
@@ -290,9 +539,10 @@ namespace StarcUp.Business.Services
                 return;
 
             StopDetection();
-            _processMonitor?.Dispose();
             _windowManager?.Dispose();
             _isDisposed = true;
         }
+
+        #endregion
     }
 }
