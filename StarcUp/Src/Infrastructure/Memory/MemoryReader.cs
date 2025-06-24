@@ -13,10 +13,10 @@ namespace StarcUp.Infrastructure.Memory
     public class MemoryReader : IMemoryReader
     {
         private Process _process;
-        private IntPtr _processHandle;
+        private nint _processHandle;
         private bool _isDisposed;
 
-        public bool IsConnected => _processHandle != IntPtr.Zero && _process != null && !_process.HasExited;
+        public bool IsConnected => _processHandle != 0 && _process != null && !_process.HasExited;
         public int ConnectedProcessId => _process?.Id ?? 0;
 
         public bool ConnectToProcess(int processId)
@@ -31,7 +31,7 @@ namespace StarcUp.Infrastructure.Memory
                     MemoryAPI.PROCESS_QUERY_INFORMATION | MemoryAPI.PROCESS_VM_READ,
                     false, processId);
 
-                if (_processHandle != IntPtr.Zero)
+                if (_processHandle != 0)
                 {
                     Console.WriteLine($"프로세스 연결 성공! PID: {processId}");
                     return true;
@@ -51,10 +51,10 @@ namespace StarcUp.Infrastructure.Memory
 
         public void Disconnect()
         {
-            if (_processHandle != IntPtr.Zero)
+            if (_processHandle != 0)
             {
                 MemoryAPI.CloseHandle(_processHandle);
-                _processHandle = IntPtr.Zero;
+                _processHandle = 0;
             }
             _process = null;
         }
@@ -69,8 +69,8 @@ namespace StarcUp.Infrastructure.Memory
                 return tebList;
             }
 
-            IntPtr snapshot = MemoryAPI.CreateToolhelp32Snapshot(MemoryAPI.TH32CS_SNAPTHREAD, 0);
-            if (snapshot == IntPtr.Zero)
+            nint snapshot = MemoryAPI.CreateToolhelp32Snapshot(MemoryAPI.TH32CS_SNAPTHREAD, 0);
+            if (snapshot == 0)
             {
                 Console.WriteLine("스레드 스냅샷 생성 실패");
                 return tebList;
@@ -88,8 +88,8 @@ namespace StarcUp.Infrastructure.Memory
                     {
                         if (threadEntry.th32OwnerProcessID == _process.Id)
                         {
-                            IntPtr tebAddress = GetTebAddress(threadEntry.th32ThreadID);
-                            if (tebAddress != IntPtr.Zero)
+                            nint tebAddress = GetTebAddress(threadEntry.th32ThreadID);
+                            if (tebAddress != 0)
                             {
                                 var tebInfo = new TebInfo(threadEntry.th32ThreadID, tebAddress, index);
                                 tebList.Add(tebInfo);
@@ -109,37 +109,37 @@ namespace StarcUp.Infrastructure.Memory
             return tebList;
         }
 
-        public IntPtr GetStackStart(int threadIndex = 0)
+        public nint GetStackStart(int threadIndex = 0)
         {
             if (!IsConnected)
             {
                 Console.WriteLine("프로세스에 연결되지 않음");
-                return IntPtr.Zero;
+                return 0;
             }
 
             // 1단계: kernel32.dll 모듈 정보 가져오기
             if (!GetKernel32ModuleInfo(out var kernel32Info))
             {
                 Console.WriteLine("kernel32.dll 모듈 정보를 가져올 수 없습니다.");
-                return IntPtr.Zero;
+                return 0;
             }
 
             // 2단계: 지정된 스레드의 StackTop 가져오기
-            IntPtr stackTop = GetStackTop(threadIndex);
-            if (stackTop == IntPtr.Zero)
+            nint stackTop = GetStackTop(threadIndex);
+            if (stackTop == 0)
             {
                 Console.WriteLine("StackTop을 가져올 수 없습니다.");
-                return IntPtr.Zero;
+                return 0;
             }
 
             // 3단계: StackTop-4096 영역에서 kernel32 주소 찾기
-            IntPtr stackSearchStart = new IntPtr(stackTop.ToInt64() - 4096);
+            nint stackSearchStart = stackTop - 4096;
             byte[] stackBuffer = new byte[4096];
 
             if (!ReadProcessMemory(stackSearchStart, stackBuffer, 4096))
             {
                 Console.WriteLine("스택 메모리 읽기 실패");
-                return IntPtr.Zero;
+                return 0;
             }
 
             // 4단계: kernel32 범위에 있는 주소 찾기 (64비트)
@@ -148,26 +148,25 @@ namespace StarcUp.Infrastructure.Memory
 
             for (int i = numPointers - 1; i >= 0; i--) // 역방향 검색
             {
-                long pointerValue = BitConverter.ToInt64(stackBuffer, i * pointerSize);
-                IntPtr pointer = new IntPtr(pointerValue);
+                nint pointer = (nint)BitConverter.ToInt64(stackBuffer, i * pointerSize);
 
                 if (IsInRange(pointer, kernel32Info.lpBaseOfDll, kernel32Info.SizeOfImage))
                 {
-                    IntPtr resultAddress = new IntPtr(stackSearchStart.ToInt64() + (i * pointerSize));
-                    Console.WriteLine($"StackStart 계산 완료: 0x{resultAddress.ToInt64():X16}");
+                    nint resultAddress = stackSearchStart + (i * pointerSize);
+                    Console.WriteLine($"StackStart 계산 완료: 0x{resultAddress:X16}");
                     return resultAddress;
                 }
             }
 
             Console.WriteLine("kernel32를 가리키는 스택 엔트리를 찾을 수 없습니다.");
-            return IntPtr.Zero;
+            return 0;
         }
 
-        public IntPtr GetStackTop(int threadIndex)
+        public nint GetStackTop(int threadIndex)
         {
-            IntPtr snapshot = MemoryAPI.CreateToolhelp32Snapshot(MemoryAPI.TH32CS_SNAPTHREAD, 0);
-            if (snapshot == IntPtr.Zero)
-                return IntPtr.Zero;
+            nint snapshot = MemoryAPI.CreateToolhelp32Snapshot(MemoryAPI.TH32CS_SNAPTHREAD, 0);
+            if (snapshot == 0)
+                return 0;
 
             try
             {
@@ -183,9 +182,9 @@ namespace StarcUp.Infrastructure.Memory
                         {
                             if (currentIndex == threadIndex)
                             {
-                                IntPtr threadHandle = MemoryAPI.OpenThread(MemoryAPI.THREAD_QUERY_INFORMATION, false, threadEntry.th32ThreadID);
-                                if (threadHandle == IntPtr.Zero)
-                                    return IntPtr.Zero;
+                                nint threadHandle = MemoryAPI.OpenThread(MemoryAPI.THREAD_QUERY_INFORMATION, false, threadEntry.th32ThreadID);
+                                if (threadHandle == 0)
+                                    return 0;
 
                                 try
                                 {
@@ -194,10 +193,10 @@ namespace StarcUp.Infrastructure.Memory
                                         MemoryAPI.ThreadBasicInformation,
                                         out var tbi,
                                         Marshal.SizeOf(typeof(MemoryAPI.THREAD_BASIC_INFORMATION)),
-                                        IntPtr.Zero) == 0)
+                                        0) == 0)
                                     {
                                         // TEB+8에서 StackTop 읽기
-                                        IntPtr stackTopAddress = new IntPtr(tbi.TebBaseAddress.ToInt64() + 8);
+                                        nint stackTopAddress = tbi.TebBaseAddress + 8;
                                         return ReadPointer(stackTopAddress);
                                     }
                                 }
@@ -218,21 +217,21 @@ namespace StarcUp.Infrastructure.Memory
                 MemoryAPI.CloseHandle(snapshot);
             }
 
-            return IntPtr.Zero;
+            return 0;
         }
 
-        public IntPtr ReadPointer(IntPtr address)
+        public nint ReadPointer(nint address)
         {
             byte[] buffer = new byte[8];
             if (ReadProcessMemory(address, buffer, 8))
             {
-                long value = BitConverter.ToInt64(buffer, 0);
-                return new IntPtr(value);
+                nint value = (nint)BitConverter.ToInt64(buffer, 0);
+                return value;
             }
-            return IntPtr.Zero;
+            return 0;
         }
 
-        public bool ReadProcessMemory(IntPtr address, byte[] buffer, int size)
+        public bool ReadProcessMemory(nint address, byte[] buffer, int size)
         {
             if (!IsConnected || buffer == null || size <= 0)
                 return false;
@@ -240,11 +239,11 @@ namespace StarcUp.Infrastructure.Memory
             return MemoryAPI.ReadProcessMemory(_processHandle, address, buffer, size, out _);
         }
 
-        private IntPtr GetTebAddress(uint threadId)
+        private nint GetTebAddress(uint threadId)
         {
-            IntPtr threadHandle = MemoryAPI.OpenThread(MemoryAPI.THREAD_QUERY_INFORMATION, false, threadId);
-            if (threadHandle == IntPtr.Zero)
-                return IntPtr.Zero;
+            nint threadHandle = MemoryAPI.OpenThread(MemoryAPI.THREAD_QUERY_INFORMATION, false, threadId);
+            if (threadHandle == 0)
+                return 0;
 
             try
             {
@@ -253,7 +252,7 @@ namespace StarcUp.Infrastructure.Memory
                     MemoryAPI.ThreadBasicInformation,
                     out var basicInfo,
                     Marshal.SizeOf(typeof(MemoryAPI.THREAD_BASIC_INFORMATION)),
-                    IntPtr.Zero) == 0)
+                    0) == 0)
                 {
                     return basicInfo.TebBaseAddress;
                 }
@@ -264,23 +263,23 @@ namespace StarcUp.Infrastructure.Memory
                 MemoryAPI.CloseHandle(threadHandle);
             }
 
-            return IntPtr.Zero;
+            return 0;
         }
 
         private bool GetKernel32ModuleInfo(out MemoryAPI.MODULEINFO moduleInfo)
         {
             moduleInfo = new MemoryAPI.MODULEINFO();
 
-            IntPtr[] modules = new IntPtr[1024];
-            if (!MemoryAPI.EnumProcessModules(_processHandle, modules, (uint)(modules.Length * IntPtr.Size), out uint needed))
+            nint[] modules = new nint[1024];
+            if (!MemoryAPI.EnumProcessModules(_processHandle, modules, (uint)(modules.Length * nint.Size), out uint needed))
                 return false;
 
-            int moduleCount = (int)(needed / IntPtr.Size);
+            int moduleCount = (int)(needed / nint.Size);
             StringBuilder moduleBaseName = new StringBuilder(256);
 
             for (int i = 0; i < moduleCount; i++)
             {
-                if (modules[i] != IntPtr.Zero)
+                if (modules[i] != 0)
                 {
                     if (MemoryAPI.GetModuleBaseName(_processHandle, modules[i], moduleBaseName, 256) > 0)
                     {
@@ -296,10 +295,86 @@ namespace StarcUp.Infrastructure.Memory
             return false;
         }
 
-        private bool IsInRange(IntPtr address, IntPtr baseAddress, uint size)
+        /// <summary>
+        /// 메모리에서 지정된 크기만큼 데이터를 읽어 바이트 배열로 반환
+        /// </summary>
+        public byte[] ReadMemory(nint address, int size)
         {
-            long addr = address.ToInt64();
-            long baseAddr = baseAddress.ToInt64();
+            if (!IsConnected || size <= 0)
+                return null;
+
+            byte[] buffer = new byte[size];
+
+            if (ReadProcessMemory(address, buffer, size))
+            {
+                return buffer;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 메모리에서 구조체를 직접 읽기
+        /// </summary>
+        public T ReadStructure<T>(nint address) where T : struct
+        {
+            int size = Marshal.SizeOf<T>();
+            byte[] buffer = ReadMemory(address, size);
+
+            if (buffer == null)
+                throw new InvalidOperationException($"Failed to read memory at address 0x{address:X}");
+
+            GCHandle handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+            try
+            {
+                return Marshal.PtrToStructure<T>(handle.AddrOfPinnedObject());
+            }
+            finally
+            {
+                handle.Free();
+            }
+        }
+
+        /// <summary>
+        /// 메모리에서 구조체 배열을 읽기
+        /// </summary>
+        public T[] ReadStructureArray<T>(nint address, int count) where T : struct
+        {
+            if (count <= 0)
+                return new T[0];
+
+            int structSize = Marshal.SizeOf<T>();
+            int totalSize = structSize * count;
+
+            byte[] buffer = ReadMemory(address, totalSize);
+            if (buffer == null)
+                throw new InvalidOperationException($"Failed to read memory array at address 0x{address:X}");
+
+            T[] result = new T[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                byte[] structBytes = new byte[structSize];
+                Array.Copy(buffer, i * structSize, structBytes, 0, structSize);
+
+                GCHandle handle = GCHandle.Alloc(structBytes, GCHandleType.Pinned);
+                try
+                {
+                    result[i] = Marshal.PtrToStructure<T>(handle.AddrOfPinnedObject());
+                }
+                finally
+                {
+                    handle.Free();
+                }
+            }
+
+            return result;
+        }
+
+        private bool IsInRange(nint address, nint baseAddress, uint size)
+        {
+            long addr = address;
+            long baseAddr = baseAddress;
             return addr >= baseAddr && addr < (baseAddr + size);
         }
 

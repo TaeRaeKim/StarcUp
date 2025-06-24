@@ -13,11 +13,15 @@ namespace StarcUp.Infrastructure.Memory
         void Disconnect();
         bool IsConnected { get; }
         int ConnectedProcessId { get; }
-
+        
         List<TebInfo> GetTebAddresses();
-        IntPtr GetStackStart(int threadIndex = 0);
-        IntPtr GetStackTop(int threadIndex);
-        IntPtr ReadPointer(IntPtr address);
-        bool ReadProcessMemory(IntPtr address, byte[] buffer, int size);
+        nint GetStackStart(int threadIndex = 0);
+        nint GetStackTop(int threadIndex);
+        nint ReadPointer(nint address);
+        bool ReadProcessMemory(nint address, byte[] buffer, int size);
+
+        byte[] ReadMemory(nint address, int size);
+        T ReadStructure<T>(nint address) where T : struct;
+        T[] ReadStructureArray<T>(nint address, int count) where T : struct;
     }
 }

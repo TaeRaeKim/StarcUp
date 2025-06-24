@@ -227,7 +227,7 @@ namespace StarcUp.Business.GameDetection
                 Console.WriteLine($"[HybridStarcraftDetector] 🎮 게임 프로세스 발견: {processName} (PID: {process.Id})");
 
                 // 메인 윈도우 핸들 확인 (잠시 대기)
-                if (process.MainWindowHandle == IntPtr.Zero)
+                if (process.MainWindowHandle == 0)
                 {
                     Console.WriteLine("  ⏳ 메인 윈도우 생성 대기 중...");
 
@@ -258,7 +258,7 @@ namespace StarcUp.Business.GameDetection
                         return;
                     }
 
-                    if (process.MainWindowHandle != IntPtr.Zero)
+                    if (process.MainWindowHandle != 0)
                     {
                         Console.WriteLine("  ✅ 메인 윈도우 핸들 확인됨");
 

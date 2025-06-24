@@ -33,13 +33,13 @@ namespace StarcUp.Infrastructure.Windows
                 var locationHook = WindowsAPI.SetWinEventHook(
                     WindowsAPI.EVENT_OBJECT_LOCATIONCHANGE,
                     WindowsAPI.EVENT_OBJECT_LOCATIONCHANGE,
-                    IntPtr.Zero,
+                    0,
                     _winEventDelegate,
                     processId,
                     0,
                     WindowsAPI.WINEVENT_OUTOFCONTEXT);
 
-                if (locationHook != IntPtr.Zero)
+                if (locationHook != 0)
                 {
                     _eventHooks.Add(locationHook);
                     Console.WriteLine($"[WindowManager] 위치 변경 이벤트 후킹 성공: 0x{locationHook:X8}");
@@ -49,13 +49,13 @@ namespace StarcUp.Infrastructure.Windows
                 var minimizeHook = WindowsAPI.SetWinEventHook(
                     WindowsAPI.EVENT_SYSTEM_MINIMIZESTART,
                     WindowsAPI.EVENT_SYSTEM_MINIMIZEEND,
-                    IntPtr.Zero,
+                    0,
                     _winEventDelegate,
                     processId,
                     0,
                     WindowsAPI.WINEVENT_OUTOFCONTEXT);
 
-                if (minimizeHook != IntPtr.Zero)
+                if (minimizeHook != 0)
                 {
                     _eventHooks.Add(minimizeHook);
                     Console.WriteLine($"[WindowManager] 최소화 이벤트 후킹 성공: 0x{minimizeHook:X8}");
@@ -82,13 +82,13 @@ namespace StarcUp.Infrastructure.Windows
                 var foregroundHook = WindowsAPI.SetWinEventHook(
                     WindowsAPI.EVENT_SYSTEM_FOREGROUND,
                     WindowsAPI.EVENT_SYSTEM_FOREGROUND,
-                    IntPtr.Zero,
+                    0,
                     _winEventDelegate,
                     0, // 모든 프로세스
                     0, // 모든 스레드
                     WindowsAPI.WINEVENT_OUTOFCONTEXT | WindowsAPI.WINEVENT_SKIPOWNPROCESS);
 
-                if (foregroundHook != IntPtr.Zero)
+                if (foregroundHook != 0)
                 {
                     _eventHooks.Add(foregroundHook);
                     Console.WriteLine($"[WindowManager] 포어그라운드 이벤트 후킹 성공: 0x{foregroundHook:X8}");
@@ -112,7 +112,7 @@ namespace StarcUp.Infrastructure.Windows
 
                 foreach (var hook in _eventHooks)
                 {
-                    if (hook != IntPtr.Zero)
+                    if (hook != 0)
                     {
                         bool success = WindowsAPI.UnhookWinEvent(hook);
                         Console.WriteLine($"[WindowManager] 후킹 해제: 0x{hook:X8} - {(success ? "성공" : "실패")}");
@@ -160,7 +160,7 @@ namespace StarcUp.Infrastructure.Windows
         private void WinEventCallback(IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
             int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
         {
-            if (hwnd == IntPtr.Zero || _isDisposed)
+            if (hwnd == 0 || _isDisposed)
                 return;
 
             try

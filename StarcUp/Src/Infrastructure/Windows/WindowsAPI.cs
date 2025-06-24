@@ -166,7 +166,7 @@ namespace StarcUp.Infrastructure.Windows
         /// </summary>
         public static bool IsValidWindow(IntPtr hWnd)
         {
-            return hWnd != IntPtr.Zero && IsWindow(hWnd);
+            return hWnd != 0 && IsWindow(hWnd);
         }
 
         /// <summary>

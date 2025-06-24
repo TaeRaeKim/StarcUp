@@ -5,7 +5,7 @@ using Xunit;
 using Shouldly;
 using StarcUp.Src.Business.UnitInfoUtil;
 
-namespace StarcUp.Test.Src.Business.Game
+namespace StarcUp.Test.Src.Business.TUnitInfoUtil
 {
     public class TUnitInfoUtils
     {

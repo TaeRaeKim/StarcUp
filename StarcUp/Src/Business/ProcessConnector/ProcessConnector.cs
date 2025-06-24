@@ -63,7 +63,7 @@ namespace StarcUp.Business.Memory
             if (!IsConnected)
             {
                 Console.WriteLine("프로세스가 연결되지 않음");
-                return IntPtr.Zero;
+                return 0;
             }
 
             try
@@ -73,7 +73,7 @@ namespace StarcUp.Business.Memory
             catch (Exception ex)
             {
                 Console.WriteLine($"StackStart 가져오기 실패: {ex.Message}");
-                return IntPtr.Zero;
+                return 0;
             }
         }
 

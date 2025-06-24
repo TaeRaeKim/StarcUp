@@ -426,7 +426,7 @@ namespace StarcUp.Presentation.Forms
 
                     // StackStart 주소 가져오기
                     IntPtr stackStart = _memoryService.GetStackStart(i);
-                    if (stackStart != IntPtr.Zero)
+                    if (stackStart != 0)
                     {
                         _threadStackListBox.Items.Add($"   ✅ StackStart: 0x{stackStart.ToInt64():X16}");
                     }

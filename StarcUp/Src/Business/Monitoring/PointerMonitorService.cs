@@ -47,7 +47,7 @@ namespace StarcUp.Business.Monitoring
 
                 // StackStart 주소 가져오기
                 _stackStartAddress = _memoryService.GetStackStart(0);
-                if (_stackStartAddress == IntPtr.Zero)
+                if (_stackStartAddress == 0)
                 {
                     Console.WriteLine("StackStart 주소를 가져올 수 없습니다.");
                     return;
@@ -82,7 +82,7 @@ namespace StarcUp.Business.Monitoring
             _monitorTimer = null;
 
             _memoryService.Disconnect();
-            _stackStartAddress = IntPtr.Zero;
+            _stackStartAddress = 0;
             _currentValue = null;
 
             _isMonitoring = false;
@@ -93,7 +93,7 @@ namespace StarcUp.Business.Monitoring
         {
             try
             {
-                if (!_memoryService.IsConnected || _stackStartAddress == IntPtr.Zero)
+                if (!_memoryService.IsConnected || _stackStartAddress == 0)
                 {
                     StopMonitoring();
                     return;

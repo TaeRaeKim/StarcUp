@@ -30,7 +30,7 @@ namespace StarcUp.Src.Business.Game
             new Player { PlayerIndex = 7 }
         };
         public IntPtr[] StartUnitAddressFromIndex { get; private set; } = Array.Empty<IntPtr>();
-        public IntPtr StartUnitAddress { get; private set; } = IntPtr.Zero;
+        public IntPtr StartUnitAddress { get; private set; } = 0;
         public void GameInit()
         {
             // 객체 초기화

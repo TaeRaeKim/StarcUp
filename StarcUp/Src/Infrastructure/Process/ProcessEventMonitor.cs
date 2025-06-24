@@ -324,7 +324,7 @@ namespace StarcUp.Infrastructure.Windows
                 {
                     ProcessId = (int)processId,
                     ProcessName = cleanProcessName,
-                    MainWindowHandle = IntPtr.Zero,
+                    MainWindowHandle = 0,
                     StartTime = DateTime.MinValue
                 };
 
