@@ -3,7 +3,7 @@ using System;
 using System.Diagnostics;
 using Xunit;
 using Shouldly;
-using StarcUp.Src.Business.Game;
+using StarcUp.Src.Business.UnitInfoUtil;
 
 namespace StarcUp.Test.Src.Business.Game
 {

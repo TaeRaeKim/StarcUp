@@ -6,7 +6,7 @@ namespace StarcUp.Business.GameDetection
     /// <summary>
     /// 게임 감지 서비스 인터페이스
     /// </summary>
-    public interface IGameDetectionService : IDisposable
+    public interface IGameDetector : IDisposable
     {
         event EventHandler<GameEventArgs> HandleFound;
         event EventHandler<GameEventArgs> HandleLost;

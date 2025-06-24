@@ -12,7 +12,7 @@ namespace StarcUp.Business.Monitoring
     /// </summary>
     public class PointerMonitorService : IPointerMonitorService
     {
-        private readonly IMemoryService _memoryService;
+        private readonly IProcessConnector _memoryService;
         private Timer _monitorTimer;
         private PointerValue _currentValue;
         private bool _isMonitoring;
@@ -24,7 +24,7 @@ namespace StarcUp.Business.Monitoring
         public bool IsMonitoring => _isMonitoring;
         public PointerValue CurrentValue => _currentValue;
 
-        public PointerMonitorService(IMemoryService memoryService)
+        public PointerMonitorService(IProcessConnector memoryService)
         {
             _memoryService = memoryService ?? throw new ArgumentNullException(nameof(memoryService));
         }

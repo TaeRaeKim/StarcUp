@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace StarcUp.Src.Business.Game
+namespace StarcUp.Src.Business.UnitInfoUtil
 {    // 1. 컴팩트한 유닛 데이터 구조
     public record UnitInfo(
         int Id,

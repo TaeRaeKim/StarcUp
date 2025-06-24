@@ -132,13 +132,13 @@ namespace StarcUp.DependencyInjection
                 c => new WindowManager());
 
             // Business Services
-            container.RegisterSingleton<IMemoryService>(
-                c => new MemoryService(
+            container.RegisterSingleton<IProcessConnector>(
+                c => new ProcessConnector(
                     c.Resolve<IMemoryReader>()));
 
             // Game Detection Services
-            container.RegisterSingleton<IGameDetectionService>(
-                c => new GameDetectionService(
+            container.RegisterSingleton<IGameDetector>(
+                c => new GameDetector(
                     c.Resolve<IWindowManager>()));
 
             //container.RegisterSingleton<IGameManager>(

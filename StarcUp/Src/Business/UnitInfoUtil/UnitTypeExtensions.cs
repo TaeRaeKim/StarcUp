@@ -4,7 +4,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 
-namespace StarcUp.Src.Business.Game
+namespace StarcUp.Src.Business.UnitInfoUtil
 {
     // 완전한 UnitType Enum (BWAPI 순서와 ID 매칭)
     public enum UnitType
@@ -777,11 +777,11 @@ namespace StarcUp.Src.Business.Game
         {
             var name = unitType.GetUnitName();
 
-            if (name.StartsWith("Terran_") || (name.StartsWith("Hero_") && IsTerranHero(name)))
+            if (name.StartsWith("Terran_") || name.StartsWith("Hero_") && IsTerranHero(name))
                 return "Terran";
-            else if (name.StartsWith("Protoss_") || (name.StartsWith("Hero_") && IsProtossHero(name)))
+            else if (name.StartsWith("Protoss_") || name.StartsWith("Hero_") && IsProtossHero(name))
                 return "Protoss";
-            else if (name.StartsWith("Zerg_") || (name.StartsWith("Hero_") && IsZergHero(name)))
+            else if (name.StartsWith("Zerg_") || name.StartsWith("Hero_") && IsZergHero(name))
                 return "Zerg";
             else
                 return "Neutral";

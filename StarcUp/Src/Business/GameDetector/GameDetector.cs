@@ -14,7 +14,7 @@ namespace StarcUp.Business.GameDetection
     /// - 게임 종료: Process.Exited 이벤트
     /// - 게임 종료 후: 다시 폴링 모드로 전환
     /// </summary>
-    public class GameDetectionService : IGameDetectionService
+    public class GameDetector : IGameDetector
     {
         #region Private Fields
 
@@ -50,7 +50,7 @@ namespace StarcUp.Business.GameDetection
 
         #region Constructor
 
-        public GameDetectionService(IWindowManager windowManager)
+        public GameDetector(IWindowManager windowManager)
         {
             _windowManager = windowManager ?? throw new ArgumentNullException(nameof(windowManager));
 

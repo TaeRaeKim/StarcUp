@@ -7,7 +7,7 @@ namespace StarcUp.Business.Memory
     /// <summary>
     /// 메모리 서비스 인터페이스
     /// </summary>
-    public interface IMemoryService : IDisposable
+    public interface IProcessConnector : IDisposable
     {
         bool ConnectToProcess(int processId);
         void Disconnect();

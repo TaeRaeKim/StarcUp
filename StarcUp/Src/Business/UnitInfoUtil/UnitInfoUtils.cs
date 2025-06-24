@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace StarcUp.Src.Business.Game
+namespace StarcUp.Src.Business.UnitInfoUtil
 {
     public class UnitInfoUtils : IUnitInfoUtils
     {

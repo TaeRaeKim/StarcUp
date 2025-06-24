@@ -7,7 +7,7 @@ namespace StarcUp.Business.Memory
     /// <summary>
     /// 메모리 서비스
     /// </summary>
-    public class MemoryService : IMemoryService
+    public class ProcessConnector : IProcessConnector
     {
         private readonly IMemoryReader _memoryReader;
         private bool _isDisposed;
@@ -15,7 +15,7 @@ namespace StarcUp.Business.Memory
         public bool IsConnected => _memoryReader.IsConnected;
         public int ConnectedProcessId => _memoryReader.ConnectedProcessId;
 
-        public MemoryService(IMemoryReader memoryReader)
+        public ProcessConnector(IMemoryReader memoryReader)
         {
             _memoryReader = memoryReader ?? throw new ArgumentNullException(nameof(memoryReader));
         }

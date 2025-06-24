@@ -13,9 +13,9 @@ namespace StarcUp.Presentation.Forms
     /// </summary>
     public partial class ControlForm : Form
     {
-        private readonly IGameDetectionService _gameDetectionService;
-        private readonly IMemoryService _memoryService;
-        private readonly GameDetectionService _hybridDetector; // 직접 참조로 상태 정보 접근
+        private readonly IGameDetector _gameDetectionService;
+        private readonly IProcessConnector _memoryService;
+        private readonly GameDetector _hybridDetector; // 직접 참조로 상태 정보 접근
 
         // UI 컨트롤들
         private GroupBox _detectionStatusGroup = null!;
@@ -45,11 +45,11 @@ namespace StarcUp.Presentation.Forms
         private bool _isOverlayActive = false;
         private bool _isDisposed = false;
 
-        public ControlForm(IGameDetectionService gameDetectionService, IMemoryService memoryService)
+        public ControlForm(IGameDetector gameDetectionService, IProcessConnector memoryService)
         {
             _gameDetectionService = gameDetectionService ?? throw new ArgumentNullException(nameof(gameDetectionService));
             _memoryService = memoryService ?? throw new ArgumentNullException(nameof(memoryService));
-            _hybridDetector = gameDetectionService as GameDetectionService; // 타입 캐스팅
+            _hybridDetector = gameDetectionService as GameDetector; // 타입 캐스팅
 
             InitializeComponent();
             SetupEventHandlers();
