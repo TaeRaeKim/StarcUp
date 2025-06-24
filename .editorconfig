@@ -1,0 +1,25 @@
+﻿[*.cs]
+
+# CS8622: 매개 변수 형식에서 참조 형식의 Null 허용 여부가 대상 대리자와 일치하지 않습니다(Null 허용 여부 특성 때문일 수 있음).
+dotnet_diagnostic.CS8622.severity = suggestion
+
+# CS8600: null 리터럴 또는 가능한 null 값을 null을 허용하지 않는 형식으로 변환하는 중입니다.
+dotnet_diagnostic.CS8600.severity = suggestion
+
+# CS8625: Null 리터럴을 null을 허용하지 않는 참조 형식으로 변환할 수 없습니다.
+dotnet_diagnostic.CS8625.severity = suggestion
+
+# CS8618: null을 허용하지 않는 필드는 생성자를 종료할 때 null이 아닌 값을 포함해야 합니다. 'required' 한정자를 추가하거나 nullable로 선언하는 것이 좋습니다.
+dotnet_diagnostic.CS8618.severity = suggestion
+
+# CS8601: 가능한 null 참조 할당입니다.
+dotnet_diagnostic.CS8601.severity = suggestion
+
+# CS8603: 가능한 null 참조 반환입니다.
+dotnet_diagnostic.CS8603.severity = suggestion
+
+# CS8602: null 가능 참조에 대한 역참조입니다.
+dotnet_diagnostic.CS8602.severity = suggestion
+
+# CS8604: 가능한 null 참조 인수입니다.
+dotnet_diagnostic.CS8604.severity = suggestion

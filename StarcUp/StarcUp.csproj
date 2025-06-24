@@ -1,109 +1,33 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{3BE28D64-C489-493B-9EF5-3C3D00A89F6A}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>StarcUp</RootNamespace>
-    <AssemblyName>StarcUp</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <Deterministic>true</Deterministic>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <StartupObject>StarcUp.Program</StartupObject>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>x64</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
+
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Management" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Deployment" />
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Xml" />
+    <Compile Remove="Src\claudeai\**" />
+    <EmbeddedResource Remove="Src\claudeai\**" />
+    <None Remove="Src\claudeai\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="claudeai\starcraft_extensions_csharp.cs" />
+    <Compile Remove="claudeai\starcraft_units_csharp.cs" />
+    <Compile Remove="claudeai\starcraft_usage_example_csharp.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="claudeai\starcraft_extensions_csharp.cs" />
+    <None Include="claudeai\starcraft_units_csharp.cs" />
+    <None Include="claudeai\starcraft_usage_example_csharp.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Src\Business\GameDetection\GameDetectionService.cs" />
-    <Compile Include="Src\Infrastructure\Process\ProcessEventMonitor.cs" />
-    <Compile Include="Src\Infrastructure\Windows\WindowInfo.cs" />
-    <Compile Include="Src\Presentation\Forms\OverlayNotificationForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <None Include="Docs\pr\20250614\Flow.md" />
-    <Compile Include="Program.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Src\Business\GameDetection\IGameDetectionService.cs" />
-    <Compile Include="Src\Business\Memory\IMemoryService.cs" />
-    <Compile Include="Src\Business\Monitoring\IPointerMonitorService.cs" />
-    <Compile Include="Src\Business\GameDetection\GameInfo.cs" />
-    <Compile Include="Src\Business\Monitoring\PointerValue.cs" />
-    <Compile Include="Src\Business\Memory\TebInfo.cs" />
-    <Compile Include="Src\Business\Memory\MemoryService.cs" />
-    <Compile Include="Src\Business\Monitoring\PointerMonitorService.cs" />
-    <Compile Include="Src\Common\Constants\GameConstants.cs" />
-    <Compile Include="Src\Common\Events\GameEventArgs.cs" />
-    <Compile Include="Src\Common\Events\PointerEventArgs.cs" />
-    <Compile Include="Src\DependencyInjection\ServiceContainer.cs" />
-    <Compile Include="Src\Infrastructure\Memory\IMemoryReader.cs" />
-    <Compile Include="Src\Infrastructure\Memory\MemoryReader.cs" />
-    <Compile Include="Src\Infrastructure\Memory\MemoryStructures.cs" />
-    <Compile Include="Src\Infrastructure\Windows\IWindowManager.cs" />
-    <Compile Include="Src\Infrastructure\Windows\WindowManager.cs" />
-    <Compile Include="Src\Infrastructure\Windows\WindowsAPI.cs" />
-    <Compile Include="Src\Presentation\Controls\OverlayControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Src\Presentation\Forms\ControlForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
-    <None Include="Docs\pr\20250614\구조개선.md" />
-    <None Include="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-    <Compile Include="Properties\Settings.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-    </Compile>
+    <PackageReference Include="System.Management" Version="9.0.6" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config" />
-  </ItemGroup>
-  <ItemGroup />
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
 </Project>

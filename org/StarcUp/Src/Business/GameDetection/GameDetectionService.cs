@@ -4,7 +4,6 @@ using System.Threading;
 using StarcUp.Common.Constants;
 using StarcUp.Common.Events;
 using StarcUp.Infrastructure.Windows;
-using Timer = System.Threading.Timer;
 
 namespace StarcUp.Business.GameDetection
 {
@@ -25,7 +24,7 @@ namespace StarcUp.Business.GameDetection
         private bool _isPollingMode;
         private bool _isDetecting;
         private bool _isDisposed;
-        private readonly object _lockObject = new();
+        private readonly object _lockObject = new object();
 
         #endregion
 

@@ -4,7 +4,6 @@ using System.Windows.Forms;
 using StarcUp.Business.GameDetection;
 using StarcUp.Business.Memory;
 using StarcUp.Common.Events;
-using Timer = System.Windows.Forms.Timer;
 
 namespace StarcUp.Presentation.Forms
 {
@@ -18,29 +17,29 @@ namespace StarcUp.Presentation.Forms
         private readonly GameDetectionService _hybridDetector; // 직접 참조로 상태 정보 접근
 
         // UI 컨트롤들
-        private GroupBox _detectionStatusGroup = null!;
-        private Label _detectionModeLabel = null!;
-        private Label _gameStatusLabel = null!;
-        private Label _processInfoLabel = null!;
-        private Label _performanceLabel = null!;
-        private Button _showStatusButton = null!;
+        private GroupBox _detectionStatusGroup;
+        private Label _detectionModeLabel;
+        private Label _gameStatusLabel;
+        private Label _processInfoLabel;
+        private Label _performanceLabel;
+        private Button _showStatusButton;
 
-        private GroupBox _gameMonitorGroup = null!;
-        private Label _connectionStatusLabel = null!;
-        private Button _connectToProcessButton = null!;
+        private GroupBox _gameMonitorGroup;
+        private Label _connectionStatusLabel;
+        private Button _connectToProcessButton;
 
-        private GroupBox _overlayStatusGroup = null!;
-        private Label _overlayActiveLabel = null!;
-        private Button _showOverlayNotificationButton = null!;
+        private GroupBox _overlayStatusGroup;
+        private Label _overlayActiveLabel;
+        private Button _showOverlayNotificationButton;
 
-        private GroupBox _memoryInfoGroup = null!;
-        private ListBox _threadStackListBox = null!;
-        private Button _refreshMemoryButton = null!;
+        private GroupBox _memoryInfoGroup;
+        private ListBox _threadStackListBox;
+        private Button _refreshMemoryButton;
 
-        private NotifyIcon _notifyIcon = null!;
+        private NotifyIcon _notifyIcon;
 
         // 오버레이 관련
-        private OverlayNotificationForm _overlayNotificationForm = null!;
+        private OverlayNotificationForm _overlayNotificationForm;
         private bool _isConnectedToProcess = false;
         private bool _isOverlayActive = false;
         private bool _isDisposed = false;
@@ -69,7 +68,7 @@ namespace StarcUp.Presentation.Forms
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Icon = GetCreateApplicationIcon();
+            this.Icon = CreateApplicationIcon();
 
             CreateControls();
             LayoutControls();
@@ -689,17 +688,19 @@ namespace StarcUp.Presentation.Forms
             Application.Exit();
         }
 
-        private static Icon GetCreateApplicationIcon()
+        private Icon CreateApplicationIcon()
         {
             try
             {
-                Bitmap bitmap = new(32, 32);
+                Bitmap bitmap = new Bitmap(32, 32);
                 using (Graphics g = Graphics.FromImage(bitmap))
                 {
                     g.FillEllipse(Brushes.DarkBlue, 2, 2, 28, 28);
                     g.DrawEllipse(new Pen(Color.Yellow, 2), 2, 2, 28, 28);
-                    using Font font = new("Arial", 10, FontStyle.Bold);
-                    g.DrawString("SC", font, Brushes.White, new PointF(8, 8));
+                    using (Font font = new Font("Arial", 10, FontStyle.Bold))
+                    {
+                        g.DrawString("SC", font, Brushes.White, new PointF(8, 8));
+                    }
                 }
                 return Icon.FromHandle(bitmap.GetHicon());
             }

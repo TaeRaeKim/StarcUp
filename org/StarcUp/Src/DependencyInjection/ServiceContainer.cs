@@ -2,10 +2,8 @@
 using System.Collections.Generic;
 using StarcUp.Business.GameDetection;
 using StarcUp.Business.Memory;
-using StarcUp.Business.Monitoring;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Windows;
-using StarcUp.Src.Business.Game;
 
 namespace StarcUp.DependencyInjection
 {
@@ -136,14 +134,10 @@ namespace StarcUp.DependencyInjection
                 c => new MemoryService(
                     c.Resolve<IMemoryReader>()));
 
-            // Game Detection Services
+            // 🎯 하이브리드 게임 감지 서비스 등록
             container.RegisterSingleton<IGameDetectionService>(
                 c => new GameDetectionService(
                     c.Resolve<IWindowManager>()));
-
-            //container.RegisterSingleton<IGameManager>(
-            //    c => new GameManager(
-            //        c.Resolve<IPointerMonitorService>()));
 
             Console.WriteLine("✅ 서비스 등록 완료:");
             Console.WriteLine("   📖 MemoryReader - 메모리 읽기 서비스");

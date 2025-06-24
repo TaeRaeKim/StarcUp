@@ -3,7 +3,6 @@ using System.Timers;
 using StarcUp.Business.Memory;
 using StarcUp.Common.Constants;
 using StarcUp.Common.Events;
-using Timer = System.Timers.Timer;
 
 namespace StarcUp.Business.Monitoring
 {

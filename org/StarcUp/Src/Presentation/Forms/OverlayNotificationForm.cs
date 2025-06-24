@@ -1,9 +1,9 @@
-﻿using StarcUp.Business.GameDetection;
-using System;
+﻿using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using StarcUp.Business.GameDetection;
 using Timer = System.Windows.Forms.Timer;
 
 namespace StarcUp.Presentation.Forms
@@ -41,22 +41,20 @@ namespace StarcUp.Presentation.Forms
         private bool _isDisposed = false;
 
         // UI 컨트롤들
-        private Panel _mainPanel = null!;
-        private Label _titleLabel = null!;
-        private Label _gameInfoLabel = null!;
-        private PictureBox _sampleImagePictureBox = null!;
-        private Button _activateButton = null!;
-        private Button _closeButton = null!;
-        private ProgressBar _autoHideProgressBar = null!;
+        private Panel _mainPanel;
+        private Label _titleLabel;
+        private Label _gameInfoLabel;
+        private PictureBox _sampleImagePictureBox;
+        private Button _activateButton;
+        private Button _closeButton;
+        private ProgressBar _autoHideProgressBar;
 
         #endregion
 
         #region Events
 
         public event EventHandler OverlayActivationRequested;
-#pragma warning disable CS0108 // 멤버가 상속된 멤버를 숨깁니다. new 키워드가 없습니다.
         public event EventHandler FormClosed;
-#pragma warning restore CS0108 // 멤버가 상속된 멤버를 숨깁니다. new 키워드가 없습니다.
 
         #endregion
 
@@ -207,11 +205,11 @@ namespace StarcUp.Presentation.Forms
             try
             {
                 // 샘플 오버레이 이미지 생성
-                Bitmap sampleBitmap = new(200, 100);
+                Bitmap sampleBitmap = new Bitmap(200, 100);
                 using (Graphics g = Graphics.FromImage(sampleBitmap))
                 {
                     // 그라데이션 배경
-                    using (LinearGradientBrush brush = new (
+                    using (LinearGradientBrush brush = new LinearGradientBrush(
                         new Rectangle(0, 0, 200, 100),
                         Color.FromArgb(150, 0, 0, 0),
                         Color.FromArgb(200, 0, 0, 0),
@@ -221,13 +219,13 @@ namespace StarcUp.Presentation.Forms
                     }
 
                     // 테두리
-                    using (Pen borderPen = new(Color.Yellow, 2))
+                    using (Pen borderPen = new Pen(Color.Yellow, 2))
                     {
                         g.DrawRectangle(borderPen, 1, 1, 198, 98);
                     }
 
                     // 텍스트
-                    using (Font font = new("맑은 고딕", 12, FontStyle.Bold))
+                    using (Font font = new Font("맑은 고딕", 12, FontStyle.Bold))
                     {
                         g.DrawString("StarcUp", font, Brushes.Yellow, new PointF(10, 10));
                         g.DrawString("포인터: 1337", font, Brushes.LightGreen, new PointF(10, 35));
@@ -235,10 +233,14 @@ namespace StarcUp.Presentation.Forms
                     }
 
                     // 아이콘
-                    using SolidBrush iconBrush = new(Color.FromArgb(0, 120, 215));
-                    g.FillEllipse(iconBrush, 150, 15, 30, 30);
-                    using Font iconFont = new("Arial", 10, FontStyle.Bold);
-                    g.DrawString("SC", iconFont, Brushes.White, new PointF(158, 25));
+                    using (SolidBrush iconBrush = new SolidBrush(Color.FromArgb(0, 120, 215)))
+                    {
+                        g.FillEllipse(iconBrush, 150, 15, 30, 30);
+                        using (Font iconFont = new Font("Arial", 10, FontStyle.Bold))
+                        {
+                            g.DrawString("SC", iconFont, Brushes.White, new PointF(158, 25));
+                        }
+                    }
                 }
 
                 _sampleImagePictureBox.Image = sampleBitmap;
@@ -410,8 +412,10 @@ namespace StarcUp.Presentation.Forms
                 base.OnPaint(e);
 
                 // 테두리 그리기
-                using Pen borderPen = new(Color.FromArgb(0, 120, 215), 2);
-                e.Graphics.DrawRectangle(borderPen, 0, 0, this.Width - 1, this.Height - 1);
+                using (Pen borderPen = new Pen(Color.FromArgb(0, 120, 215), 2))
+                {
+                    e.Graphics.DrawRectangle(borderPen, 0, 0, this.Width - 1, this.Height - 1);
+                }
             }
             catch (Exception ex)
             {
