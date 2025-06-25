@@ -11,14 +11,14 @@ namespace StarcUp.Business.Monitoring
         public int NewValue { get; set; }
         public int Difference => NewValue - OldValue;
         public DateTime Timestamp { get; set; }
-        public IntPtr Address { get; set; }
+        public nint Address { get; set; }
 
         public PointerValue()
         {
             Timestamp = DateTime.Now;
         }
 
-        public PointerValue(int oldValue, int newValue, IntPtr address = default) : this()
+        public PointerValue(int oldValue, int newValue, nint address = default) : this()
         {
             OldValue = oldValue;
             NewValue = newValue;

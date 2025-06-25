@@ -12,55 +12,55 @@ namespace StarcUp.Infrastructure.Windows
         #region User32.dll Functions
 
         [DllImport("user32.dll", SetLastError = true)]
-        public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+        public static extern nint FindWindow(string lpClassName, string lpWindowName);
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+        public static extern bool GetWindowRect(nint hWnd, out RECT lpRect);
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+        public static extern bool GetClientRect(nint hWnd, out RECT lpRect);
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool IsWindow(IntPtr hWnd);
+        public static extern bool IsWindow(nint hWnd);
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool IsWindowVisible(IntPtr hWnd);
+        public static extern bool IsWindowVisible(nint hWnd);
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool IsZoomed(IntPtr hWnd);
+        public static extern bool IsZoomed(nint hWnd);
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool IsIconic(IntPtr hWnd);
+        public static extern bool IsIconic(nint hWnd);
 
         [DllImport("user32.dll", SetLastError = true)]
-        public static extern IntPtr GetForegroundWindow();
+        public static extern nint GetForegroundWindow();
 
         [DllImport("user32.dll", SetLastError = true)]
-        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+        public static extern uint GetWindowThreadProcessId(nint hWnd, out uint processId);
 
         [DllImport("user32.dll", SetLastError = true)]
-        public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+        public static extern int GetWindowText(nint hWnd, StringBuilder lpString, int nMaxCount);
 
         [DllImport("user32.dll", SetLastError = true)]
-        public static extern int GetWindowTextLength(IntPtr hWnd);
+        public static extern int GetWindowTextLength(nint hWnd);
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+        public static extern bool SetWindowPos(nint hWnd, nint hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 
         [DllImport("user32.dll", SetLastError = true)]
-        public static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr hmodWinEventProc,
+        public static extern nint SetWinEventHook(uint eventMin, uint eventMax, nint hmodWinEventProc,
             WinEventDelegate lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
 
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool UnhookWinEvent(IntPtr hWinEventHook);
+        public static extern bool UnhookWinEvent(nint hWinEventHook);
 
         [DllImport("user32.dll", SetLastError = true)]
         public static extern int GetSystemMetrics(int nIndex);
@@ -69,7 +69,7 @@ namespace StarcUp.Infrastructure.Windows
 
         #region Delegates
 
-        public delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
+        public delegate void WinEventDelegate(nint hWinEventHook, uint eventType, nint hwnd,
             int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
 
         #endregion
@@ -101,10 +101,10 @@ namespace StarcUp.Infrastructure.Windows
         public const uint SWP_HIDEWINDOW = 0x0080;
 
         // Z-Order Constants
-        public static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
-        public static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
-        public static readonly IntPtr HWND_TOP = new IntPtr(0);
-        public static readonly IntPtr HWND_BOTTOM = new IntPtr(1);
+        public static readonly nint HWND_TOPMOST = new nint(-1);
+        public static readonly nint HWND_NOTOPMOST = new nint(-2);
+        public static readonly nint HWND_TOP = new nint(0);
+        public static readonly nint HWND_BOTTOM = new nint(1);
 
         // System Metrics
         public const int SM_CXSCREEN = 0;
@@ -164,7 +164,7 @@ namespace StarcUp.Infrastructure.Windows
         /// <summary>
         /// 윈도우 핸들이 유효한지 확인
         /// </summary>
-        public static bool IsValidWindow(IntPtr hWnd)
+        public static bool IsValidWindow(nint hWnd)
         {
             return hWnd != 0 && IsWindow(hWnd);
         }
@@ -172,7 +172,7 @@ namespace StarcUp.Infrastructure.Windows
         /// <summary>
         /// 윈도우 제목 가져오기
         /// </summary>
-        public static string GetWindowTitle(IntPtr hWnd)
+        public static string GetWindowTitle(nint hWnd)
         {
             if (!IsValidWindow(hWnd))
                 return string.Empty;
@@ -200,7 +200,7 @@ namespace StarcUp.Infrastructure.Windows
         /// <summary>
         /// 윈도우가 전체화면인지 확인
         /// </summary>
-        public static bool IsFullscreen(IntPtr hWnd)
+        public static bool IsFullscreen(nint hWnd)
         {
             if (!IsValidWindow(hWnd))
                 return false;

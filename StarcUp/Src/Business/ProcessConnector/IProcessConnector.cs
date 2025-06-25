@@ -11,7 +11,7 @@ namespace StarcUp.Business.Memory
     {
         bool ConnectToProcess(int processId);
         void Disconnect();
-        IntPtr GetStackStart(int threadIndex = 0);
+        nint GetStackStart(int threadIndex = 0);
         List<TebInfo> GetTebAddresses();
         bool IsConnected { get; }
         int ConnectedProcessId { get; }

@@ -8,7 +8,7 @@ namespace StarcUp.Business.Memory
     public class TebInfo
     {
         public uint ThreadId { get; set; }
-        public IntPtr TebAddress { get; set; }
+        public nint TebAddress { get; set; }
         public int Index { get; set; }
         public DateTime DiscoveredAt { get; set; }
 
@@ -17,7 +17,7 @@ namespace StarcUp.Business.Memory
             DiscoveredAt = DateTime.Now;
         }
 
-        public TebInfo(uint threadId, IntPtr tebAddress, int index) : this()
+        public TebInfo(uint threadId, nint tebAddress, int index) : this()
         {
             ThreadId = threadId;
             TebAddress = tebAddress;

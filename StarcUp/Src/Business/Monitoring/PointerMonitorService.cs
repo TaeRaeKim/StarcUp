@@ -17,7 +17,7 @@ namespace StarcUp.Business.Monitoring
         private PointerValue _currentValue;
         private bool _isMonitoring;
         private bool _isDisposed;
-        private IntPtr _stackStartAddress;
+        private nint _stackStartAddress;
 
         public event EventHandler<PointerEventArgs> ValueChanged;
 

@@ -12,10 +12,8 @@ namespace StarcUp.Src.Business.UnitManager
     {
         public void SetUnitArrayBaseAddress(nint baseAddress);
         public bool LoadAllUnits();
-        public bool LoadUnitsRange(int startIndex, int count);
-
         extern private Unit[] ByteArrayToUnitArray(byte[] bytes);
-        extern private public int CountActiveUnits();
+        extern private int CountActiveUnits();
         public IEnumerable<Unit> GetAllUnits();
         public IEnumerable<Unit> GetPlayerUnits(byte playerId);
         public IEnumerable<Unit> GetUnitsByType(ushort unitType);

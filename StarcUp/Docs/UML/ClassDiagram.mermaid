@@ -47,7 +47,7 @@ classDiagram
         +int ConnectedProcessId
         +ConnectToProcess(int processId) bool
         +Disconnect() void
-        +GetStackStart(int threadIndex) IntPtr
+        +GetStackStart(int threadIndex) nint
         +GetTebAddresses() List~TebInfo~
     }
 
@@ -97,7 +97,7 @@ classDiagram
         +int ConnectedProcessId
         +ConnectToProcess(int processId) bool
         +Disconnect() void
-        +GetStackStart(int threadIndex) IntPtr
+        +GetStackStart(int threadIndex) nint
         +GetTebAddresses() List~TebInfo~
     }
 
@@ -122,7 +122,7 @@ classDiagram
         -Timer _monitorTimer
         -PointerValue _currentValue
         -bool _isMonitoring
-        -IntPtr _stackStartAddress
+        -nint _stackStartAddress
         +bool IsMonitoring
         +PointerValue CurrentValue
         +StartMonitoring(int processId) void
@@ -134,7 +134,7 @@ classDiagram
     %% Business Layer - Models
     class GameInfo {
         +int ProcessId
-        +IntPtr WindowHandle
+        +nint WindowHandle
         +string ProcessName
         +Rectangle WindowBounds
         +bool IsFullscreen
@@ -142,17 +142,17 @@ classDiagram
         +bool IsActive
         +DateTime DetectedAt
         +GameInfo()
-        +GameInfo(int processId, IntPtr windowHandle, string processName)
+        +GameInfo(int processId, nint windowHandle, string processName)
         +ToString() string
     }
 
     class TebInfo {
         +uint ThreadId
-        +IntPtr TebAddress
+        +nint TebAddress
         +int Index
         +DateTime DiscoveredAt
         +TebInfo()
-        +TebInfo(uint threadId, IntPtr tebAddress, int index)
+        +TebInfo(uint threadId, nint tebAddress, int index)
         +ToString() string
     }
 
@@ -161,10 +161,10 @@ classDiagram
         +int NewValue
         +int Difference
         +DateTime Timestamp
-        +IntPtr Address
+        +nint Address
         +bool HasChanged
         +PointerValue()
-        +PointerValue(int oldValue, int newValue, IntPtr address)
+        +PointerValue(int oldValue, int newValue, nint address)
         +ToString() string
     }
 
@@ -190,71 +190,71 @@ classDiagram
         +ConnectToProcess(int processId) bool
         +Disconnect() void
         +GetTebAddresses() List~TebInfo~
-        +GetStackStart(int threadIndex) IntPtr
-        +GetStackTop(int threadIndex) IntPtr
-        +ReadPointer(IntPtr address) IntPtr
-        +ReadProcessMemory(IntPtr address, byte[] buffer, int size) bool
+        +GetStackStart(int threadIndex) nint
+        +GetStackTop(int threadIndex) nint
+        +ReadPointer(nint address) nint
+        +ReadProcessMemory(nint address, byte[] buffer, int size) bool
     }
 
     class MemoryReader {
         -Process _process
-        -IntPtr _processHandle
+        -nint _processHandle
         +bool IsConnected
         +int ConnectedProcessId
         +ConnectToProcess(int processId) bool
         +Disconnect() void
         +GetTebAddresses() List~TebInfo~
-        +GetStackStart(int threadIndex) IntPtr
-        +GetStackTop(int threadIndex) IntPtr
-        +ReadPointer(IntPtr address) IntPtr
-        +ReadProcessMemory(IntPtr address, byte[] buffer, int size) bool
-        -GetTebAddress(uint threadId) IntPtr
+        +GetStackStart(int threadIndex) nint
+        +GetStackTop(int threadIndex) nint
+        +ReadPointer(nint address) nint
+        +ReadProcessMemory(nint address, byte[] buffer, int size) bool
+        -GetTebAddress(uint threadId) nint
         -GetKernel32ModuleInfo(out MODULEINFO moduleInfo) bool
-        -IsInRange(IntPtr address, IntPtr baseAddress, uint size) bool
+        -IsInRange(nint address, nint baseAddress, uint size) bool
     }
 
     class MemoryAPI {
         <<static>>
-        +OpenProcess(uint processAccess, bool inheritHandle, int processId) IntPtr
-        +CloseHandle(IntPtr handle) bool
-        +ReadProcessMemory(IntPtr processHandle, IntPtr baseAddress, byte[] buffer, int bufferSize, out IntPtr bytesRead) bool
-        +CreateToolhelp32Snapshot(uint flags, uint processId) IntPtr
-        +Thread32First(IntPtr snapshot, ref THREADENTRY32 threadEntry) bool
-        +Thread32Next(IntPtr snapshot, ref THREADENTRY32 threadEntry) bool
-        +OpenThread(uint desiredAccess, bool inheritHandle, uint threadId) IntPtr
-        +NtQueryInformationThread(IntPtr threadHandle, int threadInformationClass, out THREAD_BASIC_INFORMATION threadInformation, int threadInformationLength, IntPtr returnLength) int
+        +OpenProcess(uint processAccess, bool inheritHandle, int processId) nint
+        +CloseHandle(nint handle) bool
+        +ReadProcessMemory(nint processHandle, nint baseAddress, byte[] buffer, int bufferSize, out nint bytesRead) bool
+        +CreateToolhelp32Snapshot(uint flags, uint processId) nint
+        +Thread32First(nint snapshot, ref THREADENTRY32 threadEntry) bool
+        +Thread32Next(nint snapshot, ref THREADENTRY32 threadEntry) bool
+        +OpenThread(uint desiredAccess, bool inheritHandle, uint threadId) nint
+        +NtQueryInformationThread(nint threadHandle, int threadInformationClass, out THREAD_BASIC_INFORMATION threadInformation, int threadInformationLength, nint returnLength) int
     }
 
     %% Infrastructure Layer - Windows
     class IWindowManager {
         <<interface>>
-        +event Action~IntPtr~ WindowPositionChanged
-        +event Action~IntPtr~ WindowActivated
-        +event Action~IntPtr~ WindowDeactivated
-        +SetupWindowEventHook(IntPtr windowHandle, uint processId) bool
+        +event Action~nint~ WindowPositionChanged
+        +event Action~nint~ WindowActivated
+        +event Action~nint~ WindowDeactivated
+        +SetupWindowEventHook(nint windowHandle, uint processId) bool
         +SetupForegroundEventHook() bool
         +RemoveAllHooks() void
-        +GetWindowInfo(IntPtr windowHandle) WindowInfo
-        +IsWindowMinimized(IntPtr windowHandle) bool
-        +IsWindowMaximized(IntPtr windowHandle) bool
-        +GetForegroundWindow() IntPtr
+        +GetWindowInfo(nint windowHandle) WindowInfo
+        +IsWindowMinimized(nint windowHandle) bool
+        +IsWindowMaximized(nint windowHandle) bool
+        +GetForegroundWindow() nint
     }
 
     class WindowManager {
-        -List~IntPtr~ _eventHooks
+        -List~nint~ _eventHooks
         -WindowsAPI.WinEventDelegate _winEventDelegate
-        +SetupWindowEventHook(IntPtr windowHandle, uint processId) bool
+        +SetupWindowEventHook(nint windowHandle, uint processId) bool
         +SetupForegroundEventHook() bool
         +RemoveAllHooks() void
-        +GetWindowInfo(IntPtr windowHandle) WindowInfo
-        +IsWindowMinimized(IntPtr windowHandle) bool
-        +IsWindowMaximized(IntPtr windowHandle) bool
-        +GetForegroundWindow() IntPtr
-        -WinEventCallback(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime) void
+        +GetWindowInfo(nint windowHandle) WindowInfo
+        +IsWindowMinimized(nint windowHandle) bool
+        +IsWindowMaximized(nint windowHandle) bool
+        +GetForegroundWindow() nint
+        -WinEventCallback(nint hWinEventHook, uint eventType, nint hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime) void
     }
 
     class WindowInfo {
-        +IntPtr Handle
+        +nint Handle
         +WindowsAPI.RECT WindowRect
         +WindowsAPI.RECT ClientRect
         +bool IsVisible
@@ -263,26 +263,26 @@ classDiagram
         +bool IsFullscreen
         +string Title
         +uint ProcessId
-        +WindowInfo(IntPtr handle)
+        +WindowInfo(nint handle)
         +RefreshInfo() void
         +ToString() string
     }
 
     class WindowsAPI {
         <<static>>
-        +FindWindow(string lpClassName, string lpWindowName) IntPtr
-        +GetWindowRect(IntPtr hWnd, out RECT lpRect) bool
-        +GetClientRect(IntPtr hWnd, out RECT lpRect) bool
-        +IsWindow(IntPtr hWnd) bool
-        +IsWindowVisible(IntPtr hWnd) bool
-        +IsZoomed(IntPtr hWnd) bool
-        +IsIconic(IntPtr hWnd) bool
-        +GetForegroundWindow() IntPtr
-        +SetWinEventHook(uint eventMin, uint eventMax, IntPtr hmodWinEventProc, WinEventDelegate lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags) IntPtr
-        +UnhookWinEvent(IntPtr hWinEventHook) bool
-        +IsValidWindow(IntPtr hWnd) bool
-        +GetWindowTitle(IntPtr hWnd) string
-        +IsFullscreen(IntPtr hWnd) bool
+        +FindWindow(string lpClassName, string lpWindowName) nint
+        +GetWindowRect(nint hWnd, out RECT lpRect) bool
+        +GetClientRect(nint hWnd, out RECT lpRect) bool
+        +IsWindow(nint hWnd) bool
+        +IsWindowVisible(nint hWnd) bool
+        +IsZoomed(nint hWnd) bool
+        +IsIconic(nint hWnd) bool
+        +GetForegroundWindow() nint
+        +SetWinEventHook(uint eventMin, uint eventMax, nint hmodWinEventProc, WinEventDelegate lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags) nint
+        +UnhookWinEvent(nint hWinEventHook) bool
+        +IsValidWindow(nint hWnd) bool
+        +GetWindowTitle(nint hWnd) string
+        +IsFullscreen(nint hWnd) bool
     }
 
     class ProcessEventMonitor {

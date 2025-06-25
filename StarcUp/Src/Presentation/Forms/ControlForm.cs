@@ -425,7 +425,7 @@ namespace StarcUp.Presentation.Forms
                     _threadStackListBox.Items.Add($"   TEB Address: 0x{tebInfo.TebAddress.ToInt64():X16}");
 
                     // StackStart 주소 가져오기
-                    IntPtr stackStart = _memoryService.GetStackStart(i);
+                    nint stackStart = _memoryService.GetStackStart(i);
                     if (stackStart != 0)
                     {
                         _threadStackListBox.Items.Add($"   ✅ StackStart: 0x{stackStart.ToInt64():X16}");

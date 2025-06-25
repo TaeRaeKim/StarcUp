@@ -462,7 +462,7 @@ namespace StarcUp.Business.GameDetection
 
         #region Window Event Handlers
 
-        private void OnWindowPositionChanged(IntPtr windowHandle)
+        private void OnWindowPositionChanged(nint windowHandle)
         {
             if (_currentGame?.WindowHandle == windowHandle)
             {
@@ -482,7 +482,7 @@ namespace StarcUp.Business.GameDetection
             }
         }
 
-        private void OnWindowActivated(IntPtr windowHandle)
+        private void OnWindowActivated(nint windowHandle)
         {
             if (_currentGame?.WindowHandle == windowHandle)
             {
@@ -493,7 +493,7 @@ namespace StarcUp.Business.GameDetection
             }
         }
 
-        private void OnWindowDeactivated(IntPtr windowHandle)
+        private void OnWindowDeactivated(nint windowHandle)
         {
             if (_currentGame != null)
             {

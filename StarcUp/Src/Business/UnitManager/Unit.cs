@@ -12,7 +12,7 @@ namespace StarcUp.Src.Business.UnitManager
     /// Pack = 1로 설정하여 바이트 단위로 정확히 정렬
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct Unit
+    public unsafe struct Unit
     {
         // 연결 리스트 포인터 (0x00-0x0F)
         public nint prevPointer;            // 0x00: 이전 유닛 포인터 (8바이트)
@@ -29,17 +29,15 @@ namespace StarcUp.Src.Business.UnitManager
         public ushort destX;                // 0x20: 목적지 X 좌표 (2바이트)
         public ushort destY;                // 0x22: 목적지 Y 좌표 (2바이트)
 
-        // 패딩 영역 (0x24-0x3F) - 28바이트
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 28)]
-        public byte[] padding1;
+        // 패딩 영역 (0x24-0x3F) - 28바이트 - 고정 크기 배열
+        public fixed byte padding1[28];
 
         // 현재 위치 (0x40-0x43)
         public ushort currentX;             // 0x40: 현재 X 좌표 (2바이트)
         public ushort currentY;             // 0x42: 현재 Y 좌표 (2바이트)
 
         // 패딩 영역 (0x44-0x4F) - 12바이트
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 12)]
-        public byte[] padding2;
+        public fixed byte padding2[12];
 
         // 이동 속도 (0x50-0x5F)
         public uint maxVelocityX;           // 0x50: X축 최대 속도 (4바이트)
@@ -48,25 +46,22 @@ namespace StarcUp.Src.Business.UnitManager
         public int velocityDeltaY;          // 0x5C: Y축 증감 (4바이트)
 
         // 패딩 영역 (0x60-0x67) - 8바이트
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-        public byte[] padding3;
+        public fixed byte padding3[8];
 
         // 플레이어 및 액션 정보 (0x68-0x6A)
         public byte playerIndex;            // 0x68: 플레이어 인덱스 (1바이트)
         public byte actionIndex;            // 0x69: 액션 인덱스 (1바이트)
         public byte actionState;            // 0x6A: 액션 상태 (1바이트)
 
-        // 패딩 영역 (0x6B-0x70) - 6바이트 (8바이트가 아닌 6바이트로 수정)
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
-        public byte[] padding4;
+        // 패딩 영역 (0x6B-0x70) - 6바이트
+        public fixed byte padding4[6];
 
         // 공격 쿨다운 (0x71-0x72)
         public byte attackCooldown;         // 0x71: 공격 쿨다운 (1바이트)
         public byte attackCooldownRelated;  // 0x72: 공격 쿨다운 관련 (1바이트)
 
         // 패딩 영역 (0x73-0x87) - 21바이트
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 21)]
-        public byte[] padding5;
+        public fixed byte padding5[21];
 
         // 쉴드 및 유닛 타입 (0x88-0x8F)
         public uint shield;                 // 0x88: 현재 쉴드 (4바이트)
@@ -78,20 +73,17 @@ namespace StarcUp.Src.Business.UnitManager
         public nint nextAllyPointer;        // 0x98: 다음 아군 포인터 (8바이트)
 
         // 패딩 영역 (0xA0-0xDB) - 60바이트
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 60)]
-        public byte[] padding6;
+        public fixed byte padding6[60];
 
         // 생산 큐 (0xDC-0xE7) - 12바이트
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
-        public ushort[] productionQueue;    // 0xDC-0xE5: 생산 큐[0-4] (5개 * 2바이트 = 10바이트)
+        public fixed ushort productionQueue[5];    // 0xDC-0xE5: 생산 큐[0-4] (5개 * 2바이트 = 10바이트)
         public ushort reserved3;            // 0xE6: 패딩 (2바이트)
 
         // 큐 인덱스 (0xE8)
         public byte productionQueueIndex;   // 0xE8: 생산 큐 인덱스 (1바이트)
 
         // 패딩 영역 (0xE9-0x111) - 41바이트
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 41)]
-        public byte[] padding7;
+        public fixed byte padding7[41];
 
         // 타이머 (0x112-0x113)
         public ushort timer;                // 0x112: 타이머 (2바이트)
@@ -103,13 +95,11 @@ namespace StarcUp.Src.Business.UnitManager
         public byte currentUpgrade;         // 0x115: 현재 업그레이드 (1바이트)
 
         // 패딩 (0x116-0x118) - 3바이트
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-        public byte[] padding8;
+        public fixed byte padding8[3];
 
         public byte currentUpgradeLevel;    // 0x119: 현재 업그레이드 레벨 (1바이트)
 
-        // 나머지 데이터 (0x11A-0x1E7) - 206바이트
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 206)]
-        public byte[] remainingData;
+        // 나머지 데이터 (0x11A-0x1E7) - 실제 크기 계산
+        public fixed byte remainingData[206]; // 기존과 동일하게 206바이트
     }
 }

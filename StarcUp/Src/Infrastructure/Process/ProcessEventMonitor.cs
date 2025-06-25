@@ -372,7 +372,7 @@ namespace StarcUp.Infrastructure.Windows
     {
         public int ProcessId { get; set; }
         public string ProcessName { get; set; }
-        public IntPtr MainWindowHandle { get; set; }
+        public nint MainWindowHandle { get; set; }
         public DateTime StartTime { get; set; }
 
         public override string ToString()

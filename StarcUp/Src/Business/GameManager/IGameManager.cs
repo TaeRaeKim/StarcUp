@@ -5,8 +5,8 @@
         LocalGameData LocalGameData { get; }
 
         Player[] Players { get; }
-        IntPtr[] StartUnitAddressFromIndex { get; }
-        IntPtr StartUnitAddress { get; }
+        nint[] StartUnitAddressFromIndex { get; }
+        nint StartUnitAddress { get; }
         void GameInit();
         void GameExit();
 

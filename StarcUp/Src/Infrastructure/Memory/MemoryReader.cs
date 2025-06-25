@@ -13,7 +13,7 @@ namespace StarcUp.Infrastructure.Memory
     public class MemoryReader : IMemoryReader
     {
         private Process _process;
-        private nint _processHandle;
+        protected nint _processHandle;
         private bool _isDisposed;
 
         public bool IsConnected => _processHandle != 0 && _process != null && !_process.HasExited;

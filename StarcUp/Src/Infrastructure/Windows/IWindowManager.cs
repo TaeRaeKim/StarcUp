@@ -7,22 +7,22 @@ namespace StarcUp.Infrastructure.Windows
     /// </summary>
     public interface IWindowManager : IDisposable
     {
-        event Action<IntPtr> WindowPositionChanged;
-        event Action<IntPtr> WindowActivated;
-        event Action<IntPtr> WindowDeactivated;
+        event Action<nint> WindowPositionChanged;
+        event Action<nint> WindowActivated;
+        event Action<nint> WindowDeactivated;
 
-        bool SetupWindowEventHook(IntPtr windowHandle, uint processId);
+        bool SetupWindowEventHook(nint windowHandle, uint processId);
         bool SetupForegroundEventHook();
 
         void RemoveAllHooks();
 
-        WindowInfo GetWindowInfo(IntPtr windowHandle);
+        WindowInfo GetWindowInfo(nint windowHandle);
 
-        bool IsWindowMinimized(IntPtr windowHandle);
+        bool IsWindowMinimized(nint windowHandle);
 
-        bool IsWindowMaximized(IntPtr windowHandle);
+        bool IsWindowMaximized(nint windowHandle);
 
-        IntPtr GetForegroundWindow();
+        nint GetForegroundWindow();
 
     }
 }

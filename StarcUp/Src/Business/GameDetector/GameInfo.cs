@@ -9,7 +9,7 @@ namespace StarcUp.Business.GameDetection
     public class GameInfo
     {
         public int ProcessId { get; set; }
-        public IntPtr WindowHandle { get; set; }
+        public nint WindowHandle { get; set; }
         public string ProcessName { get; set; }
         public Rectangle WindowBounds { get; set; }
         public bool IsFullscreen { get; set; }
@@ -22,7 +22,7 @@ namespace StarcUp.Business.GameDetection
             DetectedAt = DateTime.Now;
         }
 
-        public GameInfo(int processId, IntPtr windowHandle, string processName) : this()
+        public GameInfo(int processId, nint windowHandle, string processName) : this()
         {
             ProcessId = processId;
             WindowHandle = windowHandle;

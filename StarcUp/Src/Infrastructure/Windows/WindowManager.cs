@@ -6,21 +6,21 @@ namespace StarcUp.Infrastructure.Windows
 {
     public class WindowManager : IWindowManager
     {
-        private readonly List<IntPtr> _eventHooks;
+        private readonly List<nint> _eventHooks;
         private readonly WindowsAPI.WinEventDelegate _winEventDelegate;
         private bool _isDisposed;
 
-        public event Action<IntPtr> WindowPositionChanged;
-        public event Action<IntPtr> WindowActivated;
-        public event Action<IntPtr> WindowDeactivated;
+        public event Action<nint> WindowPositionChanged;
+        public event Action<nint> WindowActivated;
+        public event Action<nint> WindowDeactivated;
 
         public WindowManager()
         {
-            _eventHooks = new List<IntPtr>();
+            _eventHooks = new List<nint>();
             _winEventDelegate = new WindowsAPI.WinEventDelegate(WinEventCallback);
         }
 
-        public bool SetupWindowEventHook(IntPtr windowHandle, uint processId)
+        public bool SetupWindowEventHook(nint windowHandle, uint processId)
         {
             if (_isDisposed)
                 return false;
@@ -128,7 +128,7 @@ namespace StarcUp.Infrastructure.Windows
             }
         }
 
-        public WindowInfo GetWindowInfo(IntPtr windowHandle)
+        public WindowInfo GetWindowInfo(nint windowHandle)
         {
             try
             {
@@ -142,22 +142,22 @@ namespace StarcUp.Infrastructure.Windows
             }
         }
 
-        public bool IsWindowMinimized(IntPtr windowHandle)
+        public bool IsWindowMinimized(nint windowHandle)
         {
             return WindowsAPI.IsValidWindow(windowHandle) && WindowsAPI.IsIconic(windowHandle);
         }
 
-        public bool IsWindowMaximized(IntPtr windowHandle)
+        public bool IsWindowMaximized(nint windowHandle)
         {
             return WindowsAPI.IsValidWindow(windowHandle) && WindowsAPI.IsZoomed(windowHandle);
         }
 
-        public IntPtr GetForegroundWindow()
+        public nint GetForegroundWindow()
         {
             return WindowsAPI.GetForegroundWindow();
         }
 
-        private void WinEventCallback(IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
+        private void WinEventCallback(nint hWinEventHook, uint eventType, nint hwnd,
             int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
         {
             if (hwnd == 0 || _isDisposed)

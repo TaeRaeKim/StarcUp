@@ -58,7 +58,7 @@ namespace StarcUp.Business.Memory
             }
         }
 
-        public IntPtr GetStackStart(int threadIndex = 0)
+        public nint GetStackStart(int threadIndex = 0)
         {
             if (!IsConnected)
             {

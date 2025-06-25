@@ -11,42 +11,65 @@ namespace StarcUp.Infrastructure.Memory
     {
         // Windows API 함수들
         [DllImport("kernel32.dll")]
-        public static extern IntPtr OpenProcess(uint processAccess, bool inheritHandle, int processId);
+        public static extern nint OpenProcess(uint processAccess, bool inheritHandle, int processId);
 
         [DllImport("kernel32.dll")]
-        public static extern bool CloseHandle(IntPtr handle);
+        public static extern bool CloseHandle(nint handle);
 
         [DllImport("kernel32.dll")]
-        public static extern bool ReadProcessMemory(IntPtr processHandle, IntPtr baseAddress,
-            byte[] buffer, int bufferSize, out IntPtr bytesRead);
+        public static extern bool ReadProcessMemory(nint processHandle, nint baseAddress,
+            byte[] buffer, int bufferSize, out nint bytesRead);
 
         [DllImport("kernel32.dll")]
-        public static extern IntPtr CreateToolhelp32Snapshot(uint flags, uint processId);
+        public static extern nint CreateToolhelp32Snapshot(uint flags, uint processId);
 
         [DllImport("kernel32.dll")]
-        public static extern bool Thread32First(IntPtr snapshot, ref THREADENTRY32 threadEntry);
+        public static extern bool Thread32First(nint snapshot, ref THREADENTRY32 threadEntry);
 
         [DllImport("kernel32.dll")]
-        public static extern bool Thread32Next(IntPtr snapshot, ref THREADENTRY32 threadEntry);
+        public static extern bool Thread32Next(nint snapshot, ref THREADENTRY32 threadEntry);
 
         [DllImport("kernel32.dll")]
-        public static extern IntPtr OpenThread(uint desiredAccess, bool inheritHandle, uint threadId);
+        public static extern nint OpenThread(uint desiredAccess, bool inheritHandle, uint threadId);
 
         [DllImport("ntdll.dll")]
-        public static extern int NtQueryInformationThread(IntPtr threadHandle, int threadInformationClass,
-            out THREAD_BASIC_INFORMATION threadInformation, int threadInformationLength, IntPtr returnLength);
+        public static extern int NtQueryInformationThread(nint threadHandle, int threadInformationClass,
+            out THREAD_BASIC_INFORMATION threadInformation, int threadInformationLength, nint returnLength);
 
         [DllImport("psapi.dll")]
-        public static extern bool EnumProcessModules(IntPtr processHandle, IntPtr[] modules,
+        public static extern bool EnumProcessModules(nint processHandle, nint[] modules,
             uint size, out uint needed);
 
         [DllImport("psapi.dll")]
-        public static extern uint GetModuleBaseName(IntPtr processHandle, IntPtr module,
+        public static extern uint GetModuleBaseName(nint processHandle, nint module,
             StringBuilder baseName, uint size);
 
         [DllImport("psapi.dll")]
-        public static extern bool GetModuleInformation(IntPtr processHandle, IntPtr module,
+        public static extern bool GetModuleInformation(nint processHandle, nint module,
             out MODULEINFO moduleInfo, uint size);
+
+        /// <summary>
+        /// nint 버퍼를 받는 ReadProcessMemory 오버로드
+        /// </summary>
+        [DllImport("kernel32.dll", EntryPoint = "ReadProcessMemory")]
+        public static extern bool ReadProcessMemory(
+            nint hProcess,
+            nint lpBaseAddress,
+            nint lpBuffer,
+            int dwSize,
+            out nint lpNumberOfBytesRead);
+
+        /// <summary>
+        /// 안전한 Unsafe 메모리 읽기 래퍼
+        /// </summary>
+        public static unsafe bool ReadProcessMemory(
+            nint processHandle,
+            nint address,
+            void* buffer,
+            int size)
+        {
+            return ReadProcessMemory(processHandle, address, (nint)buffer, size, out _);
+        }
 
         // 상수들
         public const uint PROCESS_QUERY_INFORMATION = 0x0400;
@@ -73,9 +96,9 @@ namespace StarcUp.Infrastructure.Memory
         {
             public uint ExitStatus;
             public uint Padding1;
-            public IntPtr TebBaseAddress;
+            public nint TebBaseAddress;
             public CLIENT_ID ClientId;
-            public IntPtr AffinityMask;
+            public nint AffinityMask;
             public int Priority;
             public int BasePriority;
         }
@@ -83,16 +106,16 @@ namespace StarcUp.Infrastructure.Memory
         [StructLayout(LayoutKind.Sequential)]
         public struct CLIENT_ID
         {
-            public IntPtr UniqueProcess;
-            public IntPtr UniqueThread;
+            public nint UniqueProcess;
+            public nint UniqueThread;
         }
 
         [StructLayout(LayoutKind.Sequential)]
         public struct MODULEINFO
         {
-            public IntPtr lpBaseOfDll;
+            public nint lpBaseOfDll;
             public uint SizeOfImage;
-            public IntPtr EntryPoint;
+            public nint EntryPoint;
         }
     }
 }

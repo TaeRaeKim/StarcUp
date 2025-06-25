@@ -29,8 +29,8 @@ namespace StarcUp.Src.Business.Game
             new Player { PlayerIndex = 6 },
             new Player { PlayerIndex = 7 }
         };
-        public IntPtr[] StartUnitAddressFromIndex { get; private set; } = Array.Empty<IntPtr>();
-        public IntPtr StartUnitAddress { get; private set; } = 0;
+        public nint[] StartUnitAddressFromIndex { get; private set; } = Array.Empty<nint>();
+        public nint StartUnitAddress { get; private set; } = 0;
         public void GameInit()
         {
             // 객체 초기화

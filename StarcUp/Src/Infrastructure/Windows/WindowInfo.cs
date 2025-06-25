@@ -11,7 +11,7 @@ namespace StarcUp.Infrastructure.Windows
     /// </summary>
     public struct WindowInfo
     {
-        public IntPtr Handle;
+        public nint Handle;
         public WindowsAPI.RECT WindowRect;
         public WindowsAPI.RECT ClientRect;
         public bool IsVisible;
@@ -21,7 +21,7 @@ namespace StarcUp.Infrastructure.Windows
         public string Title;
         public uint ProcessId;
 
-        public WindowInfo(IntPtr handle)
+        public WindowInfo(nint handle)
         {
             Handle = handle;
             WindowRect = new WindowsAPI.RECT();
