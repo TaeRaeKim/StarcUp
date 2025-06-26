@@ -30,8 +30,5 @@
   <ItemGroup>
     <PackageReference Include="System.Management" Version="9.0.6" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Docs\pr\20250625\" />
-  </ItemGroup>
 
 </Project>
