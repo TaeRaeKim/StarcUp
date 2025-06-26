@@ -3,9 +3,9 @@ using StarcUp.Common.Constants;
 using StarcUp.Common.Events;
 using System;
 
-namespace StarcUp.Business.InGameStateMonitor
+namespace StarcUp.Business.InGameDetector
 {
-    public class InGameStateMonitor : IInGameStateMonitor
+    public class InGameDetector : iInGameDetector
     {
         private readonly IMemoryService _memoryService;
         private bool _isMonitoring;
@@ -14,11 +14,11 @@ namespace StarcUp.Business.InGameStateMonitor
         private ModuleInfo _starcraftModule;
         private ModuleInfo _user32Module;
 
-        public event EventHandler<InGameStateEventArgs> InGameStateChanged;
+        public event EventHandler<InGameEventArgs> InGameStateChanged;
 
         public bool IsInGame { get; private set; }
 
-        public InGameStateMonitor(IMemoryService memoryService)
+        public InGameDetector(IMemoryService memoryService)
         {
             _memoryService = memoryService ?? throw new ArgumentNullException(nameof(memoryService));
             _memoryService.ProcessConnect += OnProcessConnect;
@@ -151,7 +151,7 @@ namespace StarcUp.Business.InGameStateMonitor
                     IsInGame = newInGameState;
                     Console.WriteLine($"InGame 상태 변경: {IsInGame}");
 
-                    var eventArgs = new InGameStateEventArgs(IsInGame);
+                    var eventArgs = new InGameEventArgs(IsInGame);
                     InGameStateChanged?.Invoke(this, eventArgs);
                 }
             }

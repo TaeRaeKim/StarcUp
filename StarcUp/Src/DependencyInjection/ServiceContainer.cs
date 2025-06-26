@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using StarcUp.Business.GameDetection;
-using StarcUp.Business.InGameStateMonitor;
+using StarcUp.Business.InGameDetector;
 using StarcUp.Business.MemoryService;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Windows;

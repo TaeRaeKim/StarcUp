@@ -10,9 +10,9 @@ namespace StarcUp.Business.Game
     public class GameManager : IGameManager
     {
 
-        IInGameStateMonitor _pointerMonitorService;
+        iInGameDetector _pointerMonitorService;
 
-        public GameManager(IInGameStateMonitor pointerMonitorService)
+        public GameManager(iInGameDetector pointerMonitorService)
         {
             _pointerMonitorService = pointerMonitorService;
         }

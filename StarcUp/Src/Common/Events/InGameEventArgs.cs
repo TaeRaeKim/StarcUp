@@ -1,13 +1,13 @@
 ﻿using System;
 
-namespace StarcUp.Business.InGameStateMonitor
+namespace StarcUp.Common.Events
 {
-    public class InGameStateEventArgs : EventArgs
+    public class InGameEventArgs : EventArgs
     {
         public bool IsInGame { get; }
         public DateTime Timestamp { get; }
 
-        public InGameStateEventArgs(bool isInGame)
+        public InGameEventArgs(bool isInGame)
         {
             IsInGame = isInGame;
             Timestamp = DateTime.Now;

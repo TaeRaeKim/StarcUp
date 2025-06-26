@@ -1,5 +1,5 @@
 ﻿using StarcUp.Business.GameDetection;
-using StarcUp.Business.InGameStateMonitor;
+using StarcUp.Business.InGameDetector;
 using StarcUp.Business.MemoryService;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Windows;
@@ -32,8 +32,8 @@ namespace StarcUp.DependencyInjection
                     c.Resolve<IWindowManager>()));
 
             // InGameStateMonitor
-            container.RegisterSingleton<IInGameStateMonitor>(
-                c => new InGameStateMonitor(
+            container.RegisterSingleton<iInGameDetector>(
+                c => new InGameDetector(
                     c.Resolve<IMemoryService>()));
 
             //container.RegisterSingleton<IGameManager>(
