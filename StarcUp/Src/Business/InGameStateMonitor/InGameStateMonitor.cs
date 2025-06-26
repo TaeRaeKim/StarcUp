@@ -5,16 +5,12 @@ using System;
 
 namespace StarcUp.Business.InGameStateMonitor
 {
-    /// <summary>
-    /// 게임 내 상태를 모니터링하는 서비스
-    /// </summary>
     public class InGameStateMonitor : IInGameStateMonitor
     {
         private readonly IMemoryService _memoryService;
         private bool _isMonitoring;
         private System.Timers.Timer _monitorTimer;
 
-        // 캐시된 모듈 정보들
         private ModuleInfo _starcraftModule;
         private ModuleInfo _user32Module;
 
@@ -38,10 +34,14 @@ namespace StarcUp.Business.InGameStateMonitor
 
             try
             {
-                // 필요한 모듈 정보 캐시
                 CacheModuleInformation();
 
-                // 모니터링 타이머 설정 (500ms 간격)
+                if (_starcraftModule == null || _user32Module == null)
+                {
+                    Console.WriteLine("필수 모듈이 로드되지 않아 모니터링을 시작할 수 없습니다.");
+                    return;
+                }
+
                 _monitorTimer = new System.Timers.Timer(500);
                 _monitorTimer.Elapsed += CheckInGameState;
                 _monitorTimer.Start();
@@ -77,27 +77,60 @@ namespace StarcUp.Business.InGameStateMonitor
 
         private void CacheModuleInformation()
         {
-            // StarCraft.exe 모듈 정보 가져오기 - MemoryService의 FindModule 사용
-            if (_memoryService.FindModule("StarCraft.exe", out var starcraftModuleInfo) ||
-                _memoryService.FindModule("StarCraft", out starcraftModuleInfo))
+            Console.WriteLine("[InGameStateMonitor] 모듈 정보 캐싱 시작...");
+
+            Console.WriteLine("[InGameStateMonitor] === 전체 모듈 목록 (치트엔진 스타일) ===");
+            _memoryService.DebugAllModulesCheatEngineStyle();
+
+            Console.WriteLine("[InGameStateMonitor] === StarCraft 관련 모듈 검색 ===");
+            _memoryService.FindModulesByPattern("star");
+
+            Console.WriteLine("[InGameStateMonitor] === StarCraft 모듈 검색 (치트엔진 스타일) ===");
+
+            // 간소화된 모듈명 목록 (대소문자 구분 없이 처리됨)
+            string[] possibleNames = {
+                "StarCraft.exe",
+                "StarCraft"
+            };
+
+            foreach (string moduleName in possibleNames)
             {
-                _starcraftModule = starcraftModuleInfo;
-                Console.WriteLine($"StarCraft 모듈 찾음: Base=0x{_starcraftModule.BaseAddress:X}");
-            }
-            else
-            {
-                Console.WriteLine("StarCraft 모듈을 찾을 수 없습니다.");
+                _starcraftModule = _memoryService.FindModuleCheatEngineStyle(moduleName);
+                if (_starcraftModule != null)
+                {
+                    Console.WriteLine($"[InGameStateMonitor] ★ StarCraft 모듈 발견: {_starcraftModule}");
+                    break;
+                }
             }
 
-            // USER32.dll 모듈 정보 가져오기 - MemoryService의 GetUser32Module 사용
-            _user32Module = _memoryService.GetUser32Module();
+            if (_starcraftModule == null)
+            {
+                Console.WriteLine("[InGameStateMonitor] ❌ StarCraft 모듈을 찾을 수 없습니다.");
+            }
+
+            Console.WriteLine("[InGameStateMonitor] === USER32 모듈 검색 ===");
+            _user32Module = _memoryService.FindModuleCheatEngineStyle("user32.dll");
+
             if (_user32Module != null)
             {
-                Console.WriteLine($"USER32 모듈 찾음: Base=0x{_user32Module.BaseAddress:X}");
+                Console.WriteLine($"[InGameStateMonitor] ★ USER32 모듈 발견: {_user32Module}");
             }
             else
             {
-                Console.WriteLine("USER32 모듈을 찾을 수 없습니다.");
+                Console.WriteLine("[InGameStateMonitor] ❌ USER32 모듈을 찾을 수 없습니다.");
+            }
+
+            Console.WriteLine("[InGameStateMonitor] === 모듈 캐싱 결과 ===");
+            Console.WriteLine($"StarCraft 모듈: {(_starcraftModule != null ? "✅ 성공" : "❌ 실패")}");
+            Console.WriteLine($"USER32 모듈: {(_user32Module != null ? "✅ 성공" : "❌ 실패")}");
+
+            if (_starcraftModule != null && _user32Module != null)
+            {
+                Console.WriteLine("[InGameStateMonitor] ✅ 모든 필수 모듈 로드 완료!");
+            }
+            else
+            {
+                Console.WriteLine("[InGameStateMonitor] ⚠️ 일부 모듈 로드 실패 - InGame 상태 모니터링이 제한될 수 있습니다.");
             }
         }
 
@@ -132,15 +165,18 @@ namespace StarcUp.Business.InGameStateMonitor
         {
             try
             {
-                // 1. PEB 주소 가져오기
-                nint pebAddress = _memoryService.GetPebAddress();
-                if (pebAddress == 0)
+                // 1. TEB[0] 주소 가져오기 (첫 번째 스레드 = 메인 스레드)
+                var tebList = _memoryService.GetTebAddresses();
+                if (tebList.Count == 0)
                 {
-                    Console.WriteLine("PEB 주소를 가져올 수 없습니다.");
+                    Console.WriteLine("TEB 주소를 가져올 수 없습니다.");
                     return false;
                 }
 
-                // 2. B 값 계산
+                // 2. TEB[0] 주소 직접 사용 (TEB + 0x30 값이 TEB 자체 주소이므로)
+                nint tebBaseAddress = tebList[0].TebAddress;
+
+                // 3. B 값 계산
                 nint bValue = CalculateBValue();
                 if (bValue == 0)
                 {
@@ -148,8 +184,8 @@ namespace StarcUp.Business.InGameStateMonitor
                     return false;
                 }
 
-                // 3. 최종 주소 계산: [[PEB Address + 0x828] + [B] + 0xD8] + 0xB4
-                nint step1 = _memoryService.ReadPointer(pebAddress + 0x828);
+                // 4. 최종 주소 계산: [[TEB + 0x828] + [B] + 0xD8] + 0xB4
+                nint step1 = _memoryService.ReadPointer(tebBaseAddress + 0x828);
                 if (step1 == 0)
                 {
                     Console.WriteLine("Step1 포인터 읽기 실패");
@@ -165,13 +201,10 @@ namespace StarcUp.Business.InGameStateMonitor
 
                 nint finalAddress = step2 + 0xB4;
 
-                // 4. InGame 상태 값 읽기
-                int inGameValue = _memoryService.ReadInt(finalAddress);
+                // 5. InGame 상태 값 읽기
+                bool isInGame = _memoryService.ReadBool(finalAddress);
 
-                // InGame 상태는 보통 1이면 게임 중, 0이면 게임 밖
-                bool isInGame = inGameValue == 1;
-
-                Console.WriteLine($"InGame 체크: PEB=0x{pebAddress:X}, B=0x{bValue:X}, Final=0x{finalAddress:X}, Value={inGameValue}, InGame={isInGame}");
+                //Console.WriteLine($"InGame 체크: TEB[0]=0x{tebBaseAddress:X}, B=0x{bValue:X}, Final=0x{finalAddress:X}, InGame={isInGame}");
 
                 return isInGame;
             }
@@ -192,24 +225,21 @@ namespace StarcUp.Business.InGameStateMonitor
                     return 0;
                 }
 
-                // 1. rcx = StarCraft.exe+10B1838
                 nint rcx = _starcraftModule.BaseAddress + 0x10B1838;
 
-                // 2. movzx edx, cx (cx의 하위 16비트를 edx에 복사)
                 ushort cx = (ushort)_memoryService.ReadShort(rcx);
                 nint edx = cx;
 
-                // 3. edx = edx * [USER32.dll+D52B0]
                 nint user32Factor = _user32Module.BaseAddress + 0xD52B0;
                 int factorValue = _memoryService.ReadInt(user32Factor);
                 edx = edx * factorValue;
 
-                // 4. B = edx + [USER32.dll+D52A8]
                 nint user32Offset = _user32Module.BaseAddress + 0xD52A8;
                 nint offsetValue = _memoryService.ReadPointer(user32Offset);
-                nint bValue = edx + offsetValue;
+                nint bAddress = edx + offsetValue;
+                nint bValue = _memoryService.ReadPointer(bAddress);
 
-                Console.WriteLine($"B 계산: rcx=0x{rcx:X}, cx=0x{cx:X}, factor={factorValue}, offset={offsetValue}, B=0x{bValue:X}");
+                Console.WriteLine($"B 계산: rcx=0x{rcx:X}, cx=0x{cx:X}, factor={factorValue}, offset={offsetValue}, B=0x{bAddress:X}");
 
                 return bValue;
             }
@@ -223,8 +253,6 @@ namespace StarcUp.Business.InGameStateMonitor
         private void OnProcessConnect(object sender, ProcessEventArgs e)
         {
             Console.WriteLine($"InGameMonitoring: 프로세스 연결됨 (PID: {e.ProcessId})");
-            // 프로세스가 연결되면 자동으로 모니터링 시작하지 않음
-            // 외부에서 명시적으로 StartMonitoring 호출해야 함
             StartMonitoring(e.ProcessId);
         }
 

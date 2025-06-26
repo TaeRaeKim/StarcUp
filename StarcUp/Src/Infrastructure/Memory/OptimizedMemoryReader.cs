@@ -1,11 +1,7 @@
 ﻿using StarcUp.Infrastructure.Memory;
 using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace StarcUp.Src.Infrastructure.Memory
 {
@@ -22,14 +18,17 @@ namespace StarcUp.Src.Infrastructure.Memory
         }
 
         /// <summary>
-        /// 기존 버퍼에 메모리 읽기
+        /// 기존 버퍼에 메모리 읽기 (재할당 없음)
         /// </summary>
         public bool ReadMemoryIntoBuffer(nint address, byte[] buffer, int size)
         {
             if (buffer == null || size <= 0 || size > buffer.Length)
                 return false;
 
-            return ReadProcessMemory(address, buffer, size);
+            if (!IsConnected)
+                return false;
+
+            return MemoryAPI.ReadProcessMemory(ProcessHandle, address, buffer, size, out _);
         }
 
         /// <summary>
@@ -45,7 +44,7 @@ namespace StarcUp.Src.Infrastructure.Memory
             int size = sizeof(T);
             fixed (T* ptr = &result)
             {
-                return MemoryAPI.ReadProcessMemory(_processHandle, address, (nint)ptr, size, out _);
+                return MemoryAPI.ReadProcessMemory(ProcessHandle, address, (nint)ptr, size, out _);
             }
         }
 
@@ -57,13 +56,25 @@ namespace StarcUp.Src.Infrastructure.Memory
             if (buffer == null || count <= 0 || count > buffer.Length)
                 return false;
 
+            if (!IsConnected)
+                return false;
+
             int structSize = sizeof(T);
             int totalSize = structSize * count;
 
             fixed (T* ptr = buffer)
             {
-                return MemoryAPI.ReadProcessMemory(_processHandle, address, (nint)ptr, totalSize, out _);
+                return MemoryAPI.ReadProcessMemory(ProcessHandle, address, (nint)ptr, totalSize, out _);
             }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                // ArrayPool은 정적 인스턴스라서 Dispose할 필요 없음
+            }
+            base.Dispose(disposing);
         }
     }
 }

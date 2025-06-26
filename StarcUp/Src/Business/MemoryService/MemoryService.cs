@@ -2,15 +2,13 @@
 using StarcUp.Infrastructure.Memory;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace StarcUp.Business.MemoryService
 {
-    /// <summary>
-    /// 메모리 작업의 미들웨어 역할을 하는 서비스
-    /// - MemoryReader를 사용하여 복합적인 비즈니스 로직 제공
-    /// - null/error 체크, 로깅, 수동 캐싱 등의 미들웨어 기능
-    /// </summary>
     public class MemoryService : IMemoryService
     {
         public event EventHandler<ProcessEventArgs> ProcessConnect;
@@ -34,145 +32,352 @@ namespace StarcUp.Business.MemoryService
 
         public bool ConnectToProcess(int processId)
         {
-            lock (_lockObject)
+            if (_isDisposed)
             {
-                try
+                Console.WriteLine("[MemoryService] ConnectToProcess: 서비스가 이미 해제됨");
+                return false;
+            }
+
+            if (processId <= 0)
+            {
+                Console.WriteLine("[MemoryService] ConnectToProcess: 잘못된 프로세스 ID");
+                return false;
+            }
+
+            try
+            {
+                bool wasConnected = IsConnected;
+                int previousProcessId = ConnectedProcessId;
+
+                if (wasConnected)
                 {
-                    if (processId <= 0)
-                    {
-                        Console.WriteLine($"[MemoryService] 잘못된 프로세스 ID: {processId}");
-                        return false;
-                    }
-
-                    if (IsConnected && ConnectedProcessId == processId)
-                    {
-                        Console.WriteLine($"[MemoryService] 이미 연결된 프로세스: {processId}");
-                        return true;
-                    }
-
-                    Console.WriteLine($"[MemoryService] 프로세스 연결 시도: PID {processId}");
-                    bool success = _memoryReader.ConnectToProcess(processId);
-
-                    if (success)
-                    {
-                        ClearAllCache();
-                        Console.WriteLine($"[MemoryService] 프로세스 연결 성공: PID {processId}");
-                        ProcessConnect?.Invoke(this, new ProcessEventArgs(processId));
-                    }
-                    else
-                    {
-                        Console.WriteLine($"[MemoryService] 프로세스 연결 실패: PID {processId}");
-                    }
-
-                    return success;
+                    Console.WriteLine("[MemoryService] 기존 연결 해제 중...");
+                    Disconnect();
                 }
-                catch (Exception ex)
+
+                Console.WriteLine($"[MemoryService] 프로세스 {processId}에 연결 시도...");
+
+                if (_memoryReader.ConnectToProcess(processId))
                 {
-                    Console.WriteLine($"[MemoryService] 프로세스 연결 중 오류: {ex.Message}");
+                    RefreshAllCache();
+                    Console.WriteLine($"[MemoryService] 프로세스 {processId} 연결 성공");
+                    ProcessConnect?.Invoke(this, new ProcessEventArgs(processId));
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine($"[MemoryService] 프로세스 {processId} 연결 실패");
                     return false;
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ConnectToProcess 예외: {ex.Message}");
+                return false;
             }
         }
 
         public void Disconnect()
         {
-            lock (_lockObject)
+            if (!IsConnected) return;
+
+            try
             {
-                try
-                {
-                    int oldProcessId = ConnectedProcessId;
-                    ProcessDisconnect?.Invoke(this, new ProcessEventArgs(oldProcessId, "ProcessDisConnect"));
-                    _memoryReader.Disconnect();
-                    ClearAllCache();
-                    Console.WriteLine("[MemoryService] 프로세스 연결 해제됨");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[MemoryService] 프로세스 연결 해제 중 오류: {ex.Message}");
-                }
+                int processId = ConnectedProcessId;
+                _memoryReader.Disconnect();
+                RefreshAllCache();
+                Console.WriteLine($"[MemoryService] 프로세스 {processId} 연결 해제됨");
+                ProcessDisconnect?.Invoke(this, new ProcessEventArgs(processId));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] Disconnect 예외: {ex.Message}");
             }
         }
 
         public int ReadInt(nint address)
         {
-            if (!IsValidConnectionAndAddress(address, "ReadInt")) return 0;
-            return _memoryReader.ReadInt(address);
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadInt: 프로세스에 연결되지 않음");
+                return 0;
+            }
+
+            if (!IsValidAddress(address))
+            {
+                Console.WriteLine($"[MemoryService] ReadInt: 잘못된 주소 0x{address:X}");
+                return 0;
+            }
+
+            try
+            {
+                return _memoryReader.ReadInt(address);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadInt 오류: {ex.Message}");
+                return 0;
+            }
         }
 
         public float ReadFloat(nint address)
         {
-            if (!IsValidConnectionAndAddress(address, "ReadFloat")) return 0f;
-            return _memoryReader.ReadFloat(address);
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadFloat: 프로세스에 연결되지 않음");
+                return 0f;
+            }
+
+            if (!IsValidAddress(address))
+            {
+                Console.WriteLine($"[MemoryService] ReadFloat: 잘못된 주소 0x{address:X}");
+                return 0f;
+            }
+
+            try
+            {
+                return _memoryReader.ReadFloat(address);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadFloat 오류: {ex.Message}");
+                return 0f;
+            }
         }
 
         public double ReadDouble(nint address)
         {
-            if (!IsValidConnectionAndAddress(address, "ReadDouble")) return 0.0;
-            return _memoryReader.ReadDouble(address);
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadDouble: 프로세스에 연결되지 않음");
+                return 0.0;
+            }
+
+            if (!IsValidAddress(address))
+            {
+                Console.WriteLine($"[MemoryService] ReadDouble: 잘못된 주소 0x{address:X}");
+                return 0.0;
+            }
+
+            try
+            {
+                return _memoryReader.ReadDouble(address);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadDouble 오류: {ex.Message}");
+                return 0.0;
+            }
         }
 
         public byte ReadByte(nint address)
         {
-            if (!IsValidConnectionAndAddress(address, "ReadByte")) return 0;
-            return _memoryReader.ReadByte(address);
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadByte: 프로세스에 연결되지 않음");
+                return 0;
+            }
+
+            if (!IsValidAddress(address))
+            {
+                Console.WriteLine($"[MemoryService] ReadByte: 잘못된 주소 0x{address:X}");
+                return 0;
+            }
+
+            try
+            {
+                return _memoryReader.ReadByte(address);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadByte 오류: {ex.Message}");
+                return 0;
+            }
         }
 
         public short ReadShort(nint address)
         {
-            if (!IsValidConnectionAndAddress(address, "ReadShort")) return 0;
-            return _memoryReader.ReadShort(address);
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadShort: 프로세스에 연결되지 않음");
+                return 0;
+            }
+
+            if (!IsValidAddress(address))
+            {
+                Console.WriteLine($"[MemoryService] ReadShort: 잘못된 주소 0x{address:X}");
+                return 0;
+            }
+
+            try
+            {
+                return _memoryReader.ReadShort(address);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadShort 오류: {ex.Message}");
+                return 0;
+            }
         }
 
         public long ReadLong(nint address)
         {
-            if (!IsValidConnectionAndAddress(address, "ReadLong")) return 0L;
-            return _memoryReader.ReadLong(address);
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadLong: 프로세스에 연결되지 않음");
+                return 0L;
+            }
+
+            if (!IsValidAddress(address))
+            {
+                Console.WriteLine($"[MemoryService] ReadLong: 잘못된 주소 0x{address:X}");
+                return 0L;
+            }
+
+            try
+            {
+                return _memoryReader.ReadLong(address);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadLong 오류: {ex.Message}");
+                return 0L;
+            }
         }
 
         public bool ReadBool(nint address)
         {
-            if (!IsValidConnectionAndAddress(address, "ReadBool")) return false;
-            return _memoryReader.ReadBool(address);
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadBool: 프로세스에 연결되지 않음");
+                return false;
+            }
+
+            if (!IsValidAddress(address))
+            {
+                Console.WriteLine($"[MemoryService] ReadBool: 잘못된 주소 0x{address:X}");
+                return false;
+            }
+
+            try
+            {
+                return _memoryReader.ReadBool(address);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadBool 오류: {ex.Message}");
+                return false;
+            }
         }
 
         public nint ReadPointer(nint address)
         {
-            if (!IsValidConnectionAndAddress(address, "ReadPointer")) return 0;
-            return _memoryReader.ReadPointer(address);
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadPointer: 프로세스에 연결되지 않음");
+                return 0;
+            }
+
+            if (!IsValidAddress(address))
+            {
+                Console.WriteLine($"[MemoryService] ReadPointer: 잘못된 주소 0x{address:X}");
+                return 0;
+            }
+
+            try
+            {
+                return _memoryReader.ReadPointer(address);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadPointer 오류: {ex.Message}");
+                return 0;
+            }
         }
 
         public string ReadString(nint address, int maxLength = 256, Encoding encoding = null)
         {
-            if (!IsValidConnectionAndAddress(address, "ReadString")) return string.Empty;
-            if (maxLength <= 0) return string.Empty;
-            return _memoryReader.ReadString(address, maxLength, encoding);
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadString: 프로세스에 연결되지 않음");
+                return string.Empty;
+            }
+
+            if (!IsValidAddress(address))
+            {
+                Console.WriteLine($"[MemoryService] ReadString: 잘못된 주소 0x{address:X}");
+                return string.Empty;
+            }
+
+            if (maxLength <= 0)
+            {
+                Console.WriteLine("[MemoryService] ReadString: 잘못된 최대 길이");
+                return string.Empty;
+            }
+
+            try
+            {
+                return _memoryReader.ReadString(address, maxLength, encoding);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadString 오류: {ex.Message}");
+                return string.Empty;
+            }
         }
 
         public T ReadStructure<T>(nint address) where T : struct
         {
-            if (!IsValidConnectionAndAddress(address, $"ReadStructure<{typeof(T).Name}>")) return default(T);
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadStructure: 프로세스에 연결되지 않음");
+                return default(T);
+            }
+
+            if (!IsValidAddress(address))
+            {
+                Console.WriteLine($"[MemoryService] ReadStructure: 잘못된 주소 0x{address:X}");
+                return default(T);
+            }
+
             try
             {
                 return _memoryReader.ReadStructure<T>(address);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadStructure<{typeof(T).Name}> 실패: {ex.Message}");
+                Console.WriteLine($"[MemoryService] ReadStructure 오류: {ex.Message}");
                 return default(T);
             }
         }
 
         public T[] ReadStructureArray<T>(nint address, int count) where T : struct
         {
-            if (!IsValidConnectionAndAddress(address, $"ReadStructureArray<{typeof(T).Name}>")) return new T[0];
-            if (count <= 0) return new T[0];
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadStructureArray: 프로세스에 연결되지 않음");
+                return new T[0];
+            }
+
+            if (!IsValidAddress(address))
+            {
+                Console.WriteLine($"[MemoryService] ReadStructureArray: 잘못된 주소 0x{address:X}");
+                return new T[0];
+            }
+
+            if (count <= 0)
+            {
+                Console.WriteLine("[MemoryService] ReadStructureArray: 잘못된 카운트");
+                return new T[0];
+            }
+
             try
             {
                 return _memoryReader.ReadStructureArray<T>(address, count);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadStructureArray<{typeof(T).Name}> 실패: {ex.Message}");
+                Console.WriteLine($"[MemoryService] ReadStructureArray 오류: {ex.Message}");
                 return new T[0];
             }
         }
@@ -195,7 +400,7 @@ namespace StarcUp.Business.MemoryService
                 }
                 else
                 {
-                    Console.WriteLine($"[MemoryService] PEB 주소 가져오기 실패: NTSTATUS 0x{status:X}");
+                    Console.WriteLine($"[MemoryService] GetPebAddress: NtQueryInformationProcess 실패, 상태: {status}");
                     return 0;
                 }
             }
@@ -208,62 +413,66 @@ namespace StarcUp.Business.MemoryService
 
         public List<TebInfo> GetTebAddresses()
         {
-            if (!IsConnected)
+            lock (_lockObject)
             {
-                Console.WriteLine("[MemoryService] GetTebAddresses: 프로세스에 연결되지 않음");
-                return new List<TebInfo>();
-            }
-
-            if (_cachedTebList != null)
-            {
-                Console.WriteLine($"[MemoryService] TEB 캐시 사용 ({_cachedTebList.Count}개)");
-                return _cachedTebList;
-            }
-
-            try
-            {
-                var tebList = new List<TebInfo>();
-                nint snapshot = _memoryReader.CreateThreadSnapshot();
-                if (snapshot == 0)
+                if (_cachedTebList != null)
                 {
-                    Console.WriteLine("[MemoryService] 스레드 스냅샷 생성 실패");
-                    return tebList;
+                    Console.WriteLine("[MemoryService] TEB 캐시 사용");
+                    return new List<TebInfo>(_cachedTebList);
                 }
+
+                if (!IsConnected)
+                {
+                    Console.WriteLine("[MemoryService] GetTebAddresses: 프로세스에 연결되지 않음");
+                    return new List<TebInfo>();
+                }
+
+                var tebList = new List<TebInfo>();
 
                 try
                 {
-                    int index = 0;
-                    if (_memoryReader.GetFirstThread(snapshot, out var threadEntry))
+                    nint snapshot = _memoryReader.CreateThreadSnapshot();
+                    if (snapshot == 0)
                     {
-                        do
+                        Console.WriteLine("[MemoryService] 스레드 스냅샷 생성 실패");
+                        return tebList;
+                    }
+
+                    try
+                    {
+                        if (_memoryReader.GetFirstThread(snapshot, out var threadEntry))
                         {
-                            if (threadEntry.th32OwnerProcessID == ConnectedProcessId)
+                            int threadIndex = 0;
+                            do
                             {
-                                nint tebAddress = _memoryReader.GetThread(threadEntry.th32ThreadID);
-                                if (tebAddress != 0)
+                                if (threadEntry.th32OwnerProcessID == ConnectedProcessId)
                                 {
-                                    var tebInfo = new TebInfo(threadEntry.th32ThreadID, tebAddress, index);
-                                    tebList.Add(tebInfo);
-                                    index++;
+                                    nint tebAddress = _memoryReader.GetThread(threadEntry.th32ThreadID);
+                                    if (tebAddress != 0)
+                                    {
+                                        tebList.Add(new TebInfo(threadEntry.th32ThreadID, tebAddress, threadIndex));
+                                        Console.WriteLine($"[MemoryService] 스레드 {threadEntry.th32ThreadID}: TEB=0x{tebAddress:X}");
+                                        threadIndex++;
+                                    }
                                 }
                             }
+                            while (_memoryReader.GetNextThread(snapshot, ref threadEntry));
                         }
-                        while (_memoryReader.GetNextThread(snapshot, ref threadEntry));
                     }
+                    finally
+                    {
+                        _memoryReader.CloseHandle(snapshot);
+                    }
+
+                    _cachedTebList = new List<TebInfo>(tebList);
+                    Console.WriteLine($"[MemoryService] TEB 캐시 생성: {tebList.Count}개");
                 }
-                finally
+                catch (Exception ex)
                 {
-                    _memoryReader.CloseHandle(snapshot);
+                    Console.WriteLine($"[MemoryService] GetTebAddresses 오류: {ex.Message}");
                 }
 
-                _cachedTebList = tebList;
-                Console.WriteLine($"[MemoryService] TEB 캐시 생성: {tebList.Count}개");
                 return tebList;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MemoryService] GetTebAddresses 오류: {ex.Message}");
-                return new List<TebInfo>();
             }
         }
 
@@ -411,16 +620,26 @@ namespace StarcUp.Business.MemoryService
 
         public bool IsValidAddress(nint address)
         {
-            return address != 0;
+            if (Environment.Is64BitProcess)
+            {
+                return address != 0 && (long)address > 0x10000 && (long)address < 0x7FFFFFFFFFFF;
+            }
+            else
+            {
+                return address != 0 && (int)address > 0x10000 && (int)address < 0x7FFFFFFF;
+            }
         }
 
         public bool IsInModuleRange(nint address, string moduleName)
         {
-            if (!IsValidAddress(address)) return false;
+            if (!IsValidAddress(address) || string.IsNullOrWhiteSpace(moduleName))
+                return false;
+
             if (FindModule(moduleName, out var moduleInfo))
             {
                 return moduleInfo.IsInRange(address);
             }
+
             return false;
         }
 
@@ -429,7 +648,7 @@ namespace StarcUp.Business.MemoryService
             lock (_lockObject)
             {
                 _cachedTebList = null;
-                Console.WriteLine("[MemoryService] TEB 캐시 수동 무효화");
+                Console.WriteLine("[MemoryService] TEB 캐시 무효화됨");
             }
         }
 
@@ -439,7 +658,7 @@ namespace StarcUp.Business.MemoryService
             {
                 _cachedKernel32Module = null;
                 _cachedUser32Module = null;
-                Console.WriteLine("[MemoryService] 모듈 캐시 수동 무효화");
+                Console.WriteLine("[MemoryService] 모듈 캐시 무효화됨");
             }
         }
 
@@ -447,38 +666,374 @@ namespace StarcUp.Business.MemoryService
         {
             lock (_lockObject)
             {
-                ClearAllCache();
-                Console.WriteLine("[MemoryService] 모든 캐시 수동 무효화");
+                RefreshTebCache();
+                RefreshModuleCache();
+                Console.WriteLine("[MemoryService] 모든 캐시 무효화됨");
             }
         }
 
-        private bool IsValidConnectionAndAddress(nint address, string operation)
+        public void DebugAllModules()
         {
             if (!IsConnected)
             {
-                Console.WriteLine($"[MemoryService] {operation}: 프로세스에 연결되지 않음");
-                return false;
+                Console.WriteLine("[MemoryService] DebugAllModules: 프로세스에 연결되지 않음");
+                return;
             }
-            if (!IsValidAddress(address))
+
+            Console.WriteLine($"[MemoryService] === PID {ConnectedProcessId} 모든 모듈 목록 ===");
+
+            try
             {
-                Console.WriteLine($"[MemoryService] {operation}: 잘못된 주소 0x{address:X}");
-                return false;
+                nint snapshot = _memoryReader.CreateModuleSnapshot();
+                if (snapshot == 0)
+                {
+                    Console.WriteLine("[MemoryService] 모듈 스냅샷 생성 실패");
+                    return;
+                }
+
+                try
+                {
+                    int moduleCount = 0;
+                    if (_memoryReader.GetFirstModule(snapshot, out var moduleEntry))
+                    {
+                        do
+                        {
+                            moduleCount++;
+
+                            string moduleName = SafeGetString(moduleEntry.szModule);
+                            string modulePath = SafeGetString(moduleEntry.szExePath);
+
+                            Console.WriteLine($"[{moduleCount:D2}] 모듈명: {moduleName}");
+                            Console.WriteLine($"     베이스주소: 0x{moduleEntry.modBaseAddr:X}");
+                            Console.WriteLine($"     크기: 0x{moduleEntry.modBaseSize:X} ({moduleEntry.modBaseSize:N0} bytes)");
+                            if (!string.IsNullOrEmpty(modulePath))
+                            {
+                                Console.WriteLine($"     경로: {modulePath}");
+                            }
+                            Console.WriteLine();
+                        }
+                        while (_memoryReader.GetNextModule(snapshot, ref moduleEntry));
+                    }
+                    else
+                    {
+                        Console.WriteLine("[MemoryService] 모듈을 찾을 수 없음");
+                    }
+
+                    Console.WriteLine($"[MemoryService] === 총 {moduleCount}개 모듈 발견 ===");
+                }
+                finally
+                {
+                    _memoryReader.CloseHandle(snapshot);
+                }
             }
-            return true;
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] DebugAllModules 오류: {ex.Message}");
+                Console.WriteLine($"[MemoryService] 스택 트레이스: {ex.StackTrace}");
+            }
         }
 
-        private void ClearAllCache()
+        public void DebugAllModulesCheatEngineStyle()
         {
-            _cachedTebList = null;
-            _cachedKernel32Module = null;
-            _cachedUser32Module = null;
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] 프로세스에 연결되지 않음");
+                return;
+            }
+
+            Console.WriteLine($"[MemoryService] === PID {ConnectedProcessId} 모든 모듈 목록 (치트엔진 스타일) ===");
+
+            try
+            {
+                nint processHandle = _memoryReader.GetProcessHandle();
+                if (processHandle == IntPtr.Zero)
+                {
+                    Console.WriteLine("[MemoryService] 프로세스 핸들을 가져올 수 없음");
+                    return;
+                }
+
+                IntPtr[] moduleHandles = new IntPtr[1024];
+                uint bytesNeeded = 0;
+
+                if (!Infrastructure.Memory.MemoryAPI.EnumProcessModules(
+                    processHandle,
+                    moduleHandles,
+                    (uint)(moduleHandles.Length * IntPtr.Size),
+                    out bytesNeeded))
+                {
+                    int error = Marshal.GetLastWin32Error();
+                    Console.WriteLine($"[MemoryService] EnumProcessModules 실패, 오류 코드: {error}");
+                    return;
+                }
+
+                int moduleCount = (int)(bytesNeeded / IntPtr.Size);
+                Console.WriteLine($"[MemoryService] 발견된 모듈 수: {moduleCount}");
+
+                for (int i = 0; i < moduleCount && i < moduleHandles.Length; i++)
+                {
+                    if (moduleHandles[i] == IntPtr.Zero) continue;
+
+                    try
+                    {
+                        var moduleNameBuilder = new StringBuilder(260);
+                        uint nameLength = Infrastructure.Memory.MemoryAPI.GetModuleFileNameEx(
+                            processHandle,
+                            moduleHandles[i],
+                            moduleNameBuilder,
+                            (uint)moduleNameBuilder.Capacity);
+
+                        if (nameLength > 0)
+                        {
+                            string fullPath = moduleNameBuilder.ToString();
+                            string moduleName = Path.GetFileName(fullPath);
+
+                            if (Infrastructure.Memory.MemoryAPI.GetModuleInformation(
+                                processHandle,
+                                moduleHandles[i],
+                                out Infrastructure.Memory.MemoryAPI.MODULEINFO moduleInfo,
+                                (uint)Marshal.SizeOf<Infrastructure.Memory.MemoryAPI.MODULEINFO>()))
+                            {
+                                Console.WriteLine($"[{i + 1:D2}] 모듈명: {moduleName}");
+                                Console.WriteLine($"     베이스주소: 0x{moduleInfo.lpBaseOfDll:X}");
+                                Console.WriteLine($"     크기: 0x{moduleInfo.SizeOfImage:X} ({moduleInfo.SizeOfImage:N0} bytes)");
+                                Console.WriteLine($"     전체경로: {fullPath}");
+                                Console.WriteLine();
+
+                                if (moduleName.ToLower().Contains("starcraft") ||
+                                    moduleName.ToLower().Contains("star") ||
+                                    fullPath.ToLower().Contains("starcraft"))
+                                {
+                                    Console.WriteLine($"★ StarCraft 관련 모듈 발견: {moduleName}");
+                                    Console.WriteLine();
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[{i + 1:D2}] 모듈명을 가져올 수 없음 (핸들: 0x{moduleHandles[i]:X})");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[MemoryService] 모듈 {i} 정보 읽기 실패: {ex.Message}");
+                    }
+                }
+
+                Console.WriteLine($"[MemoryService] === 총 {moduleCount}개 모듈 처리 완료 ===");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] DebugAllModulesCheatEngineStyle 오류: {ex.Message}");
+                Console.WriteLine($"[MemoryService] 스택 트레이스: {ex.StackTrace}");
+            }
+        }
+
+        public ModuleInfo FindModuleCheatEngineStyle(string targetModuleName)
+        {
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] 프로세스에 연결되지 않음");
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(targetModuleName))
+            {
+                Console.WriteLine("[MemoryService] 모듈명이 비어있음");
+                return null;
+            }
+
+            try
+            {
+                nint processHandle = _memoryReader.GetProcessHandle();
+                IntPtr[] moduleHandles = new IntPtr[1024];
+                uint bytesNeeded = 0;
+
+                if (!Infrastructure.Memory.MemoryAPI.EnumProcessModules(
+                    processHandle,
+                    moduleHandles,
+                    (uint)(moduleHandles.Length * IntPtr.Size),
+                    out bytesNeeded))
+                {
+                    Console.WriteLine($"[MemoryService] EnumProcessModules 실패");
+                    return null;
+                }
+
+                int moduleCount = (int)(bytesNeeded / IntPtr.Size);
+
+                for (int i = 0; i < moduleCount && i < moduleHandles.Length; i++)
+                {
+                    if (moduleHandles[i] == IntPtr.Zero) continue;
+
+                    try
+                    {
+                        var moduleNameBuilder = new StringBuilder(260);
+                        uint nameLength = Infrastructure.Memory.MemoryAPI.GetModuleFileNameEx(
+                            processHandle,
+                            moduleHandles[i],
+                            moduleNameBuilder,
+                            (uint)moduleNameBuilder.Capacity);
+
+                        if (nameLength > 0)
+                        {
+                            string fullPath = moduleNameBuilder.ToString();
+                            string moduleName = Path.GetFileName(fullPath);
+
+                            if (string.Equals(moduleName, targetModuleName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (Infrastructure.Memory.MemoryAPI.GetModuleInformation(
+                                    processHandle,
+                                    moduleHandles[i],
+                                    out Infrastructure.Memory.MemoryAPI.MODULEINFO moduleInfo,
+                                    (uint)Marshal.SizeOf<Infrastructure.Memory.MemoryAPI.MODULEINFO>()))
+                                {
+                                    var result = new ModuleInfo(
+                                        moduleName,
+                                        moduleInfo.lpBaseOfDll,
+                                        moduleInfo.SizeOfImage,
+                                        fullPath
+                                    );
+
+                                    Console.WriteLine($"[MemoryService] 모듈 발견 (치트엔진 스타일): {result}");
+                                    return result;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[MemoryService] 모듈 {i} 검사 중 오류: {ex.Message}");
+                    }
+                }
+
+                Console.WriteLine($"[MemoryService] 모듈 '{targetModuleName}'을 찾을 수 없음 (치트엔진 스타일)");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] FindModuleCheatEngineStyle 오류: {ex.Message}");
+                return null;
+            }
+        }
+
+        public void FindModulesByPattern(string searchPattern)
+        {
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] FindModulesByPattern: 프로세스에 연결되지 않음");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(searchPattern))
+            {
+                Console.WriteLine("[MemoryService] FindModulesByPattern: 검색 패턴이 비어있음");
+                return;
+            }
+
+            Console.WriteLine($"[MemoryService] === '{searchPattern}' 패턴으로 모듈 검색 ===");
+
+            try
+            {
+                nint processHandle = _memoryReader.GetProcessHandle();
+                IntPtr[] moduleHandles = new IntPtr[1024];
+                uint bytesNeeded = 0;
+
+                if (!Infrastructure.Memory.MemoryAPI.EnumProcessModules(
+                    processHandle,
+                    moduleHandles,
+                    (uint)(moduleHandles.Length * IntPtr.Size),
+                    out bytesNeeded))
+                {
+                    Console.WriteLine("[MemoryService] EnumProcessModules 실패");
+                    return;
+                }
+
+                int moduleCount = (int)(bytesNeeded / IntPtr.Size);
+                int foundCount = 0;
+
+                for (int i = 0; i < moduleCount && i < moduleHandles.Length; i++)
+                {
+                    if (moduleHandles[i] == IntPtr.Zero) continue;
+
+                    try
+                    {
+                        var moduleNameBuilder = new StringBuilder(260);
+                        uint nameLength = Infrastructure.Memory.MemoryAPI.GetModuleFileNameEx(
+                            processHandle,
+                            moduleHandles[i],
+                            moduleNameBuilder,
+                            (uint)moduleNameBuilder.Capacity);
+
+                        if (nameLength > 0)
+                        {
+                            string fullPath = moduleNameBuilder.ToString();
+                            string moduleName = Path.GetFileName(fullPath);
+
+                            if (moduleName.IndexOf(searchPattern, StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                foundCount++;
+
+                                if (Infrastructure.Memory.MemoryAPI.GetModuleInformation(
+                                    processHandle,
+                                    moduleHandles[i],
+                                    out Infrastructure.Memory.MemoryAPI.MODULEINFO moduleInfo,
+                                    (uint)Marshal.SizeOf<Infrastructure.Memory.MemoryAPI.MODULEINFO>()))
+                                {
+                                    Console.WriteLine($"[발견] {moduleName}");
+                                    Console.WriteLine($"       베이스: 0x{moduleInfo.lpBaseOfDll:X}, 크기: 0x{moduleInfo.SizeOfImage:X}");
+                                    Console.WriteLine($"       경로: {fullPath}");
+                                    Console.WriteLine();
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[MemoryService] 모듈 {i} 검사 중 오류: {ex.Message}");
+                    }
+                }
+
+                if (foundCount == 0)
+                {
+                    Console.WriteLine($"[MemoryService] '{searchPattern}' 패턴과 일치하는 모듈을 찾을 수 없음");
+                }
+                else
+                {
+                    Console.WriteLine($"[MemoryService] === '{searchPattern}' 패턴으로 {foundCount}개 모듈 발견 ===");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] FindModulesByPattern 오류: {ex.Message}");
+            }
+        }
+
+        private string SafeGetString(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return "[비어있음]";
+
+            var cleanChars = input.Where(c => !char.IsControl(c) && c >= 32 && c <= 126).ToArray();
+
+            if (cleanChars.Length == 0)
+                return "[읽기불가]";
+
+            return new string(cleanChars);
         }
 
         public void Dispose()
         {
             if (_isDisposed) return;
-            Disconnect();
-            _isDisposed = true;
+
+            try
+            {
+                Disconnect();
+                _isDisposed = true;
+                Console.WriteLine("[MemoryService] 서비스 해제됨");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] Dispose 오류: {ex.Message}");
+            }
         }
     }
 }

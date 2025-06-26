@@ -43,6 +43,8 @@ namespace StarcUp.Infrastructure.Memory
 
         int QueryProcessInformation(out MemoryAPI.PROCESS_BASIC_INFORMATION processInfo);
 
+        nint GetProcessHandle();
+
         void CloseHandle(nint handle);
     }
 }

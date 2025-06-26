@@ -51,5 +51,13 @@ namespace StarcUp.Business.MemoryService
         void RefreshTebCache();
         void RefreshModuleCache();
         void RefreshAllCache();
+
+        void DebugAllModules();
+
+        void DebugAllModulesCheatEngineStyle();
+
+        ModuleInfo FindModuleCheatEngineStyle(string targetModuleName);
+
+        void FindModulesByPattern(string searchPattern);
     }
 }

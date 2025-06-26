@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -7,17 +6,17 @@ using System.Text;
 namespace StarcUp.Infrastructure.Memory
 {
     /// <summary>
-    /// Windows API를 직접 사용하여 메모리를 읽는 저수준 클래스
-    /// - Windows API와의 직접적인 접촉만 담당
-    /// - 에러 처리나 유효성 검사는 최소한으로만 수행
+    /// Windows API를 직접 사용하는 저수준 메모리 리더
+    /// - 단순한 Windows API 래퍼 메소드들만 구현
+    /// - 복합적인 비즈니스 로직은 상위 MemoryService에서 처리
     /// </summary>
     public class MemoryReader : IMemoryReader
     {
         private Process _process;
-        protected nint _processHandle;
+        private nint _processHandle;
         private bool _isDisposed;
 
-        public bool IsConnected => _processHandle != 0 && _process != null && !_process.HasExited;
+        public bool IsConnected => _process != null && !_process.HasExited && _processHandle != 0;
         public int ConnectedProcessId => _process?.Id ?? 0;
 
         public bool ConnectToProcess(int processId)
@@ -25,10 +24,16 @@ namespace StarcUp.Infrastructure.Memory
             try
             {
                 Disconnect();
+
                 _process = Process.GetProcessById(processId);
+                if (_process == null || _process.HasExited)
+                    return false;
+
                 _processHandle = MemoryAPI.OpenProcess(
                     MemoryAPI.PROCESS_QUERY_INFORMATION | MemoryAPI.PROCESS_VM_READ,
-                    false, processId);
+                    false,
+                    processId);
+
                 return _processHandle != 0;
             }
             catch
@@ -44,21 +49,25 @@ namespace StarcUp.Infrastructure.Memory
                 MemoryAPI.CloseHandle(_processHandle);
                 _processHandle = 0;
             }
+
+            _process?.Dispose();
             _process = null;
         }
 
         public byte[] ReadMemoryRaw(nint address, int size)
         {
-            if (!IsConnected || size <= 0)
-                return null;
+            if (!IsConnected || size <= 0) return null;
 
             byte[] buffer = new byte[size];
-            return ReadProcessMemory(address, buffer, size) ? buffer : null;
-        }
+            if (MemoryAPI.ReadProcessMemory(_processHandle, address, buffer, size, out nint bytesRead))
+            {
+                if (bytesRead == size) return buffer;
 
-        protected bool ReadProcessMemory(nint address, byte[] buffer, int size)
-        {
-            return MemoryAPI.ReadProcessMemory(_processHandle, address, buffer, size, out _);
+                Array.Resize(ref buffer, (int)bytesRead);
+                return buffer;
+            }
+
+            return null;
         }
 
         public int ReadInt(nint address)
@@ -104,10 +113,11 @@ namespace StarcUp.Infrastructure.Memory
 
         public nint ReadPointer(nint address)
         {
-            byte[] buffer = ReadMemoryRaw(address, nint.Size);
+            int size = Environment.Is64BitProcess ? 8 : 4;
+            byte[] buffer = ReadMemoryRaw(address, size);
             if (buffer == null) return 0;
 
-            return nint.Size == 8
+            return Environment.Is64BitProcess
                 ? new nint(BitConverter.ToInt64(buffer, 0))
                 : new nint(BitConverter.ToInt32(buffer, 0));
         }
@@ -251,6 +261,27 @@ namespace StarcUp.Infrastructure.Memory
                 ref returnLength);
         }
 
+        /// <summary>
+        /// 상속 클래스에서 접근 가능한 프로세스 핸들 프로퍼티
+        /// </summary>
+        protected nint ProcessHandle => _processHandle;
+
+        /// <summary>
+        /// 현재 연결된 프로세스의 핸들을 반환합니다.
+        /// PSAPI 함수들에서 사용하기 위해 필요합니다.
+        /// </summary>
+        /// <returns>프로세스 핸들, 연결되지 않은 경우 IntPtr.Zero</returns>
+        public nint GetProcessHandle()
+        {
+            if (!IsConnected || _processHandle == IntPtr.Zero)
+            {
+                Console.WriteLine("[MemoryReader] GetProcessHandle: 프로세스에 연결되지 않음");
+                return IntPtr.Zero;
+            }
+
+            return _processHandle;
+        }
+
         public void CloseHandle(nint handle)
         {
             if (handle != 0)
@@ -259,8 +290,19 @@ namespace StarcUp.Infrastructure.Memory
 
         public void Dispose()
         {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
             if (_isDisposed) return;
-            Disconnect();
+
+            if (disposing)
+            {
+                Disconnect();
+            }
+
             _isDisposed = true;
         }
     }
