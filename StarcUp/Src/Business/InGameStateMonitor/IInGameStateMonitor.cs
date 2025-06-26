@@ -1,12 +1,12 @@
 ﻿using StarcUp.Common.Events;
 using System;
 
-namespace StarcUp.Business.Monitoring
+namespace StarcUp.Business.InGameStateMonitor
 {
     /// <summary>
     /// 포인터 모니터링 서비스 인터페이스
     /// </summary>
-    public interface IPointerMonitorService : IDisposable
+    public interface IInGameStateMonitor : IDisposable
     {
         event EventHandler<PointerEventArgs> ValueChanged;
 

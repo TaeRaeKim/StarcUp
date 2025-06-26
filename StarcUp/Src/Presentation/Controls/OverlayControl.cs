@@ -2,7 +2,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
-using StarcUp.Business.Monitoring;
+using StarcUp.Business.InGameStateMonitor;
 
 namespace StarcUp.Presentation.Controls
 {

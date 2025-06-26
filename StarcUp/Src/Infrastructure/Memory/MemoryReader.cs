@@ -117,7 +117,7 @@ namespace StarcUp.Infrastructure.Memory
                 return 0;
             }
 
-            // 1단계: kernel32.dll 모듈 정보 가져오기
+            // 1단계: kernel32.dll 모듈 정보 가져오기 (새로운 구현 사용)
             if (!GetKernel32ModuleInfo(out var kernel32Info))
             {
                 Console.WriteLine("kernel32.dll 모듈 정보를 가져올 수 없습니다.");
@@ -150,7 +150,8 @@ namespace StarcUp.Infrastructure.Memory
             {
                 nint pointer = (nint)BitConverter.ToInt64(stackBuffer, i * pointerSize);
 
-                if (IsInRange(pointer, kernel32Info.lpBaseOfDll, kernel32Info.SizeOfImage))
+                // MODULEENTRY32 구조체 사용으로 변경
+                if (IsInRange(pointer, kernel32Info.modBaseAddr, kernel32Info.modBaseSize))
                 {
                     nint resultAddress = stackSearchStart + (i * pointerSize);
                     Console.WriteLine($"StackStart 계산 완료: 0x{resultAddress:X16}");
@@ -161,6 +162,7 @@ namespace StarcUp.Infrastructure.Memory
             Console.WriteLine("kernel32를 가리키는 스택 엔트리를 찾을 수 없습니다.");
             return 0;
         }
+
 
         public nint GetStackTop(int threadIndex)
         {
@@ -266,35 +268,6 @@ namespace StarcUp.Infrastructure.Memory
             return 0;
         }
 
-        private bool GetKernel32ModuleInfo(out MemoryAPI.MODULEINFO moduleInfo)
-        {
-            moduleInfo = new MemoryAPI.MODULEINFO();
-
-            nint[] modules = new nint[1024];
-            if (!MemoryAPI.EnumProcessModules(_processHandle, modules, (uint)(modules.Length * nint.Size), out uint needed))
-                return false;
-
-            int moduleCount = (int)(needed / nint.Size);
-            StringBuilder moduleBaseName = new StringBuilder(256);
-
-            for (int i = 0; i < moduleCount; i++)
-            {
-                if (modules[i] != 0)
-                {
-                    if (MemoryAPI.GetModuleBaseName(_processHandle, modules[i], moduleBaseName, 256) > 0)
-                    {
-                        string moduleName = moduleBaseName.ToString();
-                        if (moduleName.ToLower() == "kernel32.dll")
-                        {
-                            return MemoryAPI.GetModuleInformation(_processHandle, modules[i], out moduleInfo, (uint)Marshal.SizeOf(typeof(MemoryAPI.MODULEINFO)));
-                        }
-                    }
-                }
-            }
-
-            return false;
-        }
-
         /// <summary>
         /// 메모리에서 지정된 크기만큼 데이터를 읽어 바이트 배열로 반환
         /// </summary>
@@ -385,6 +358,190 @@ namespace StarcUp.Infrastructure.Memory
 
             Disconnect();
             _isDisposed = true;
+        }
+
+        /// <summary>
+        /// 프로세스의 PEB(Process Environment Block) 주소를 가져옵니다.
+        /// </summary>
+        /// <returns>PEB 주소 (실패 시 0)</returns>
+        public nint GetPebAddress()
+        {
+            if (!IsConnected)
+            {
+                Console.WriteLine("프로세스에 연결되지 않음");
+                return 0;
+            }
+
+            try
+            {
+                var processInfo = new MemoryAPI.PROCESS_BASIC_INFORMATION();
+                int returnLength = 0;
+
+                int status = MemoryAPI.NtQueryInformationProcess(
+                    _processHandle,
+                    MemoryAPI.ProcessBasicInformation,
+                    ref processInfo,
+                    Marshal.SizeOf(typeof(MemoryAPI.PROCESS_BASIC_INFORMATION)),
+                    ref returnLength
+                );
+
+                if (status == 0) // STATUS_SUCCESS
+                {
+                    Console.WriteLine($"PEB 주소: 0x{processInfo.PebBaseAddress:X16}");
+                    return processInfo.PebBaseAddress;
+                }
+                else
+                {
+                    Console.WriteLine($"NtQueryInformationProcess 실패: NTSTATUS 0x{status:X}");
+                    return 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PEB 주소 가져오기 실패: {ex.Message}");
+                return 0;
+            }
+        }
+        /// <summary>
+        /// 지정된 모듈의 정보를 가져옵니다
+        /// </summary>
+        public bool GetModuleInfo(string moduleName, out MemoryAPI.MODULEENTRY32 moduleInfo)
+        {
+            moduleInfo = new MemoryAPI.MODULEENTRY32();
+
+            if (!IsConnected)
+            {
+                Console.WriteLine("프로세스에 연결되지 않음");
+                return false;
+            }
+
+            nint snapshot = MemoryAPI.CreateToolhelp32Snapshot(
+                MemoryAPI.TH32CS_SNAPMODULE | MemoryAPI.TH32CS_SNAPMODULE32,
+                (uint)_process.Id);
+
+            if (snapshot == 0)
+            {
+                Console.WriteLine("모듈 스냅샷 생성 실패");
+                return false;
+            }
+
+            try
+            {
+                var modEntry = MemoryAPI.CreateModuleEntry32();
+
+                if (MemoryAPI.Module32First(snapshot, ref modEntry))
+                {
+                    do
+                    {
+                        if (string.Equals(modEntry.szModule, moduleName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            moduleInfo = modEntry;
+                            Console.WriteLine($"{moduleName} 발견: 베이스주소=0x{modEntry.modBaseAddr.ToInt64():X16}, 크기={modEntry.modBaseSize}");
+                            return true;
+                        }
+                    }
+                    while (MemoryAPI.Module32Next(snapshot, ref modEntry));
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"모듈 열거 중 오류: {ex.Message}");
+            }
+            finally
+            {
+                MemoryAPI.CloseHandle(snapshot);
+            }
+
+            Console.WriteLine($"{moduleName} 모듈을 찾을 수 없음");
+            return false;
+        }
+
+        /// <summary>
+        /// User32.dll 모듈 정보를 가져옵니다
+        /// </summary>
+        public bool GetUser32ModuleInfo(out MemoryAPI.MODULEENTRY32 moduleInfo)
+        {
+            return GetModuleInfo("user32.dll", out moduleInfo);
+        }
+
+        /// <summary>
+        /// Kernel32.dll 모듈 정보를 가져옵니다 (기존 구현을 대체)
+        /// </summary>
+        public bool GetKernel32ModuleInfo(out MemoryAPI.MODULEENTRY32 moduleInfo)
+        {
+            return GetModuleInfo("kernel32.dll", out moduleInfo);
+        }
+
+        /// <summary>
+        /// 모든 로드된 모듈 정보를 가져옵니다
+        /// </summary>
+        public Dictionary<string, MemoryAPI.MODULEENTRY32> GetAllModuleInfo()
+        {
+            var modules = new Dictionary<string, MemoryAPI.MODULEENTRY32>(StringComparer.OrdinalIgnoreCase);
+
+            if (!IsConnected)
+            {
+                Console.WriteLine("프로세스에 연결되지 않음");
+                return modules;
+            }
+
+            nint snapshot = MemoryAPI.CreateToolhelp32Snapshot(
+                MemoryAPI.TH32CS_SNAPMODULE | MemoryAPI.TH32CS_SNAPMODULE32,
+                (uint)_process.Id);
+
+            if (snapshot == 0)
+            {
+                Console.WriteLine("모듈 스냅샷 생성 실패");
+                return modules;
+            }
+
+            try
+            {
+                var modEntry = MemoryAPI.CreateModuleEntry32();
+
+                if (MemoryAPI.Module32First(snapshot, ref modEntry))
+                {
+                    do
+                    {
+                        string moduleName = modEntry.szModule;
+                        modules[moduleName] = modEntry;
+
+                        Console.WriteLine($"모듈 발견: {moduleName} - 베이스주소=0x{modEntry.modBaseAddr.ToInt64():X16}, 크기={modEntry.modBaseSize}");
+                    }
+                    while (MemoryAPI.Module32Next(snapshot, ref modEntry));
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"모듈 열거 중 오류: {ex.Message}");
+            }
+            finally
+            {
+                MemoryAPI.CloseHandle(snapshot);
+            }
+
+            Console.WriteLine($"총 {modules.Count}개 모듈 발견");
+            return modules;
+        }
+
+        /// <summary>
+        /// 특정 DLL의 베이스 주소만 빠르게 가져옵니다
+        /// </summary>
+        public nint GetModuleBaseAddress(string moduleName)
+        {
+            if (GetModuleInfo(moduleName, out var moduleInfo))
+            {
+                return moduleInfo.modBaseAddr;
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// User32.dll의 베이스 주소를 가져옵니다
+        /// </summary>
+        public nint GetUser32BaseAddress()
+        {
+            return GetModuleBaseAddress("user32.dll");
         }
     }
 }

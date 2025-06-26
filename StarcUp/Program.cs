@@ -60,7 +60,7 @@ namespace StarcUp
             {
                 // 필요한 서비스들 가져오기 (오버레이 관련 제거)
                 var gameDetectionService = _container.Resolve<IGameDetector>();
-                var memoryService = _container.Resolve<IProcessConnector>();
+                var memoryService = _container.Resolve<IMemoryService>();
 
                 // 컨트롤 폼 생성 (단순한 모니터링 전용)
                 _controlForm = new ControlForm(gameDetectionService, memoryService);

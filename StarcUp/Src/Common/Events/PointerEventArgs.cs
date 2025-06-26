@@ -1,5 +1,5 @@
 ﻿using System;
-using StarcUp.Business.Monitoring;
+using StarcUp.Business.InGameStateMonitor;
 
 namespace StarcUp.Common.Events
 {

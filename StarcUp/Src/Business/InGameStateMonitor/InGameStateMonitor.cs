@@ -5,28 +5,33 @@ using StarcUp.Common.Constants;
 using StarcUp.Common.Events;
 using Timer = System.Timers.Timer;
 
-namespace StarcUp.Business.Monitoring
+namespace StarcUp.Business.InGameStateMonitor
 {
     /// <summary>
     /// 포인터 모니터링 서비스
     /// </summary>
-    public class PointerMonitorService : IPointerMonitorService
+    public class InGameStateMonitor : IInGameStateMonitor
     {
-        private readonly IProcessConnector _memoryService;
+
+        private readonly IMemoryService _memoryService;
         private Timer _monitorTimer;
         private PointerValue _currentValue;
+        private bool _isInGame;
         private bool _isMonitoring;
         private bool _isDisposed;
-        private nint _stackStartAddress;
+
 
         public event EventHandler<PointerEventArgs> ValueChanged;
 
         public bool IsMonitoring => _isMonitoring;
         public PointerValue CurrentValue => _currentValue;
+        public bool IsInGame => _isInGame;
 
-        public PointerMonitorService(IProcessConnector memoryService)
+        public InGameStateMonitor(IMemoryService memoryService)
         {
             _memoryService = memoryService ?? throw new ArgumentNullException(nameof(memoryService));
+            _memoryService.ProcessConnect += OnProcessConnect;
+            _memoryService.ProcessDisconnect += OnProcessDisConnect;
         }
 
         public void StartMonitoring(int processId)
@@ -38,22 +43,20 @@ namespace StarcUp.Business.Monitoring
 
             try
             {
-                // 메모리 서비스에 연결
-                if (!_memoryService.ConnectToProcess(processId))
+                // Peb 주소 가져오기
+                _pebAddress = _memoryService.GetPebAddress();
+                _user32Address = _memoryService.GetUser32Address();
+                
+                _B = _pebAddress + 0x828;
+
+
+                if (_pebAddress == 0)
                 {
-                    Console.WriteLine("메모리 서비스 연결 실패");
+                    Console.WriteLine("PebAddress 주소를 가져올 수 없습니다.");
                     return;
                 }
 
-                // StackStart 주소 가져오기
-                _stackStartAddress = _memoryService.GetStackStart(0);
-                if (_stackStartAddress == 0)
-                {
-                    Console.WriteLine("StackStart 주소를 가져올 수 없습니다.");
-                    return;
-                }
-
-                Console.WriteLine($"StackStart 주소: 0x{_stackStartAddress.ToInt64():X16}");
+                Console.WriteLine($"PebAddress 주소: 0x{_pebAddress:X16}");
 
                 // 모니터링 타이머 설정
                 _monitorTimer = new Timer(GameConstants.POINTER_MONITOR_INTERVAL_MS);
@@ -82,7 +85,7 @@ namespace StarcUp.Business.Monitoring
             _monitorTimer = null;
 
             _memoryService.Disconnect();
-            _stackStartAddress = 0;
+            _pebAddress = 0;
             _currentValue = null;
 
             _isMonitoring = false;
@@ -93,14 +96,12 @@ namespace StarcUp.Business.Monitoring
         {
             try
             {
-                if (!_memoryService.IsConnected || _stackStartAddress == 0)
+                if (!_memoryService.IsConnected || _pebAddress == 0)
                 {
                     StopMonitoring();
                     return;
                 }
 
-                // 여기서 실제 포인터 값을 읽어야 하는데, 
-                // 현재는 StackStart 주소만 가져오는 상태이므로
                 // 임시로 더미 값을 생성
                 var newValue = GenerateDummyPointerValue();
 
@@ -110,10 +111,11 @@ namespace StarcUp.Business.Monitoring
                 }
                 else if (_currentValue.NewValue != newValue.NewValue)
                 {
-                    var pointerValue = new PointerValue(_currentValue.NewValue, newValue.NewValue, _stackStartAddress);
+                    var pointerValue = new PointerValue(_currentValue.NewValue, newValue.NewValue, _pebAddress);
                     _currentValue = pointerValue;
 
                     var eventArgs = new PointerEventArgs(pointerValue, GameConstants.EventTypes.POINTER_VALUE_CHANGED);
+                    Console.WriteLine(eventArgs);
                     ValueChanged?.Invoke(this, eventArgs);
                     }
             }
@@ -129,7 +131,24 @@ namespace StarcUp.Business.Monitoring
             // 현재는 테스트용 더미 값 생성
             Random random = new Random();
             int value = random.Next(1000, 9999);
-            return new PointerValue(0, value, _stackStartAddress);
+            return new PointerValue(0, value, _pebAddress);
+        }
+
+        private void OnProcessConnect(object sender, ProcessEventArgs e)
+        {
+            if (e.ProcessId <= 0)
+            {
+                Console.WriteLine("유효하지 않은 프로세스 ID입니다.");
+                return;
+            }
+            Console.WriteLine($"프로세스 연결됨: PID {e.ProcessId}");
+            StartMonitoring(e.ProcessId);
+        }
+
+        private void OnProcessDisConnect(object sender, ProcessEventArgs e)
+        {
+            Console.WriteLine($"프로세스 연결 해제됨: PID {e.ProcessId}");
+            StopMonitoring();
         }
 
         public void Dispose()

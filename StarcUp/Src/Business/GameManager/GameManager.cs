@@ -1,4 +1,4 @@
-﻿using StarcUp.Business.Monitoring;
+﻿using StarcUp.Business.InGameStateMonitor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,9 +10,9 @@ namespace StarcUp.Src.Business.Game
     public class GameManager : IGameManager
     {
 
-        IPointerMonitorService _pointerMonitorService;
+        IInGameStateMonitor _pointerMonitorService;
 
-        public GameManager(IPointerMonitorService pointerMonitorService)
+        public GameManager(IInGameStateMonitor pointerMonitorService)
         {
             _pointerMonitorService = pointerMonitorService;
         }

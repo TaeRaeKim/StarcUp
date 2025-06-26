@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using StarcUp.Business.GameDetection;
+using StarcUp.Business.InGameStateMonitor;
 using StarcUp.Business.Memory;
-using StarcUp.Business.Monitoring;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Windows;
 using StarcUp.Src.Business.Game;
+using StarcUp.Src.Infrastructure.Memory;
 
 namespace StarcUp.DependencyInjection
 {
@@ -126,20 +127,25 @@ namespace StarcUp.DependencyInjection
 
             // Infrastructure Services
             container.RegisterSingleton<IMemoryReader>(
-                c => new MemoryReader());
+                c => new OptimizedMemoryReader());
 
             container.RegisterSingleton<IWindowManager>(
                 c => new WindowManager());
 
             // Business Services
-            container.RegisterSingleton<IProcessConnector>(
-                c => new ProcessConnector(
+            container.RegisterSingleton<IMemoryService>(
+                c => new MemoryService(
                     c.Resolve<IMemoryReader>()));
 
             // Game Detection Services
             container.RegisterSingleton<IGameDetector>(
                 c => new GameDetector(
                     c.Resolve<IWindowManager>()));
+
+            // InGameStateMonitor
+            container.RegisterSingleton<IInGameStateMonitor>(
+                c => new InGameStateMonitor(
+                    c.Resolve<IMemoryService>()));
 
             //container.RegisterSingleton<IGameManager>(
             //    c => new GameManager(

@@ -14,7 +14,7 @@ namespace StarcUp.Presentation.Forms
     public partial class ControlForm : Form
     {
         private readonly IGameDetector _gameDetectionService;
-        private readonly IProcessConnector _memoryService;
+        private readonly IMemoryService _memoryService;
         private readonly GameDetector _hybridDetector; // 직접 참조로 상태 정보 접근
 
         // UI 컨트롤들
@@ -45,7 +45,7 @@ namespace StarcUp.Presentation.Forms
         private bool _isOverlayActive = false;
         private bool _isDisposed = false;
 
-        public ControlForm(IGameDetector gameDetectionService, IProcessConnector memoryService)
+        public ControlForm(IGameDetector gameDetectionService, IMemoryService memoryService)
         {
             _gameDetectionService = gameDetectionService ?? throw new ArgumentNullException(nameof(gameDetectionService));
             _memoryService = memoryService ?? throw new ArgumentNullException(nameof(memoryService));

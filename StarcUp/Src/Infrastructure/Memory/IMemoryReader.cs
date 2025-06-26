@@ -13,7 +13,9 @@ namespace StarcUp.Infrastructure.Memory
         void Disconnect();
         bool IsConnected { get; }
         int ConnectedProcessId { get; }
-        
+
+        nint GetPebAddress();
+        bool GetUser32ModuleInfo(out MemoryAPI.MODULEENTRY32 moduleInfo);
         List<TebInfo> GetTebAddresses();
         nint GetStackStart(int threadIndex = 0);
         nint GetStackTop(int threadIndex);

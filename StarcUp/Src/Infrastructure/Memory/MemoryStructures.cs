@@ -36,6 +36,15 @@ namespace StarcUp.Infrastructure.Memory
         public static extern int NtQueryInformationThread(nint threadHandle, int threadInformationClass,
             out THREAD_BASIC_INFORMATION threadInformation, int threadInformationLength, nint returnLength);
 
+        [DllImport("ntdll.dll")]
+        public static extern int NtQueryInformationProcess(
+    nint processHandle,
+    int processInformationClass,
+    ref PROCESS_BASIC_INFORMATION processInformation,
+    int processInformationLength,
+    ref int returnLength
+);
+
         [DllImport("psapi.dll")]
         public static extern bool EnumProcessModules(nint processHandle, nint[] modules,
             uint size, out uint needed);
@@ -59,6 +68,44 @@ namespace StarcUp.Infrastructure.Memory
             int dwSize,
             out nint lpNumberOfBytesRead);
 
+        // 모듈 열거를 위한 추가 API 함수들
+        [DllImport("kernel32.dll")]
+        public static extern bool Module32First(nint snapshot, ref MODULEENTRY32 moduleEntry);
+
+        [DllImport("kernel32.dll")]
+        public static extern bool Module32Next(nint snapshot, ref MODULEENTRY32 moduleEntry);
+
+        /// <summary>
+        /// 모듈 정보를 담는 구조체 (CreateToolhelp32Snapshot 사용)
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        public struct MODULEENTRY32
+        {
+            public uint dwSize;
+            public uint th32ModuleID;
+            public uint th32ProcessID;
+            public uint GlblcntUsage;
+            public uint ProccntUsage;
+            public nint modBaseAddr;
+            public uint modBaseSize;
+            public nint hModule;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+            public string szModule;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+            public string szExePath;
+        }
+
+        /// <summary>
+        /// MODULEENTRY32 구조체 초기화 헬퍼
+        /// </summary>
+        public static MODULEENTRY32 CreateModuleEntry32()
+        {
+            var entry = new MODULEENTRY32();
+            entry.dwSize = (uint)Marshal.SizeOf(typeof(MODULEENTRY32));
+            return entry;
+        }
         /// <summary>
         /// 안전한 Unsafe 메모리 읽기 래퍼
         /// </summary>
@@ -78,6 +125,23 @@ namespace StarcUp.Infrastructure.Memory
         public const uint THREAD_QUERY_INFORMATION = 0x0040;
         public const int ThreadBasicInformation = 0;
 
+        // 모듈 스냅샷을 위한 추가 상수
+        public const uint TH32CS_SNAPMODULE = 0x00000008;
+        public const uint TH32CS_SNAPMODULE32 = 0x00000010;
+
+        // 프로세스 정보 타입 상수
+        public const int ProcessBasicInformation = 0;
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct PROCESS_BASIC_INFORMATION
+        {
+            public nint Reserved1;
+            public nint PebBaseAddress;      // PEB 주소
+            public nint Reserved2_0;
+            public nint Reserved2_1;
+            public nint UniqueProcessId;     // 프로세스 ID
+            public nint Reserved3;
+        }
         // 구조체들
         [StructLayout(LayoutKind.Sequential)]
         public struct THREADENTRY32

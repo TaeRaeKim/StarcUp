@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace StarcUp.Business.Monitoring
+namespace StarcUp.Business.InGameStateMonitor
 {
     /// <summary>
     /// 포인터 값 변화 정보 모델
