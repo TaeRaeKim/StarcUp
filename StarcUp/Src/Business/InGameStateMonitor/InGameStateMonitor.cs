@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Timers;
-using StarcUp.Business.Memory;
+using StarcUp.Business.MemoryService;
 using StarcUp.Common.Constants;
 using StarcUp.Common.Events;
 using Timer = System.Timers.Timer;
@@ -43,21 +43,6 @@ namespace StarcUp.Business.InGameStateMonitor
 
             try
             {
-                // Peb 주소 가져오기
-                _pebAddress = _memoryService.GetPebAddress();
-                _user32Address = _memoryService.GetUser32Address();
-                
-                _B = _pebAddress + 0x828;
-
-
-                if (_pebAddress == 0)
-                {
-                    Console.WriteLine("PebAddress 주소를 가져올 수 없습니다.");
-                    return;
-                }
-
-                Console.WriteLine($"PebAddress 주소: 0x{_pebAddress:X16}");
-
                 // 모니터링 타이머 설정
                 _monitorTimer = new Timer(GameConstants.POINTER_MONITOR_INTERVAL_MS);
                 _monitorTimer.Elapsed += MonitorPointerValue;
@@ -85,7 +70,6 @@ namespace StarcUp.Business.InGameStateMonitor
             _monitorTimer = null;
 
             _memoryService.Disconnect();
-            _pebAddress = 0;
             _currentValue = null;
 
             _isMonitoring = false;
@@ -96,7 +80,7 @@ namespace StarcUp.Business.InGameStateMonitor
         {
             try
             {
-                if (!_memoryService.IsConnected || _pebAddress == 0)
+                if (!_memoryService.IsConnected)
                 {
                     StopMonitoring();
                     return;
@@ -111,7 +95,7 @@ namespace StarcUp.Business.InGameStateMonitor
                 }
                 else if (_currentValue.NewValue != newValue.NewValue)
                 {
-                    var pointerValue = new PointerValue(_currentValue.NewValue, newValue.NewValue, _pebAddress);
+                    var pointerValue = new PointerValue(_currentValue.NewValue, newValue.NewValue, 0);
                     _currentValue = pointerValue;
 
                     var eventArgs = new PointerEventArgs(pointerValue, GameConstants.EventTypes.POINTER_VALUE_CHANGED);
@@ -131,7 +115,7 @@ namespace StarcUp.Business.InGameStateMonitor
             // 현재는 테스트용 더미 값 생성
             Random random = new Random();
             int value = random.Next(1000, 9999);
-            return new PointerValue(0, value, _pebAddress);
+            return new PointerValue(0, value, 0);
         }
 
         private void OnProcessConnect(object sender, ProcessEventArgs e)

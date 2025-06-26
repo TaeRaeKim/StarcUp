@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace StarcUp.Business.Memory
+namespace StarcUp.Business.MemoryService
 {
     /// <summary>
     /// TEB (Thread Environment Block) 정보 모델

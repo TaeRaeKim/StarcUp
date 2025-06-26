@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
-using StarcUp.Business.Memory;
 
 namespace StarcUp.Infrastructure.Memory
 {
     /// <summary>
-    /// Windows API를 사용한 메모리 리더 구현
+    /// Windows API를 직접 사용하여 메모리를 읽는 저수준 클래스
+    /// - Windows API와의 직접적인 접촉만 담당
+    /// - 에러 처리나 유효성 검사는 최소한으로만 수행
     /// </summary>
     public class MemoryReader : IMemoryReader
     {
@@ -23,28 +24,15 @@ namespace StarcUp.Infrastructure.Memory
         {
             try
             {
-                // 기존 연결 해제
                 Disconnect();
-
                 _process = Process.GetProcessById(processId);
                 _processHandle = MemoryAPI.OpenProcess(
                     MemoryAPI.PROCESS_QUERY_INFORMATION | MemoryAPI.PROCESS_VM_READ,
                     false, processId);
-
-                if (_processHandle != 0)
-                {
-                    Console.WriteLine($"프로세스 연결 성공! PID: {processId}");
-                    return true;
-                }
-                else
-                {
-                    Console.WriteLine("프로세스 핸들 열기 실패 (관리자 권한 필요)");
-                    return false;
-                }
+                return _processHandle != 0;
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"프로세스 연결 실패: {ex.Message}");
                 return false;
             }
         }
@@ -59,193 +47,150 @@ namespace StarcUp.Infrastructure.Memory
             _process = null;
         }
 
-        public List<TebInfo> GetTebAddresses()
+        public byte[] ReadMemoryRaw(nint address, int size)
         {
-            var tebList = new List<TebInfo>();
+            if (!IsConnected || size <= 0)
+                return null;
 
-            if (!IsConnected)
-            {
-                Console.WriteLine("프로세스에 연결되지 않음");
-                return tebList;
-            }
-
-            nint snapshot = MemoryAPI.CreateToolhelp32Snapshot(MemoryAPI.TH32CS_SNAPTHREAD, 0);
-            if (snapshot == 0)
-            {
-                Console.WriteLine("스레드 스냅샷 생성 실패");
-                return tebList;
-            }
-
-            try
-            {
-                var threadEntry = new MemoryAPI.THREADENTRY32();
-                threadEntry.dwSize = (uint)Marshal.SizeOf(typeof(MemoryAPI.THREADENTRY32));
-
-                int index = 0;
-                if (MemoryAPI.Thread32First(snapshot, ref threadEntry))
-                {
-                    do
-                    {
-                        if (threadEntry.th32OwnerProcessID == _process.Id)
-                        {
-                            nint tebAddress = GetTebAddress(threadEntry.th32ThreadID);
-                            if (tebAddress != 0)
-                            {
-                                var tebInfo = new TebInfo(threadEntry.th32ThreadID, tebAddress, index);
-                                tebList.Add(tebInfo);
-                                index++;
-                            }
-                        }
-                    }
-                    while (MemoryAPI.Thread32Next(snapshot, ref threadEntry));
-                }
-            }
-            finally
-            {
-                MemoryAPI.CloseHandle(snapshot);
-            }
-
-            Console.WriteLine($"총 {tebList.Count}개 TEB 주소 발견");
-            return tebList;
+            byte[] buffer = new byte[size];
+            return ReadProcessMemory(address, buffer, size) ? buffer : null;
         }
 
-        public nint GetStackStart(int threadIndex = 0)
+        protected bool ReadProcessMemory(nint address, byte[] buffer, int size)
         {
-            if (!IsConnected)
-            {
-                Console.WriteLine("프로세스에 연결되지 않음");
-                return 0;
-            }
-
-            // 1단계: kernel32.dll 모듈 정보 가져오기 (새로운 구현 사용)
-            if (!GetKernel32ModuleInfo(out var kernel32Info))
-            {
-                Console.WriteLine("kernel32.dll 모듈 정보를 가져올 수 없습니다.");
-                return 0;
-            }
-
-            // 2단계: 지정된 스레드의 StackTop 가져오기
-            nint stackTop = GetStackTop(threadIndex);
-            if (stackTop == 0)
-            {
-                Console.WriteLine("StackTop을 가져올 수 없습니다.");
-                return 0;
-            }
-
-            // 3단계: StackTop-4096 영역에서 kernel32 주소 찾기
-            nint stackSearchStart = stackTop - 4096;
-            byte[] stackBuffer = new byte[4096];
-
-            if (!ReadProcessMemory(stackSearchStart, stackBuffer, 4096))
-            {
-                Console.WriteLine("스택 메모리 읽기 실패");
-                return 0;
-            }
-
-            // 4단계: kernel32 범위에 있는 주소 찾기 (64비트)
-            int pointerSize = 8;
-            int numPointers = 4096 / pointerSize;
-
-            for (int i = numPointers - 1; i >= 0; i--) // 역방향 검색
-            {
-                nint pointer = (nint)BitConverter.ToInt64(stackBuffer, i * pointerSize);
-
-                // MODULEENTRY32 구조체 사용으로 변경
-                if (IsInRange(pointer, kernel32Info.modBaseAddr, kernel32Info.modBaseSize))
-                {
-                    nint resultAddress = stackSearchStart + (i * pointerSize);
-                    Console.WriteLine($"StackStart 계산 완료: 0x{resultAddress:X16}");
-                    return resultAddress;
-                }
-            }
-
-            Console.WriteLine("kernel32를 가리키는 스택 엔트리를 찾을 수 없습니다.");
-            return 0;
+            return MemoryAPI.ReadProcessMemory(_processHandle, address, buffer, size, out _);
         }
 
-
-        public nint GetStackTop(int threadIndex)
+        public int ReadInt(nint address)
         {
-            nint snapshot = MemoryAPI.CreateToolhelp32Snapshot(MemoryAPI.TH32CS_SNAPTHREAD, 0);
-            if (snapshot == 0)
-                return 0;
+            byte[] buffer = ReadMemoryRaw(address, sizeof(int));
+            return buffer != null ? BitConverter.ToInt32(buffer, 0) : 0;
+        }
 
-            try
-            {
-                var threadEntry = new MemoryAPI.THREADENTRY32();
-                threadEntry.dwSize = (uint)Marshal.SizeOf(typeof(MemoryAPI.THREADENTRY32));
+        public float ReadFloat(nint address)
+        {
+            byte[] buffer = ReadMemoryRaw(address, sizeof(float));
+            return buffer != null ? BitConverter.ToSingle(buffer, 0) : 0f;
+        }
 
-                int currentIndex = 0;
-                if (MemoryAPI.Thread32First(snapshot, ref threadEntry))
-                {
-                    do
-                    {
-                        if (threadEntry.th32OwnerProcessID == _process.Id)
-                        {
-                            if (currentIndex == threadIndex)
-                            {
-                                nint threadHandle = MemoryAPI.OpenThread(MemoryAPI.THREAD_QUERY_INFORMATION, false, threadEntry.th32ThreadID);
-                                if (threadHandle == 0)
-                                    return 0;
+        public double ReadDouble(nint address)
+        {
+            byte[] buffer = ReadMemoryRaw(address, sizeof(double));
+            return buffer != null ? BitConverter.ToDouble(buffer, 0) : 0.0;
+        }
 
-                                try
-                                {
-                                    if (MemoryAPI.NtQueryInformationThread(
-                                        threadHandle,
-                                        MemoryAPI.ThreadBasicInformation,
-                                        out var tbi,
-                                        Marshal.SizeOf(typeof(MemoryAPI.THREAD_BASIC_INFORMATION)),
-                                        0) == 0)
-                                    {
-                                        // TEB+8에서 StackTop 읽기
-                                        nint stackTopAddress = tbi.TebBaseAddress + 8;
-                                        return ReadPointer(stackTopAddress);
-                                    }
-                                }
-                                finally
-                                {
-                                    MemoryAPI.CloseHandle(threadHandle);
-                                }
-                                break;
-                            }
-                            currentIndex++;
-                        }
-                    }
-                    while (MemoryAPI.Thread32Next(snapshot, ref threadEntry));
-                }
-            }
-            finally
-            {
-                MemoryAPI.CloseHandle(snapshot);
-            }
+        public byte ReadByte(nint address)
+        {
+            byte[] buffer = ReadMemoryRaw(address, sizeof(byte));
+            return buffer?[0] ?? 0;
+        }
 
-            return 0;
+        public short ReadShort(nint address)
+        {
+            byte[] buffer = ReadMemoryRaw(address, sizeof(short));
+            return buffer != null ? BitConverter.ToInt16(buffer, 0) : (short)0;
+        }
+
+        public long ReadLong(nint address)
+        {
+            byte[] buffer = ReadMemoryRaw(address, sizeof(long));
+            return buffer != null ? BitConverter.ToInt64(buffer, 0) : 0L;
+        }
+
+        public bool ReadBool(nint address)
+        {
+            return ReadByte(address) != 0;
         }
 
         public nint ReadPointer(nint address)
         {
-            byte[] buffer = new byte[8];
-            if (ReadProcessMemory(address, buffer, 8))
-            {
-                nint value = (nint)BitConverter.ToInt64(buffer, 0);
-                return value;
-            }
-            return 0;
+            byte[] buffer = ReadMemoryRaw(address, nint.Size);
+            if (buffer == null) return 0;
+
+            return nint.Size == 8
+                ? new nint(BitConverter.ToInt64(buffer, 0))
+                : new nint(BitConverter.ToInt32(buffer, 0));
         }
 
-        public bool ReadProcessMemory(nint address, byte[] buffer, int size)
+        public string ReadString(nint address, int maxLength = 256, Encoding encoding = null)
         {
-            if (!IsConnected || buffer == null || size <= 0)
-                return false;
+            encoding ??= Encoding.UTF8;
+            byte[] buffer = ReadMemoryRaw(address, maxLength);
+            if (buffer == null) return string.Empty;
 
-            return MemoryAPI.ReadProcessMemory(_processHandle, address, buffer, size, out _);
+            int nullIndex = Array.IndexOf(buffer, (byte)0);
+            if (nullIndex >= 0)
+                Array.Resize(ref buffer, nullIndex);
+
+            return encoding.GetString(buffer);
         }
 
-        private nint GetTebAddress(uint threadId)
+        public T ReadStructure<T>(nint address) where T : struct
+        {
+            int size = Marshal.SizeOf<T>();
+            byte[] buffer = ReadMemoryRaw(address, size);
+            if (buffer == null) return default(T);
+
+            GCHandle handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+            try
+            {
+                return Marshal.PtrToStructure<T>(handle.AddrOfPinnedObject());
+            }
+            finally
+            {
+                handle.Free();
+            }
+        }
+
+        public T[] ReadStructureArray<T>(nint address, int count) where T : struct
+        {
+            if (count <= 0) return new T[0];
+
+            int structSize = Marshal.SizeOf<T>();
+            int totalSize = structSize * count;
+            byte[] buffer = ReadMemoryRaw(address, totalSize);
+            if (buffer == null) return new T[0];
+
+            T[] result = new T[count];
+            for (int i = 0; i < count; i++)
+            {
+                byte[] structBytes = new byte[structSize];
+                Array.Copy(buffer, i * structSize, structBytes, 0, structSize);
+
+                GCHandle handle = GCHandle.Alloc(structBytes, GCHandleType.Pinned);
+                try
+                {
+                    result[i] = Marshal.PtrToStructure<T>(handle.AddrOfPinnedObject());
+                }
+                finally
+                {
+                    handle.Free();
+                }
+            }
+            return result;
+        }
+
+        public nint CreateThreadSnapshot()
+        {
+            return MemoryAPI.CreateToolhelp32Snapshot(MemoryAPI.TH32CS_SNAPTHREAD, 0);
+        }
+
+        public bool GetFirstThread(nint snapshot, out MemoryAPI.THREADENTRY32 threadEntry)
+        {
+            threadEntry = new MemoryAPI.THREADENTRY32();
+            threadEntry.dwSize = (uint)Marshal.SizeOf(typeof(MemoryAPI.THREADENTRY32));
+            return MemoryAPI.Thread32First(snapshot, ref threadEntry);
+        }
+
+        public bool GetNextThread(nint snapshot, ref MemoryAPI.THREADENTRY32 threadEntry)
+        {
+            return MemoryAPI.Thread32Next(snapshot, ref threadEntry);
+        }
+
+        public nint GetThread(uint threadId)
         {
             nint threadHandle = MemoryAPI.OpenThread(MemoryAPI.THREAD_QUERY_INFORMATION, false, threadId);
-            if (threadHandle == 0)
-                return 0;
+            if (threadHandle == 0) return 0;
 
             try
             {
@@ -268,280 +213,55 @@ namespace StarcUp.Infrastructure.Memory
             return 0;
         }
 
-        /// <summary>
-        /// 메모리에서 지정된 크기만큼 데이터를 읽어 바이트 배열로 반환
-        /// </summary>
-        public byte[] ReadMemory(nint address, int size)
+        public nint CreateModuleSnapshot()
         {
-            if (!IsConnected || size <= 0)
-                return null;
-
-            byte[] buffer = new byte[size];
-
-            if (ReadProcessMemory(address, buffer, size))
-            {
-                return buffer;
-            }
-
-            return null;
+            return MemoryAPI.CreateToolhelp32Snapshot(
+                MemoryAPI.TH32CS_SNAPMODULE | MemoryAPI.TH32CS_SNAPMODULE32,
+                (uint)_process.Id);
         }
 
-        /// <summary>
-        /// 메모리에서 구조체를 직접 읽기
-        /// </summary>
-        public T ReadStructure<T>(nint address) where T : struct
+        public bool GetFirstModule(nint snapshot, out MemoryAPI.MODULEENTRY32 moduleEntry)
         {
-            int size = Marshal.SizeOf<T>();
-            byte[] buffer = ReadMemory(address, size);
-
-            if (buffer == null)
-                throw new InvalidOperationException($"Failed to read memory at address 0x{address:X}");
-
-            GCHandle handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
-            try
-            {
-                return Marshal.PtrToStructure<T>(handle.AddrOfPinnedObject());
-            }
-            finally
-            {
-                handle.Free();
-            }
+            moduleEntry = new MemoryAPI.MODULEENTRY32();
+            moduleEntry.dwSize = (uint)Marshal.SizeOf(typeof(MemoryAPI.MODULEENTRY32));
+            return MemoryAPI.Module32First(snapshot, ref moduleEntry);
         }
 
-        /// <summary>
-        /// 메모리에서 구조체 배열을 읽기
-        /// </summary>
-        public T[] ReadStructureArray<T>(nint address, int count) where T : struct
+        public bool GetNextModule(nint snapshot, ref MemoryAPI.MODULEENTRY32 moduleEntry)
         {
-            if (count <= 0)
-                return new T[0];
-
-            int structSize = Marshal.SizeOf<T>();
-            int totalSize = structSize * count;
-
-            byte[] buffer = ReadMemory(address, totalSize);
-            if (buffer == null)
-                throw new InvalidOperationException($"Failed to read memory array at address 0x{address:X}");
-
-            T[] result = new T[count];
-
-            for (int i = 0; i < count; i++)
-            {
-                byte[] structBytes = new byte[structSize];
-                Array.Copy(buffer, i * structSize, structBytes, 0, structSize);
-
-                GCHandle handle = GCHandle.Alloc(structBytes, GCHandleType.Pinned);
-                try
-                {
-                    result[i] = Marshal.PtrToStructure<T>(handle.AddrOfPinnedObject());
-                }
-                finally
-                {
-                    handle.Free();
-                }
-            }
-
-            return result;
+            return MemoryAPI.Module32Next(snapshot, ref moduleEntry);
         }
 
-        private bool IsInRange(nint address, nint baseAddress, uint size)
+        public bool GetModuleInformation(nint moduleBase, out MemoryAPI.MODULEINFO moduleInfo)
         {
-            long addr = address;
-            long baseAddr = baseAddress;
-            return addr >= baseAddr && addr < (baseAddr + size);
+            moduleInfo = new MemoryAPI.MODULEINFO();
+            return MemoryAPI.GetModuleInformation(_processHandle, moduleBase, out moduleInfo, (uint)Marshal.SizeOf<MemoryAPI.MODULEINFO>());
+        }
+
+        public int QueryProcessInformation(out MemoryAPI.PROCESS_BASIC_INFORMATION processInfo)
+        {
+            processInfo = new MemoryAPI.PROCESS_BASIC_INFORMATION();
+            int returnLength = 0;
+
+            return MemoryAPI.NtQueryInformationProcess(
+                _processHandle,
+                MemoryAPI.ProcessBasicInformation,
+                ref processInfo,
+                Marshal.SizeOf(typeof(MemoryAPI.PROCESS_BASIC_INFORMATION)),
+                ref returnLength);
+        }
+
+        public void CloseHandle(nint handle)
+        {
+            if (handle != 0)
+                MemoryAPI.CloseHandle(handle);
         }
 
         public void Dispose()
         {
-            if (_isDisposed)
-                return;
-
+            if (_isDisposed) return;
             Disconnect();
             _isDisposed = true;
-        }
-
-        /// <summary>
-        /// 프로세스의 PEB(Process Environment Block) 주소를 가져옵니다.
-        /// </summary>
-        /// <returns>PEB 주소 (실패 시 0)</returns>
-        public nint GetPebAddress()
-        {
-            if (!IsConnected)
-            {
-                Console.WriteLine("프로세스에 연결되지 않음");
-                return 0;
-            }
-
-            try
-            {
-                var processInfo = new MemoryAPI.PROCESS_BASIC_INFORMATION();
-                int returnLength = 0;
-
-                int status = MemoryAPI.NtQueryInformationProcess(
-                    _processHandle,
-                    MemoryAPI.ProcessBasicInformation,
-                    ref processInfo,
-                    Marshal.SizeOf(typeof(MemoryAPI.PROCESS_BASIC_INFORMATION)),
-                    ref returnLength
-                );
-
-                if (status == 0) // STATUS_SUCCESS
-                {
-                    Console.WriteLine($"PEB 주소: 0x{processInfo.PebBaseAddress:X16}");
-                    return processInfo.PebBaseAddress;
-                }
-                else
-                {
-                    Console.WriteLine($"NtQueryInformationProcess 실패: NTSTATUS 0x{status:X}");
-                    return 0;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"PEB 주소 가져오기 실패: {ex.Message}");
-                return 0;
-            }
-        }
-        /// <summary>
-        /// 지정된 모듈의 정보를 가져옵니다
-        /// </summary>
-        public bool GetModuleInfo(string moduleName, out MemoryAPI.MODULEENTRY32 moduleInfo)
-        {
-            moduleInfo = new MemoryAPI.MODULEENTRY32();
-
-            if (!IsConnected)
-            {
-                Console.WriteLine("프로세스에 연결되지 않음");
-                return false;
-            }
-
-            nint snapshot = MemoryAPI.CreateToolhelp32Snapshot(
-                MemoryAPI.TH32CS_SNAPMODULE | MemoryAPI.TH32CS_SNAPMODULE32,
-                (uint)_process.Id);
-
-            if (snapshot == 0)
-            {
-                Console.WriteLine("모듈 스냅샷 생성 실패");
-                return false;
-            }
-
-            try
-            {
-                var modEntry = MemoryAPI.CreateModuleEntry32();
-
-                if (MemoryAPI.Module32First(snapshot, ref modEntry))
-                {
-                    do
-                    {
-                        if (string.Equals(modEntry.szModule, moduleName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            moduleInfo = modEntry;
-                            Console.WriteLine($"{moduleName} 발견: 베이스주소=0x{modEntry.modBaseAddr.ToInt64():X16}, 크기={modEntry.modBaseSize}");
-                            return true;
-                        }
-                    }
-                    while (MemoryAPI.Module32Next(snapshot, ref modEntry));
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"모듈 열거 중 오류: {ex.Message}");
-            }
-            finally
-            {
-                MemoryAPI.CloseHandle(snapshot);
-            }
-
-            Console.WriteLine($"{moduleName} 모듈을 찾을 수 없음");
-            return false;
-        }
-
-        /// <summary>
-        /// User32.dll 모듈 정보를 가져옵니다
-        /// </summary>
-        public bool GetUser32ModuleInfo(out MemoryAPI.MODULEENTRY32 moduleInfo)
-        {
-            return GetModuleInfo("user32.dll", out moduleInfo);
-        }
-
-        /// <summary>
-        /// Kernel32.dll 모듈 정보를 가져옵니다 (기존 구현을 대체)
-        /// </summary>
-        public bool GetKernel32ModuleInfo(out MemoryAPI.MODULEENTRY32 moduleInfo)
-        {
-            return GetModuleInfo("kernel32.dll", out moduleInfo);
-        }
-
-        /// <summary>
-        /// 모든 로드된 모듈 정보를 가져옵니다
-        /// </summary>
-        public Dictionary<string, MemoryAPI.MODULEENTRY32> GetAllModuleInfo()
-        {
-            var modules = new Dictionary<string, MemoryAPI.MODULEENTRY32>(StringComparer.OrdinalIgnoreCase);
-
-            if (!IsConnected)
-            {
-                Console.WriteLine("프로세스에 연결되지 않음");
-                return modules;
-            }
-
-            nint snapshot = MemoryAPI.CreateToolhelp32Snapshot(
-                MemoryAPI.TH32CS_SNAPMODULE | MemoryAPI.TH32CS_SNAPMODULE32,
-                (uint)_process.Id);
-
-            if (snapshot == 0)
-            {
-                Console.WriteLine("모듈 스냅샷 생성 실패");
-                return modules;
-            }
-
-            try
-            {
-                var modEntry = MemoryAPI.CreateModuleEntry32();
-
-                if (MemoryAPI.Module32First(snapshot, ref modEntry))
-                {
-                    do
-                    {
-                        string moduleName = modEntry.szModule;
-                        modules[moduleName] = modEntry;
-
-                        Console.WriteLine($"모듈 발견: {moduleName} - 베이스주소=0x{modEntry.modBaseAddr.ToInt64():X16}, 크기={modEntry.modBaseSize}");
-                    }
-                    while (MemoryAPI.Module32Next(snapshot, ref modEntry));
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"모듈 열거 중 오류: {ex.Message}");
-            }
-            finally
-            {
-                MemoryAPI.CloseHandle(snapshot);
-            }
-
-            Console.WriteLine($"총 {modules.Count}개 모듈 발견");
-            return modules;
-        }
-
-        /// <summary>
-        /// 특정 DLL의 베이스 주소만 빠르게 가져옵니다
-        /// </summary>
-        public nint GetModuleBaseAddress(string moduleName)
-        {
-            if (GetModuleInfo(moduleName, out var moduleInfo))
-            {
-                return moduleInfo.modBaseAddr;
-            }
-            return 0;
-        }
-
-        /// <summary>
-        /// User32.dll의 베이스 주소를 가져옵니다
-        /// </summary>
-        public nint GetUser32BaseAddress()
-        {
-            return GetModuleBaseAddress("user32.dll");
         }
     }
 }

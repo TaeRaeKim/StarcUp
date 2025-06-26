@@ -2,7 +2,7 @@
 using System.Drawing;
 using System.Windows.Forms;
 using StarcUp.Business.GameDetection;
-using StarcUp.Business.Memory;
+using StarcUp.Business.MemoryService;
 using StarcUp.Common.Events;
 using Timer = System.Windows.Forms.Timer;
 
