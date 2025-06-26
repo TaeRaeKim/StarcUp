@@ -1,4 +1,4 @@
-﻿namespace StarcUp.Src.Business.Game
+﻿namespace StarcUp.Business.Game
 {
     public interface IGameManager
     {

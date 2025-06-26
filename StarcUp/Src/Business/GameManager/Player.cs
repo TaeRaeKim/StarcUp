@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace StarcUp.Src.Business.Game
+namespace StarcUp.Business.Game
 {
     public struct Player
     {

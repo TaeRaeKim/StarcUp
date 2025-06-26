@@ -5,7 +5,6 @@ using StarcUp.Business.InGameStateMonitor;
 using StarcUp.Business.MemoryService;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Windows;
-using StarcUp.Src.Business.Game;
 using StarcUp.Src.Infrastructure.Memory;
 
 namespace StarcUp.DependencyInjection

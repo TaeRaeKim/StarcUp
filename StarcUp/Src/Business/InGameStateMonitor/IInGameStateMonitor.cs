@@ -8,10 +8,8 @@ namespace StarcUp.Business.InGameStateMonitor
     /// </summary>
     public interface IInGameStateMonitor : IDisposable
     {
-        event EventHandler<PointerEventArgs> ValueChanged;
-
-        bool IsMonitoring { get; }
-        PointerValue CurrentValue { get; }
+        bool IsInGame { get; }
+        event EventHandler<InGameStateEventArgs> InGameStateChanged;
 
         void StartMonitoring(int processId);
         void StopMonitoring();
