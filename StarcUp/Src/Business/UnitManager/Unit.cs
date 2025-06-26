@@ -1,16 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace StarcUp.Src.Business.UnitManager
+namespace StarcUp.Business.UnitManager
 {
-    /// <summary>
-    /// 스타크래프트 유닛 구조체 - 메모리 정렬 수정
-    /// Pack = 1로 설정하여 바이트 단위로 정확히 정렬
-    /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public unsafe struct Unit
     {
@@ -29,7 +21,7 @@ namespace StarcUp.Src.Business.UnitManager
         public ushort destX;                // 0x20: 목적지 X 좌표 (2바이트)
         public ushort destY;                // 0x22: 목적지 Y 좌표 (2바이트)
 
-        // 패딩 영역 (0x24-0x3F) - 28바이트 - 고정 크기 배열
+        // 패딩 영역 (0x24-0x3F) - 28바이트
         public fixed byte padding1[28];
 
         // 현재 위치 (0x40-0x43)
@@ -99,7 +91,39 @@ namespace StarcUp.Src.Business.UnitManager
 
         public byte currentUpgradeLevel;    // 0x119: 현재 업그레이드 레벨 (1바이트)
 
-        // 나머지 데이터 (0x11A-0x1E7) - 실제 크기 계산
-        public fixed byte remainingData[206]; // 기존과 동일하게 206바이트
+        // 나머지 데이터 (0x11A-0x1E7) - 206바이트
+        public fixed byte remainingData[206];
+
+        public bool IsValid => unitType != 0 && playerIndex < 12;
+
+        public bool IsAlive => health > 0;
+
+        public bool IsBuilding => unitType >= 106 && unitType <= 202;
+
+        public bool IsWorker => unitType == 7 || unitType == 41 || unitType == 45;
+
+        public override bool Equals(object obj)
+        {
+            if (obj is Unit other)
+            {
+                return unitType == other.unitType &&
+                       health == other.health &&
+                       currentX == other.currentX &&
+                       currentY == other.currentY &&
+                       playerIndex == other.playerIndex &&
+                       actionIndex == other.actionIndex;
+            }
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(unitType, health, currentX, currentY, playerIndex, actionIndex);
+        }
+
+        public override string ToString()
+        {
+            return $"Unit[Type={unitType}, Player={playerIndex}, HP={health}, Pos=({currentX},{currentY})]";
+        }
     }
 }

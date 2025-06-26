@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -6,18 +7,28 @@ using System.Text;
 namespace StarcUp.Infrastructure.Memory
 {
     /// <summary>
-    /// Windows API를 직접 사용하는 저수준 메모리 리더
-    /// - 단순한 Windows API 래퍼 메소드들만 구현
-    /// - 복합적인 비즈니스 로직은 상위 MemoryService에서 처리
+    /// 통합된 메모리 리더 구현
+    /// - 기본 메모리 읽기 기능과 최적화된 기능을 모두 포함
+    /// - Windows API를 직접 사용하는 저수준 메모리 리더
     /// </summary>
     public class MemoryReader : IMemoryReader
     {
         private Process _process;
         private nint _processHandle;
         private bool _isDisposed;
+        private readonly ArrayPool<byte> _bytePool;
+        private readonly bool _useOptimizations;
+
+        public MemoryReader(bool enableOptimizations = true)
+        {
+            _bytePool = ArrayPool<byte>.Shared;
+            _useOptimizations = enableOptimizations;
+        }
 
         public bool IsConnected => _process != null && !_process.HasExited && _processHandle != 0;
         public int ConnectedProcessId => _process?.Id ?? 0;
+
+        protected nint ProcessHandle => _processHandle;
 
         public bool ConnectToProcess(int processId)
         {
@@ -53,6 +64,8 @@ namespace StarcUp.Infrastructure.Memory
             _process?.Dispose();
             _process = null;
         }
+
+        #region 기본 메모리 읽기 메서드들
 
         public byte[] ReadMemoryRaw(nint address, int size)
         {
@@ -113,24 +126,23 @@ namespace StarcUp.Infrastructure.Memory
 
         public nint ReadPointer(nint address)
         {
-            int size = Environment.Is64BitProcess ? 8 : 4;
-            byte[] buffer = ReadMemoryRaw(address, size);
-            if (buffer == null) return 0;
-
-            return Environment.Is64BitProcess
-                ? new nint(BitConverter.ToInt64(buffer, 0))
-                : new nint(BitConverter.ToInt32(buffer, 0));
+            byte[] buffer = ReadMemoryRaw(address, nint.Size);
+            return buffer != null ? new nint(BitConverter.ToInt64(buffer, 0)) : 0;
         }
 
         public string ReadString(nint address, int maxLength = 256, Encoding encoding = null)
         {
+            if (!IsConnected || maxLength <= 0) return string.Empty;
+
             encoding ??= Encoding.UTF8;
             byte[] buffer = ReadMemoryRaw(address, maxLength);
             if (buffer == null) return string.Empty;
 
-            int nullIndex = Array.IndexOf(buffer, (byte)0);
-            if (nullIndex >= 0)
-                Array.Resize(ref buffer, nullIndex);
+            int nullTerminator = Array.IndexOf(buffer, (byte)0);
+            if (nullTerminator >= 0)
+            {
+                Array.Resize(ref buffer, nullTerminator);
+            }
 
             return encoding.GetString(buffer);
         }
@@ -139,7 +151,7 @@ namespace StarcUp.Infrastructure.Memory
         {
             int size = Marshal.SizeOf<T>();
             byte[] buffer = ReadMemoryRaw(address, size);
-            if (buffer == null) return default(T);
+            if (buffer == null) return default;
 
             GCHandle handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
             try
@@ -164,10 +176,10 @@ namespace StarcUp.Infrastructure.Memory
             T[] result = new T[count];
             for (int i = 0; i < count; i++)
             {
-                byte[] structBytes = new byte[structSize];
-                Array.Copy(buffer, i * structSize, structBytes, 0, structSize);
+                byte[] structBuffer = new byte[structSize];
+                Array.Copy(buffer, i * structSize, structBuffer, 0, structSize);
 
-                GCHandle handle = GCHandle.Alloc(structBytes, GCHandleType.Pinned);
+                GCHandle handle = GCHandle.Alloc(structBuffer, GCHandleType.Pinned);
                 try
                 {
                     result[i] = Marshal.PtrToStructure<T>(handle.AddrOfPinnedObject());
@@ -177,12 +189,132 @@ namespace StarcUp.Infrastructure.Memory
                     handle.Free();
                 }
             }
+
             return result;
         }
 
+        #endregion
+
+        #region 최적화된 메모리 읽기 메서드들
+
+        public bool ReadMemoryIntoBuffer(nint address, byte[] buffer, int size)
+        {
+            if (buffer == null || size <= 0 || size > buffer.Length)
+                return false;
+
+            if (!IsConnected)
+                return false;
+
+            if (_useOptimizations)
+            {
+                return MemoryAPI.ReadProcessMemory(_processHandle, address, buffer, size, out _);
+            }
+            else
+            {
+                var data = ReadMemoryRaw(address, size);
+                if (data != null && data.Length <= buffer.Length)
+                {
+                    Array.Copy(data, buffer, data.Length);
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        public unsafe bool ReadStructureDirect<T>(nint address, out T result) where T : unmanaged
+        {
+            result = default;
+
+            if (!IsConnected)
+                return false;
+
+            if (_useOptimizations)
+            {
+                int size = sizeof(T);
+                fixed (T* ptr = &result)
+                {
+                    return MemoryAPI.ReadProcessMemory(_processHandle, address, (nint)ptr, size, out _);
+                }
+            }
+            else
+            {
+                try
+                {
+                    int size = sizeof(T);
+                    byte[] buffer = ReadMemoryRaw(address, size);
+                    if (buffer != null && buffer.Length == size)
+                    {
+                        fixed (byte* bufferPtr = buffer)
+                        {
+                            result = *(T*)bufferPtr;
+                            return true;
+                        }
+                    }
+                }
+                catch
+                {
+                }
+                return false;
+            }
+        }
+
+        public unsafe bool ReadStructureArrayIntoBuffer<T>(nint address, T[] buffer, int count) where T : unmanaged
+        {
+            if (buffer == null || count <= 0 || count > buffer.Length)
+                return false;
+
+            if (!IsConnected)
+                return false;
+
+            if (_useOptimizations)
+            {
+                int structSize = sizeof(T);
+                int totalSize = structSize * count;
+
+                fixed (T* ptr = buffer)
+                {
+                    return MemoryAPI.ReadProcessMemory(_processHandle, address, (nint)ptr, totalSize, out _);
+                }
+            }
+            else
+            {
+                try
+                {
+                    int structSize = sizeof(T);
+                    int totalSize = structSize * count;
+                    byte[] rawBuffer = ReadMemoryRaw(address, totalSize);
+
+                    if (rawBuffer != null && rawBuffer.Length >= totalSize)
+                    {
+                        fixed (byte* rawPtr = rawBuffer)
+                        fixed (T* bufferPtr = buffer)
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                bufferPtr[i] = *((T*)(rawPtr + (i * structSize)));
+                            }
+                        }
+                        return true;
+                    }
+                }
+                catch
+                {
+                }
+                return false;
+            }
+        }
+
+        #endregion
+
+        #region 스레드 관련 메서드들
+
         public nint CreateThreadSnapshot()
         {
-            return MemoryAPI.CreateToolhelp32Snapshot(MemoryAPI.TH32CS_SNAPTHREAD, 0);
+            if (!IsConnected) return 0;
+
+            return MemoryAPI.CreateToolhelp32Snapshot(
+                MemoryAPI.TH32CS_SNAPTHREAD,
+                (uint)_process.Id);
         }
 
         public bool GetFirstThread(nint snapshot, out MemoryAPI.THREADENTRY32 threadEntry)
@@ -199,32 +331,17 @@ namespace StarcUp.Infrastructure.Memory
 
         public nint GetThread(uint threadId)
         {
-            nint threadHandle = MemoryAPI.OpenThread(MemoryAPI.THREAD_QUERY_INFORMATION, false, threadId);
-            if (threadHandle == 0) return 0;
-
-            try
-            {
-                if (MemoryAPI.NtQueryInformationThread(
-                    threadHandle,
-                    MemoryAPI.ThreadBasicInformation,
-                    out var basicInfo,
-                    Marshal.SizeOf(typeof(MemoryAPI.THREAD_BASIC_INFORMATION)),
-                    0) == 0)
-                {
-                    return basicInfo.TebBaseAddress;
-                }
-            }
-            catch { }
-            finally
-            {
-                MemoryAPI.CloseHandle(threadHandle);
-            }
-
-            return 0;
+            return MemoryAPI.OpenThread(MemoryAPI.THREAD_QUERY_INFORMATION, false, threadId);
         }
+
+        #endregion
+
+        #region 모듈 관련 메서드들
 
         public nint CreateModuleSnapshot()
         {
+            if (!IsConnected) return 0;
+
             return MemoryAPI.CreateToolhelp32Snapshot(
                 MemoryAPI.TH32CS_SNAPMODULE | MemoryAPI.TH32CS_SNAPMODULE32,
                 (uint)_process.Id);
@@ -248,6 +365,10 @@ namespace StarcUp.Infrastructure.Memory
             return MemoryAPI.GetModuleInformation(_processHandle, moduleBase, out moduleInfo, (uint)Marshal.SizeOf<MemoryAPI.MODULEINFO>());
         }
 
+        #endregion
+
+        #region 프로세스 관련 메서드들
+
         public int QueryProcessInformation(out MemoryAPI.PROCESS_BASIC_INFORMATION processInfo)
         {
             processInfo = new MemoryAPI.PROCESS_BASIC_INFORMATION();
@@ -261,16 +382,6 @@ namespace StarcUp.Infrastructure.Memory
                 ref returnLength);
         }
 
-        /// <summary>
-        /// 상속 클래스에서 접근 가능한 프로세스 핸들 프로퍼티
-        /// </summary>
-        protected nint ProcessHandle => _processHandle;
-
-        /// <summary>
-        /// 현재 연결된 프로세스의 핸들을 반환합니다.
-        /// PSAPI 함수들에서 사용하기 위해 필요합니다.
-        /// </summary>
-        /// <returns>프로세스 핸들, 연결되지 않은 경우 IntPtr.Zero</returns>
         public nint GetProcessHandle()
         {
             if (!IsConnected || _processHandle == IntPtr.Zero)
@@ -281,6 +392,10 @@ namespace StarcUp.Infrastructure.Memory
 
             return _processHandle;
         }
+
+        #endregion
+
+        #region 리소스 관리
 
         public void CloseHandle(nint handle)
         {
@@ -305,5 +420,7 @@ namespace StarcUp.Infrastructure.Memory
 
             _isDisposed = true;
         }
+
+        #endregion
     }
 }

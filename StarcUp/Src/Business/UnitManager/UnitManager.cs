@@ -1,23 +1,18 @@
-﻿using StarcUp.Infrastructure.Memory;
-using StarcUp.Src.Infrastructure.Memory;
+﻿using StarcUp.Business.UnitManager;
+using StarcUp.Infrastructure.Memory;
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 
-namespace StarcUp.Src.Business.UnitManager
-{ 
+namespace StarcUp.Business.UnitManager
+{
     public class UnitManager : IUnitManager, IDisposable
     {
         private readonly IMemoryReader _memoryReader;
-        private readonly IOptimizedMemoryReader _optimizedMemoryReader; // 최적화된 리더 추가
         private readonly int _maxUnits;
         private readonly int _unitSize;
-        private readonly int _totalMemorySize;
-
-        // ArrayPool을 사용한 임시 버퍼들
-        private readonly ArrayPool<byte> _byteArrayPool;
 
         // 고정된 배열들 (재할당 방지)
         private Unit[] _units;
@@ -26,30 +21,20 @@ namespace StarcUp.Src.Business.UnitManager
         private nint _unitArrayBaseAddress;
         private int _currentUnitCount;
         private bool _disposed;
-        private readonly bool _useOptimizedReader; // 최적화된 리더 사용 여부
 
-        public UnitManager(IMemoryReader memoryReader, bool useDoubleBuffering = true)
+        public UnitManager(IMemoryReader memoryReader)
         {
-            _memoryReader = memoryReader;
-
-            // IOptimizedMemoryReader 사용 가능한지 확인
-            _optimizedMemoryReader = memoryReader as IOptimizedMemoryReader;
-            _useOptimizedReader = _optimizedMemoryReader != null;
+            _memoryReader = memoryReader ?? throw new ArgumentNullException(nameof(memoryReader));
 
             _maxUnits = 3400;
             _unitSize = Marshal.SizeOf<Unit>();
-            _totalMemorySize = _maxUnits * _unitSize;
-
-            // ArrayPool 인스턴스 생성 (공유 풀 사용)
-            _byteArrayPool = ArrayPool<byte>.Shared;
 
             // 유닛 배열 초기화 (재할당 방지)
             _units = new Unit[_maxUnits];
             _previousUnits = new Unit[_maxUnits];
 
-            Console.WriteLine($"최적화된 리더 사용: {_useOptimizedReader}");
+            Console.WriteLine($"UnitManager 초기화 완료 - 최대 유닛 수: {_maxUnits}");
         }
-
 
         public void SetUnitArrayBaseAddress(nint baseAddress)
         {
@@ -57,9 +42,6 @@ namespace StarcUp.Src.Business.UnitManager
             Console.WriteLine($"유닛 배열 베이스 주소 설정: 0x{baseAddress:X}");
         }
 
-        /// <summary>
-        /// 최적화된 유닛 로드 - 버퍼 재사용
-        /// </summary>
         public bool LoadAllUnits()
         {
             if (_disposed)
@@ -72,141 +54,143 @@ namespace StarcUp.Src.Business.UnitManager
 
             try
             {
-                //// 현재 사용할 버퍼 선택 (더블 버퍼링)
-                //byte[] currentBuffer = GetCurrentBuffer();
-
-                //// 1. 메모리 읽기 - 기존 버퍼 재사용
-                //if (!ReadMemoryToBuffer(currentBuffer))
-                //{
-                //    return false;
-                //}
-
-                // 2. 이전 데이터 백업 (변경 감지용)
+                // 1. 이전 데이터 백업 (변경 감지용)
                 Array.Copy(_units, _previousUnits, _maxUnits);
 
-                _optimizedMemoryReader.ReadStructureArrayIntoBuffer<Unit>(_unitArrayBaseAddress, _units, _maxUnits);
+                // 2. 통합된 MemoryReader의 최적화된 메서드 사용
+                bool success = _memoryReader.ReadStructureArrayIntoBuffer<Unit>(
+                    _unitArrayBaseAddress, _units, _maxUnits);
 
-                //// 3. 인플레이스 변환 (새로운 배열 할당 없음)
-                //ConvertBufferToUnitsInPlace(currentBuffer);
+                if (!success)
+                {
+                    Console.WriteLine("유닛 배열 읽기 실패");
+                    return false;
+                }
 
-                // 4. 활성 유닛 개수 업데이트
+                // 3. 유효한 유닛 수 계산
                 _currentUnitCount = CountActiveUnits();
 
                 stopwatch.Stop();
-
-                //// 버퍼 교체 (더블 버퍼링)
-                //SwapBuffers();
-
-                Console.WriteLine($"로드 완료: {_currentUnitCount}개 유닛, 소요시간: {stopwatch.ElapsedMilliseconds}ms");
+                Console.WriteLine($"유닛 로드 완료: {_currentUnitCount}개 유닛, {stopwatch.ElapsedMilliseconds}ms");
 
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"유닛 로드 실패: {ex.Message}");
+                Console.WriteLine($"유닛 로드 중 오류: {ex.Message}");
                 return false;
             }
         }
 
+        public bool RefreshUnits()
+        {
+            return LoadAllUnits();
+        }
 
-        /// <summary>
-        /// 변경된 유닛들만 탐지 (델타 업데이트)
-        /// </summary>
+        public IEnumerable<Unit> GetAllUnits()
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(UnitManager));
+
+            return _units
+                .Take(_currentUnitCount)
+                .Where(IsUnitValid);
+        }
+
+        public IEnumerable<Unit> GetPlayerUnits(byte playerId)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(UnitManager));
+
+            return _units
+                .Take(_currentUnitCount)
+                .Where(unit => unit.playerIndex == playerId && IsUnitValid(unit));
+        }
+
+        public IEnumerable<Unit> GetUnitsByType(ushort unitType)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(UnitManager));
+
+            return _units
+                .Take(_currentUnitCount)
+                .Where(unit => unit.unitType == unitType && IsUnitValid(unit));
+        }
+
+        public IEnumerable<Unit> GetUnitsNearPosition(ushort x, ushort y, int radius)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(UnitManager));
+
+            int radiusSquared = radius * radius;
+
+            return _units
+                .Take(_currentUnitCount)
+                .Where(unit => IsUnitValid(unit) &&
+                              GetDistanceSquared(unit.currentX, unit.currentY, x, y) <= radiusSquared);
+        }
+
         public IEnumerable<(int Index, Unit Current, Unit Previous)> GetChangedUnits()
         {
-            for (int i = 0; i < _maxUnits; i++)
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(UnitManager));
+
+            for (int i = 0; i < _currentUnitCount; i++)
             {
-                if (!UnitsEqual(_units[i], _previousUnits[i]))
+                if (!_units[i].Equals(_previousUnits[i]))
                 {
                     yield return (i, _units[i], _previousUnits[i]);
                 }
             }
         }
 
-        /// <summary>
-        /// 유닛 동등성 비교 (주요 필드만)
-        /// </summary>
-        private bool UnitsEqual(Unit a, Unit b)
+        public int GetActiveUnitCount()
         {
-            return a.unitType == b.unitType &&
-                   a.health == b.health &&
-                   a.currentX == b.currentX &&
-                   a.currentY == b.currentY &&
-                   a.playerIndex == b.playerIndex &&
-                   a.actionIndex == b.actionIndex;
+            return _currentUnitCount;
         }
 
-        /// <summary>
-        /// 활성 유닛 개수 계산
-        /// </summary>
-        public int CountActiveUnits()
+        public bool IsUnitValid(Unit unit)
+        {
+            return unit.unitType != 0 &&
+                   unit.playerIndex < 12 &&
+                   unit.health > 0;
+        }
+
+        private int CountActiveUnits()
         {
             int count = 0;
             for (int i = 0; i < _maxUnits; i++)
             {
                 if (_units[i].unitType != 0)
-                    count++;
+                {
+                    count = i + 1; // 마지막 유효한 인덱스 + 1
+                }
+                else if (_units[i].unitType == 0)
+                {
+                    // 빈 슬롯을 만나면 종료 (연속된 배열 가정)
+                    break;
+                }
             }
             return count;
         }
 
-        // 기존 인터페이스 유지
-        public IEnumerable<Unit> GetAllUnits()
+        private static int GetDistanceSquared(ushort x1, ushort y1, ushort x2, ushort y2)
         {
-            for (int i = 0; i < _maxUnits; i++)
-            {
-                if (_units[i].unitType != 0)
-                    yield return _units[i];
-            }
+            int dx = x1 - x2;
+            int dy = y1 - y2;
+            return dx * dx + dy * dy;
         }
-
-        public IEnumerable<Unit> GetPlayerUnits(byte playerId)
-        {
-            for (int i = 0; i < _maxUnits; i++)
-            {
-                if (_units[i].unitType != 0 && _units[i].playerIndex == playerId)
-                    yield return _units[i];
-            }
-        }
-
-        public IEnumerable<Unit> GetUnitsByType(ushort unitType)
-        {
-            for (int i = 0; i < _maxUnits; i++)
-            {
-                if (_units[i].unitType == unitType)
-                    yield return _units[i];
-            }
-        }
-
-        public IEnumerable<Unit> GetUnitsNearPosition(ushort x, ushort y, int radius)
-        {
-            int radiusSquared = radius * radius;
-
-            for (int i = 0; i < _maxUnits; i++)
-            {
-                if (_units[i].unitType != 0)
-                {
-                    int dx = _units[i].currentX - x;
-                    int dy = _units[i].currentY - y;
-                    int distanceSquared = dx * dx + dy * dy;
-
-                    if (distanceSquared <= radiusSquared)
-                    {
-                        yield return _units[i];
-                    }
-                }
-            }
-        }
-
-        public int CurrentUnitCount => _currentUnitCount;
-        public int MaxUnits => _maxUnits;
-        public bool RefreshUnits() => LoadAllUnits();
 
         public void Dispose()
         {
-            if (_disposed)
-                return;
+            if (_disposed) return;
+
+            // 메모리 리더는 외부에서 관리하므로 Dispose하지 않음
+            _units = null;
+            _previousUnits = null;
+
             _disposed = true;
+            Console.WriteLine("UnitManager 리소스 정리 완료");
         }
     }
 }
