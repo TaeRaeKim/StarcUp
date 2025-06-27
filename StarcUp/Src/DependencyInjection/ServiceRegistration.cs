@@ -1,6 +1,9 @@
 using StarcUp.Business.GameDetection;
 using StarcUp.Business.InGameDetector;
 using StarcUp.Business.MemoryService;
+using StarcUp.Business.Units.Runtime.Adapters;
+using StarcUp.Business.Units.Runtime.Services;
+using StarcUp.Business.Units.StaticData.Repositories;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Windows;
 
@@ -36,6 +39,16 @@ namespace StarcUp.DependencyInjection
                 c => new InGameDetector(
                     c.Resolve<IMemoryService>()));
 
+            // Unit Services
+            container.RegisterSingleton<IUnitInfoRepository>(
+                c => new UnitInfoRepository());
+            container.RegisterSingleton<IUnitMemoryAdapter>(
+                c => new UnitMemoryAdapter(
+                    c.Resolve<IMemoryReader>()));
+            container.RegisterSingleton<IUnitService>(
+                c => new UnitService(
+                    c.Resolve<IUnitMemoryAdapter>()));
+
             //container.RegisterSingleton<IGameManager>(
             //    c => new GameManager(
             //        c.Resolve<IPointerMonitorService>()));
@@ -46,6 +59,9 @@ namespace StarcUp.DependencyInjection
             Console.WriteLine("   🧠 MemoryService - 메모리 비즈니스 로직");
             Console.WriteLine("   🎮 GameDetector - 게임 감지 서비스");
             Console.WriteLine("   📊 InGameStateMonitor - 게임 상태 모니터링 서비스");
+            Console.WriteLine("   🏗️ UnitInfoRepository - 유닛 정적 데이터 저장소");
+            Console.WriteLine("   🔗 UnitMemoryAdapter - 유닛 메모리 접근 어댑터");
+            Console.WriteLine("   ⚙️ UnitService - 유닛 비즈니스 로직 서비스");
         }
     }
 }
