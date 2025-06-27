@@ -331,7 +331,33 @@ namespace StarcUp.Infrastructure.Memory
 
         public nint GetThread(uint threadId)
         {
-            return MemoryAPI.OpenThread(MemoryAPI.THREAD_QUERY_INFORMATION, false, threadId);
+            nint threadHandle = MemoryAPI.OpenThread(MemoryAPI.THREAD_QUERY_INFORMATION, false, threadId);
+            if (threadHandle == 0)
+                return 0;
+
+            try
+            {
+                int status = MemoryAPI.NtQueryInformationThread(
+                    threadHandle,
+                    MemoryAPI.ThreadBasicInformation,
+                    out var threadInfo,
+                    Marshal.SizeOf<MemoryAPI.THREAD_BASIC_INFORMATION>(),
+                    0);
+
+                if (status == 0)
+                {
+                    return threadInfo.TebBaseAddress;
+                }
+                else
+                {
+                    Console.WriteLine($"[MemoryReader] NtQueryInformationThread 실패, 상태: {status}");
+                    return 0;
+                }
+            }
+            finally
+            {
+                MemoryAPI.CloseHandle(threadHandle);
+            }
         }
 
         #endregion
