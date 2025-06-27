@@ -135,8 +135,3 @@ public nint GetThreadStackAddress(int threadIndex = 0)
 - [Thread Environment Block (TEB)](https://en.wikipedia.org/wiki/Win32_Thread_Information_Block)
 - [Stack Layout in Windows](https://docs.microsoft.com/en-us/windows/win32/debug/stack-walking)
 
----
-
-**작성일**: 2025-06-27  
-**작성자**: Claude Code Assistant  
-**관련 이슈**: GameTime 읽기 실패 문제 해결
