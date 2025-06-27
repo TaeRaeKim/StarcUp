@@ -47,6 +47,7 @@ namespace StarcUp.Presentation.Forms
         private NumericUpDown _playerIndexNumeric = null!;
         private ComboBox _unitTypeComboBox = null!;
         private Button _searchUnitsButton = null!;
+        private Button _updateUnitsButton = null!;
         private ListBox _unitResultListBox = null!;
         private Label _unitTestStatusLabel = null!;
 
@@ -80,7 +81,7 @@ namespace StarcUp.Presentation.Forms
         private void InitializeComponent()
         {
             this.Text = "StarcUp - 하이브리드 스타크래프트 감지";
-            this.Size = new Size(600, 900);
+            this.Size = new Size(600, 920);
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -249,7 +250,7 @@ namespace StarcUp.Presentation.Forms
             _unitTypeComboBox = new ComboBox
             {
                 Location = new Point(275, 53),
-                Size = new Size(180, 23),
+                Size = new Size(150, 23),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Enabled = false
             };
@@ -257,9 +258,18 @@ namespace StarcUp.Presentation.Forms
             _searchUnitsButton = new Button
             {
                 Text = "유닛 조회",
-                Location = new Point(470, 53),
-                Size = new Size(80, 25),
+                Location = new Point(430, 53),
+                Size = new Size(65, 25),
                 BackColor = Color.LightGreen,
+                Enabled = false
+            };
+
+            _updateUnitsButton = new Button
+            {
+                Text = "갱신",
+                Location = new Point(500, 53),
+                Size = new Size(50, 25),
+                BackColor = Color.LightBlue,
                 Enabled = false
             };
 
@@ -273,7 +283,7 @@ namespace StarcUp.Presentation.Forms
 
             _unitTestGroup.Controls.AddRange(new Control[] {
                 _unitTestStatusLabel, playerLabel, _playerIndexNumeric,
-                unitTypeLabel, _unitTypeComboBox, _searchUnitsButton, _unitResultListBox
+                unitTypeLabel, _unitTypeComboBox, _searchUnitsButton, _updateUnitsButton, _unitResultListBox
             });
 
             // 메모리 정보 그룹
@@ -321,6 +331,7 @@ namespace StarcUp.Presentation.Forms
             _showOverlayNotificationButton.Click += ShowOverlayNotificationButton_Click;
             _showStatusButton.Click += ShowStatusButton_Click;
             _searchUnitsButton.Click += SearchUnitsButton_Click;
+            _updateUnitsButton.Click += UpdateUnitsButton_Click;
 
             // InGame 상태 변경 이벤트
             _inGameDetector.InGameStateChanged += OnInGameStateChanged;
@@ -619,6 +630,7 @@ namespace StarcUp.Presentation.Forms
             {
                 _memoryService.Disconnect();
                 _isConnectedToProcess = false;
+                _unitService.InvalidateAddressCache(); // 유닛 배열 주소 캐시 무효화
                 UpdateConnectionStatus("메모리 연결 상태: 연결되지 않음 (게임 종료)", Color.Red);
                 _threadStackListBox.Items.Clear();
                 _refreshMemoryButton.Enabled = false;
@@ -648,6 +660,7 @@ namespace StarcUp.Presentation.Forms
             {
                 _memoryService.Disconnect();
                 _isConnectedToProcess = false;
+                _unitService.InvalidateAddressCache(); // 유닛 배열 주소 캐시 무효화
                 UpdateConnectionStatus("메모리 연결 상태: 재연결 필요 (프로세스 변경)", Color.Orange);
                 _threadStackListBox.Items.Clear();
                 _refreshMemoryButton.Enabled = false;
@@ -867,6 +880,21 @@ namespace StarcUp.Presentation.Forms
             _playerIndexNumeric.Enabled = canUseUnitTest;
             _unitTypeComboBox.Enabled = canUseUnitTest;
             _searchUnitsButton.Enabled = canUseUnitTest;
+            _updateUnitsButton.Enabled = canUseUnitTest;
+        }
+
+        private bool InitializeUnitArrayAddress()
+        {
+            try
+            {
+                Console.WriteLine("[UnitTest] 유닛 배열 주소 초기화 시도...");
+                return _unitService.InitializeUnitArrayAddress();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UnitTest] 유닛 배열 초기화 실패: {ex.Message}");
+                return false;
+            }
         }
 
         private void SearchUnitsButton_Click(object sender, EventArgs e)
@@ -882,6 +910,14 @@ namespace StarcUp.Presentation.Forms
             {
                 MessageBox.Show("프로세스에 연결되지 않았습니다.", "유닛 테스트",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // 유닛 배열 주소 설정 (임시로 하드코딩, 나중에 동적으로 찾도록 개선)
+            if (!InitializeUnitArrayAddress())
+            {
+                MessageBox.Show("유닛 배열 주소를 찾을 수 없습니다.", "유닛 테스트",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -961,6 +997,70 @@ namespace StarcUp.Presentation.Forms
                 _unitResultListBox.Items.Add("❌ 유닛 검색 실패:");
                 _unitResultListBox.Items.Add($"   오류: {ex.Message}");
                 Console.WriteLine($"유닛 검색 실패: {ex.Message}");
+            }
+        }
+
+        private void UpdateUnitsButton_Click(object sender, EventArgs e)
+        {
+            if (!_inGameDetector.IsInGame)
+            {
+                MessageBox.Show("InGame 상태에서만 유닛 데이터 갱신이 가능합니다.", "유닛 데이터 갱신",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!_isConnectedToProcess || !_memoryService.IsConnected)
+            {
+                MessageBox.Show("프로세스에 연결되지 않았습니다.", "유닛 데이터 갱신",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                _unitResultListBox.Items.Clear();
+                _unitResultListBox.Items.Add("=== 유닛 데이터 갱신 중... ===");
+                _updateUnitsButton.Enabled = false;
+                _searchUnitsButton.Enabled = false;
+                Application.DoEvents();
+
+                Console.WriteLine("[UnitTest] 유닛 데이터 강제 갱신 요청");
+                
+                // 기존 데이터를 갱신 (LoadAllUnits 직접 호출)
+                bool refreshSuccess = _unitService.RefreshUnits();
+                
+                if (refreshSuccess)
+                {
+                    int unitCount = _unitService.GetActiveUnitCount();
+                    _unitResultListBox.Items.Clear();
+                    _unitResultListBox.Items.Add("✅ 유닛 데이터 갱신 완료!");
+                    _unitResultListBox.Items.Add($"📊 총 {unitCount}개의 활성 유닛 데이터를 갱신했습니다.");
+                    _unitResultListBox.Items.Add("");
+                    _unitResultListBox.Items.Add("💡 이제 '유닛 조회' 버튼으로 최신 데이터를 확인할 수 있습니다.");
+                    
+                    Console.WriteLine($"[UnitTest] ✅ 유닛 데이터 갱신 성공: {unitCount}개 유닛");
+                }
+                else
+                {
+                    _unitResultListBox.Items.Clear();
+                    _unitResultListBox.Items.Add("❌ 유닛 데이터 갱신 실패");
+                    _unitResultListBox.Items.Add("메모리 읽기에 문제가 있을 수 있습니다.");
+                    
+                    Console.WriteLine("[UnitTest] ❌ 유닛 데이터 갱신 실패");
+                }
+            }
+            catch (Exception ex)
+            {
+                _unitResultListBox.Items.Clear();
+                _unitResultListBox.Items.Add("❌ 유닛 데이터 갱신 실패:");
+                _unitResultListBox.Items.Add($"   오류: {ex.Message}");
+                Console.WriteLine($"[UnitTest] 유닛 데이터 갱신 실패: {ex.Message}");
+            }
+            finally
+            {
+                // 버튼 다시 활성화
+                _updateUnitsButton.Enabled = true;
+                _searchUnitsButton.Enabled = true;
             }
         }
 

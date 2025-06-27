@@ -26,6 +26,22 @@ namespace StarcUp.Business.Units.Runtime.Services
             _memoryAdapter.SetUnitArrayBaseAddress(baseAddress);
         }
 
+        public bool InitializeUnitArrayAddress()
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(UnitService));
+
+            return _memoryAdapter.InitializeUnitArrayAddress();
+        }
+
+        public void InvalidateAddressCache()
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(UnitService));
+
+            _memoryAdapter.InvalidateAddressCache();
+        }
+
         public bool LoadAllUnits()
         {
             if (_disposed)

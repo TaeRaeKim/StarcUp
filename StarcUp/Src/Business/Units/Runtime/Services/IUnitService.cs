@@ -8,6 +8,8 @@ namespace StarcUp.Business.Units.Runtime.Services
     public interface IUnitService : IDisposable
     {
         void SetUnitArrayBaseAddress(nint baseAddress);
+        bool InitializeUnitArrayAddress();
+        void InvalidateAddressCache();
         bool LoadAllUnits();
         bool RefreshUnits();
 

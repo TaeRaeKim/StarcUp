@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace StarcUp.Business.Units.Runtime.Adapters
 {
@@ -21,6 +22,10 @@ namespace StarcUp.Business.Units.Runtime.Adapters
         private int _currentUnitCount;
         private bool _disposed;
 
+        // 동적 주소 계산 및 캐싱
+        private nint _cachedUnitArrayAddress;
+        private bool _isAddressCached;
+
         public UnitMemoryAdapter(IMemoryReader memoryReader)
         {
             _memoryReader = memoryReader ?? throw new ArgumentNullException(nameof(memoryReader));
@@ -31,22 +36,208 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             _units = new UnitRaw[_maxUnits];
             _previousUnits = new UnitRaw[_maxUnits];
 
-            Console.WriteLine($"UnitMemoryAdapter 초기화 완료 - 최대 유닛 수: {_maxUnits}");
+            Console.WriteLine($"UnitMemoryAdapter 초기화 완료 - 최대 유닛 수: {_maxUnits}, 유닛 크기: {_unitSize}바이트");
         }
 
         public void SetUnitArrayBaseAddress(nint baseAddress)
         {
             _unitArrayBaseAddress = baseAddress;
-            Console.WriteLine($"유닛 배열 베이스 주소 설정: 0x{baseAddress:X}");
+            Console.WriteLine($"[UnitMemoryAdapter] 유닛 배열 베이스 주소 설정: 0x{baseAddress:X}");
+        }
+
+        public bool InitializeUnitArrayAddress()
+        {
+            return InitializeUnitArrayAddress(true);
+        }
+
+        private bool InitializeUnitArrayAddress(bool loadDataAfterInit)
+        {
+            try
+            {
+                // 캐싱된 주소가 있으면 사용
+                if (_isAddressCached && _cachedUnitArrayAddress != 0)
+                {
+                    Console.WriteLine($"[UnitMemoryAdapter] 캐싱된 유닛 배열 주소 사용: 0x{_cachedUnitArrayAddress:X}");
+                    _unitArrayBaseAddress = _cachedUnitArrayAddress;
+                    
+                    if (loadDataAfterInit)
+                    {
+                        // 캐싱된 주소로 유닛 데이터 로드
+                        Console.WriteLine("[UnitMemoryAdapter] 캐싱된 주소로 유닛 데이터 로드 중...");
+                        bool loadSuccess = LoadAllUnits(false); // 재귀 방지
+                        if (!loadSuccess)
+                        {
+                            Console.WriteLine("[UnitMemoryAdapter] ⚠️ 캐싱된 주소로 유닛 데이터 로드 실패");
+                        }
+                        return loadSuccess;
+                    }
+                    else
+                    {
+                        Console.WriteLine("[UnitMemoryAdapter] 주소만 설정 (데이터 로드 생략)");
+                        return true;
+                    }
+                }
+
+                Console.WriteLine("[UnitMemoryAdapter] 유닛 배열 주소 계산 중...");
+
+                // StarCraft.exe 모듈 찾기
+                var starcraftModule = FindStarCraftModule();
+                if (starcraftModule == null)
+                {
+                    Console.WriteLine("[UnitMemoryAdapter] ❌ StarCraft.exe 모듈을 찾을 수 없습니다.");
+                    return false;
+                }
+
+                Console.WriteLine($"[UnitMemoryAdapter] StarCraft.exe 베이스 주소: 0x{starcraftModule.Value.modBaseAddr:X}");
+
+                // Step 1: 포인터 주소 계산
+                nint pointerAddress = starcraftModule.Value.modBaseAddr + 0xE77FE0 + 0x80;
+                
+                // Step 2: 실제 유닛 배열 주소 읽기
+                nint finalUnitArrayAddress = _memoryReader.ReadPointer(pointerAddress);
+
+                Console.WriteLine($"[UnitMemoryAdapter] 올바른 주소 계산:");
+                Console.WriteLine($"  - StarCraft.exe BaseAddr: 0x{starcraftModule.Value.modBaseAddr:X}");
+                Console.WriteLine($"  - 포인터 주소 (Base + 0xE77FE0 + 0x80): 0x{pointerAddress:X}");
+                Console.WriteLine($"  - 실제 유닛 배열 주소 (포인터에서 읽은 값): 0x{finalUnitArrayAddress:X}");
+
+                // 유효성 검사
+                if (finalUnitArrayAddress == 0)
+                {
+                    Console.WriteLine("[UnitMemoryAdapter] ❌ 포인터에서 읽은 유닛 배열 주소가 0입니다.");
+                    return false;
+                }
+
+                // 주소 캐싱
+                _cachedUnitArrayAddress = finalUnitArrayAddress;
+                _isAddressCached = true;
+                _unitArrayBaseAddress = finalUnitArrayAddress;
+
+                Console.WriteLine("[UnitMemoryAdapter] ✅ 유닛 배열 주소 초기화 성공");
+                
+                if (loadDataAfterInit)
+                {
+                    // 주소 설정 후 유닛 데이터 로드
+                    Console.WriteLine("[UnitMemoryAdapter] 유닛 데이터 로드 중...");
+                    bool loadSuccess = LoadAllUnits(false); // 재귀 방지
+                    if (!loadSuccess)
+                    {
+                        Console.WriteLine("[UnitMemoryAdapter] ⚠️ 유닛 데이터 로드 실패");
+                    }
+                    return loadSuccess;
+                }
+                else
+                {
+                    Console.WriteLine("[UnitMemoryAdapter] 주소만 설정 (데이터 로드 생략)");
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UnitMemoryAdapter] 유닛 배열 주소 초기화 실패: {ex.Message}");
+                _isAddressCached = false;
+                return false;
+            }
+        }
+
+        private MemoryAPI.MODULEENTRY32? FindStarCraftModule()
+        {
+            // 가능한 모듈명 (정리된 버전)
+            string[] possibleNames = {
+                "StarCraft.exe",
+                "StarCraft"
+            };
+
+            Console.WriteLine("[UnitMemoryAdapter] 모듈 검색 시도...");
+
+            // PSAPI 방식 (EnumProcessModules) - 기존 성공 방식
+            foreach (string targetName in possibleNames)
+            {
+                var module = FindModuleByPSAPI(targetName);
+                if (module.HasValue)
+                {
+                    Console.WriteLine($"[UnitMemoryAdapter] PSAPI로 모듈 발견: {module.Value.szModule}");
+                    return module;
+                }
+            }
+
+            Console.WriteLine("[UnitMemoryAdapter] StarCraft 모듈을 찾을 수 없음");
+            return null;
+        }
+
+        private MemoryAPI.MODULEENTRY32? FindModuleByPSAPI(string targetName)
+        {
+            try
+            {
+                nint processHandle = _memoryReader.GetProcessHandle();
+                IntPtr[] moduleHandles = new IntPtr[1024];
+                uint bytesNeeded = 0;
+
+                if (!MemoryAPI.EnumProcessModules(processHandle, moduleHandles, 
+                    (uint)(moduleHandles.Length * IntPtr.Size), out bytesNeeded))
+                {
+                    return null;
+                }
+
+                int moduleCount = (int)(bytesNeeded / IntPtr.Size);
+                
+                for (int i = 0; i < moduleCount; i++)
+                {
+                    var moduleHandle = moduleHandles[i];
+                    if (moduleHandle == IntPtr.Zero) continue;
+
+                    var fileName = new StringBuilder(256);
+                    uint result = MemoryAPI.GetModuleFileNameEx(processHandle, moduleHandle, fileName, 256);
+                    
+                    if (result > 0)
+                    {
+                        string moduleName = System.IO.Path.GetFileName(fileName.ToString());
+                        
+                        if (moduleName.IndexOf(targetName, StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            // MODULEENTRY32 구조로 변환
+                            if (_memoryReader.GetModuleInformation(moduleHandle, out var moduleInfo))
+                            {
+                                var moduleEntry = new MemoryAPI.MODULEENTRY32
+                                {
+                                    modBaseAddr = moduleInfo.lpBaseOfDll,
+                                    modBaseSize = moduleInfo.SizeOfImage,
+                                    szModule = moduleName,
+                                    szExePath = fileName.ToString()
+                                };
+                                return moduleEntry;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UnitMemoryAdapter] PSAPI 모듈 검색 오류: {ex.Message}");
+            }
+
+            return null;
         }
 
         public bool LoadAllUnits()
         {
+            return LoadAllUnits(true);
+        }
+
+        private bool LoadAllUnits(bool allowAutoInitialize)
+        {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UnitMemoryAdapter));
 
-            if (_unitArrayBaseAddress == 0)
-                throw new InvalidOperationException("Unit array base address not set");
+            // 주소가 설정되지 않았으면 자동으로 초기화 시도 (무한 재귀 방지)
+            if (_unitArrayBaseAddress == 0 && allowAutoInitialize)
+            {
+                Console.WriteLine("[UnitMemoryAdapter] 주소가 설정되지 않음, 자동 초기화 시도...");
+                if (!InitializeUnitArrayAddress())
+                {
+                    throw new InvalidOperationException("Unit array base address initialization failed");
+                }
+            }
 
             var stopwatch = Stopwatch.StartNew();
 
@@ -54,13 +245,62 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             {
                 Array.Copy(_units, _previousUnits, _maxUnits);
 
+                Console.WriteLine($"[UnitMemoryAdapter] 메모리 읽기 시도: 주소=0x{_unitArrayBaseAddress:X}, 크기={_maxUnits}개");
+                
                 bool success = _memoryReader.ReadStructureArrayIntoBuffer<UnitRaw>(
                     _unitArrayBaseAddress, _units, _maxUnits);
 
                 if (!success)
                 {
-                    Console.WriteLine("유닛 배열 읽기 실패");
+                    Console.WriteLine("[UnitMemoryAdapter] ❌ 유닛 배열 읽기 실패");
                     return false;
+                }
+
+                Console.WriteLine("[UnitMemoryAdapter] ✅ 메모리 읽기 성공, 활성 유닛 카운팅 중...");
+                
+                // 0번 인덱스 유닛만 자세히 출력 (디버깅용)
+                var unit0 = _units[0];
+                Console.WriteLine($"[UnitMemoryAdapter] === 0번 인덱스 유닛 상세 정보 ===");
+                Console.WriteLine($"  prevPointer: 0x{unit0.prevPointer:X}");
+                Console.WriteLine($"  nextPointer: 0x{unit0.nextPointer:X}");
+                Console.WriteLine($"  health: {unit0.health}");
+                Console.WriteLine($"  shield: {unit0.shield}");
+                Console.WriteLine($"  destX: {unit0.destX}, destY: {unit0.destY}");
+                Console.WriteLine($"  currentX: {unit0.currentX}, currentY: {unit0.currentY}");
+                Console.WriteLine($"  playerIndex: {unit0.playerIndex}");
+                Console.WriteLine($"  unitType: {unit0.unitType}");
+                Console.WriteLine($"  actionIndex: {unit0.actionIndex}");
+                Console.WriteLine($"  actionState: {unit0.actionState}");
+                Console.WriteLine($"  attackCooldown: {unit0.attackCooldown}");
+                Console.WriteLine($"  timer: {unit0.timer}");
+                Console.WriteLine($"  currentUpgrade: {unit0.currentUpgrade}");
+                Console.WriteLine($"  currentUpgradeLevel: {unit0.currentUpgradeLevel}");
+                Console.WriteLine($"  IsValid: {unit0.IsValid}");
+                Console.WriteLine($"  IsAlive: {unit0.IsAlive}");
+                
+                // nextPointer 계산 테스트
+                if (unit0.nextPointer != 0)
+                {
+                    long addressOffset = unit0.nextPointer - _unitArrayBaseAddress;
+                    long nextIndex = addressOffset / _unitSize;
+                    
+                    Console.WriteLine($"[UnitMemoryAdapter] === nextPointer 계산 테스트 ===");
+                    Console.WriteLine($"  nextPointer: 0x{unit0.nextPointer:X}");
+                    Console.WriteLine($"  unitArrayBaseAddress: 0x{_unitArrayBaseAddress:X}");
+                    Console.WriteLine($"  addressOffset: 0x{addressOffset:X} ({addressOffset})");
+                    Console.WriteLine($"  unitSize: {_unitSize}");
+                    Console.WriteLine($"  계산된 다음 인덱스: {nextIndex}");
+                    
+                    // 다음 인덱스가 유효 범위인지 확인
+                    if (nextIndex >= 0 && nextIndex < _maxUnits)
+                    {
+                        var nextUnit = _units[nextIndex];
+                        Console.WriteLine($"  다음 유닛[{nextIndex}]: Type={nextUnit.unitType}, Player={nextUnit.playerIndex}, HP={nextUnit.health}, Valid={IsRawUnitValid(nextUnit)}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"  ❌ 계산된 인덱스가 유효 범위를 벗어남 (0-{_maxUnits-1})");
+                    }
                 }
 
                 _currentUnitCount = CountActiveUnits();
@@ -87,9 +327,21 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UnitMemoryAdapter));
 
-            return _units
-                .Take(_currentUnitCount)
-                .Where(IsRawUnitValid);
+            try
+            {
+                // 연결 리스트 방식으로 활성 유닛들만 효율적으로 반환
+                var activeUnits = GetActiveUnitsFromLinkedList();
+                Console.WriteLine($"[UnitMemoryAdapter] GetAllRawUnits: 연결 리스트에서 {activeUnits.Count}개 유닛 반환");
+                return activeUnits.Select(x => x.unit);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UnitMemoryAdapter] GetAllRawUnits 연결 리스트 방식 실패: {ex.Message}");
+                // fallback to old method
+                return _units
+                    .Take(_currentUnitCount)
+                    .Where(IsRawUnitValid);
+            }
         }
 
         public IEnumerable<UnitRaw> GetPlayerRawUnits(byte playerId)
@@ -97,9 +349,24 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UnitMemoryAdapter));
 
-            return _units
-                .Take(_currentUnitCount)
-                .Where(unit => unit.playerIndex == playerId && IsRawUnitValid(unit));
+            try
+            {
+                // 연결 리스트 방식으로 활성 유닛들을 가져온 후 플레이어 필터링
+                var activeUnits = GetActiveUnitsFromLinkedList();
+                var playerUnits = activeUnits.Where(x => x.unit.playerIndex == playerId).Select(x => x.unit);
+                var playerUnitsList = playerUnits.ToList();
+                
+                Console.WriteLine($"[UnitMemoryAdapter] GetPlayerRawUnits(Player {playerId}): 연결 리스트에서 {playerUnitsList.Count}개 유닛 반환");
+                return playerUnitsList;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UnitMemoryAdapter] GetPlayerRawUnits 연결 리스트 방식 실패: {ex.Message}");
+                // fallback to old method
+                return _units
+                    .Take(_currentUnitCount)
+                    .Where(unit => unit.playerIndex == playerId && IsRawUnitValid(unit));
+            }
         }
 
         public IEnumerable<UnitRaw> GetRawUnitsByType(ushort unitType)
@@ -151,21 +418,179 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                    unit.health > 0;
         }
 
-        private int CountActiveUnits()
+        /// <summary>
+        /// nextPointer를 따라가며 연결 리스트 방식으로 활성 유닛 카운팅
+        /// </summary>
+        private int CountActiveUnitsLinkedList()
         {
-            int count = 0;
-            for (int i = 0; i < _maxUnits; i++)
+            try
             {
-                if (_units[i].unitType != 0)
+                Console.WriteLine("[UnitMemoryAdapter] 연결 리스트 방식으로 활성 유닛 카운팅 시작...");
+                
+                // 첫 번째 유닛부터 시작 (인덱스 0)
+                var activeUnits = GetActiveUnitsFromLinkedList();
+                int count = activeUnits.Count;
+                
+                Console.WriteLine($"[UnitMemoryAdapter] 연결 리스트 방식 카운팅 완료: {count}개");
+                return count;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UnitMemoryAdapter] 연결 리스트 카운팅 실패: {ex.Message}");
+                // fallback to old method
+                return CountActiveUnitsFullScan();
+            }
+        }
+
+        /// <summary>
+        /// nextPointer를 따라가며 활성 유닛 리스트 반환 (개선된 버전)
+        /// </summary>
+        private List<(int index, UnitRaw unit)> GetActiveUnitsFromLinkedList()
+        {
+            var activeUnits = new List<(int index, UnitRaw unit)>();
+            
+            // 0번 인덱스부터 시작 (일반적으로 연결 리스트의 헤드)
+            int currentIndex = 0;
+            int iterations = 0;
+
+            Console.WriteLine("[UnitMemoryAdapter] nextPointer 기반 연결 리스트 순회 시작 (0번 인덱스부터)");
+
+            while (currentIndex >= 0 && currentIndex < _maxUnits && iterations < _maxUnits)
+            {
+                iterations++;
+                var currentUnit = _units[currentIndex];
+                
+                // 유효한 유닛이면 리스트에 추가
+                if (IsRawUnitValid(currentUnit))
                 {
-                    count = i + 1;
+                    activeUnits.Add((currentIndex, currentUnit));
+                    
+                    // 처음 5개와 마지막 몇 개만 로그 출력
+                    if (activeUnits.Count <= 5)
+                    {
+                        Console.WriteLine($"[UnitMemoryAdapter] 활성 유닛[{currentIndex}]: Type={currentUnit.unitType}, Player={currentUnit.playerIndex}, HP={currentUnit.health}");
+                    }
                 }
-                else if (_units[i].unitType == 0)
+
+                // nextPointer가 0이면 연결 리스트 끝
+                if (currentUnit.nextPointer == 0)
                 {
+                    Console.WriteLine($"[UnitMemoryAdapter] 연결 리스트 끝 도달 (인덱스 {currentIndex}, nextPointer=0)");
                     break;
                 }
+
+                // 다음 유닛 인덱스 계산: (nextPointer - baseAddr) / unitSize
+                long addressOffset = currentUnit.nextPointer - _unitArrayBaseAddress;
+                
+                // 주소 오프셋 유효성 검사
+                if (addressOffset < 0)
+                {
+                    Console.WriteLine($"[UnitMemoryAdapter] ❌ nextPointer가 base address보다 작음: offset={addressOffset}");
+                    break;
+                }
+                
+                if (addressOffset % _unitSize != 0)
+                {
+                    Console.WriteLine($"[UnitMemoryAdapter] ❌ nextPointer 주소가 유닛 크기에 맞지 않음: offset={addressOffset}, unitSize={_unitSize}");
+                    break;
+                }
+
+                int nextIndex = (int)(addressOffset / _unitSize);
+                
+                // 다음 인덱스 유효성 검사
+                if (nextIndex < 0 || nextIndex >= _maxUnits)
+                {
+                    Console.WriteLine($"[UnitMemoryAdapter] ❌ 계산된 다음 인덱스가 범위를 벗어남: {nextIndex} (범위: 0-{_maxUnits-1})");
+                    break;
+                }
+                
+                // 처음 5개만 상세 로그
+                if (iterations <= 5)
+                {
+                    Console.WriteLine($"[UnitMemoryAdapter] [{currentIndex}] nextPointer=0x{currentUnit.nextPointer:X} → offset={addressOffset} → 다음 인덱스={nextIndex}");
+                }
+                
+                currentIndex = nextIndex;
             }
+
+            Console.WriteLine($"[UnitMemoryAdapter] ✅ 연결 리스트 순회 완료: {activeUnits.Count}개 유닛, {iterations}번 반복");
+            
+            // 마지막 유닛 정보도 출력
+            if (activeUnits.Count > 5)
+            {
+                var lastUnit = activeUnits.Last();
+                Console.WriteLine($"[UnitMemoryAdapter] 마지막 유닛[{lastUnit.index}]: Type={lastUnit.unit.unitType}, Player={lastUnit.unit.playerIndex}, HP={lastUnit.unit.health}");
+            }
+            
+            return activeUnits;
+        }
+
+        /// <summary>
+        /// 첫 번째 유효한 유닛의 인덱스를 찾기
+        /// </summary>
+        private int FindFirstValidUnit()
+        {
+            for (int i = 0; i < Math.Min(100, _maxUnits); i++) // 처음 100개만 확인
+            {
+                if (IsRawUnitValid(_units[i]))
+                {
+                    Console.WriteLine($"[UnitMemoryAdapter] 첫 번째 유효한 유닛 발견: 인덱스 {i}");
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// 기존 전체 스캔 방식 (fallback용)
+        /// </summary>
+        private int CountActiveUnitsFullScan()
+        {
+            int count = 0;
+            int consecutiveEmpty = 0;
+            const int maxConsecutiveEmpty = 100;
+            
+            for (int i = 0; i < _maxUnits; i++)
+            {
+                if (IsRawUnitValid(_units[i]))
+                {
+                    count++;
+                    consecutiveEmpty = 0;
+                }
+                else
+                {
+                    consecutiveEmpty++;
+                    if (consecutiveEmpty >= maxConsecutiveEmpty && count > 0)
+                    {
+                        Console.WriteLine($"[UnitMemoryAdapter] 연속 빈 슬롯 {consecutiveEmpty}개 도달, 인덱스 {i}에서 스캔 중단");
+                        break;
+                    }
+                }
+            }
+            
+            Console.WriteLine($"[UnitMemoryAdapter] 전체 스캔 방식 카운팅 완료: {count}개");
             return count;
+        }
+
+        /// <summary>
+        /// 두 방식의 성능을 비교하고 더 나은 결과 반환
+        /// </summary>
+        private int CountActiveUnits()
+        {
+            // 연결 리스트 방식으로 효율적인 카운팅
+            try
+            {
+                var activeUnits = GetActiveUnitsFromLinkedList();
+                int linkedListCount = activeUnits.Count;
+                
+                Console.WriteLine($"[UnitMemoryAdapter] 연결 리스트 방식 카운팅 완료: {linkedListCount}개");
+                return linkedListCount;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UnitMemoryAdapter] 연결 리스트 방식 실패: {ex.Message}, 전체 스캔으로 fallback");
+                return CountActiveUnitsFullScan();
+            }
         }
 
         private static int GetDistanceSquared(ushort x1, ushort y1, ushort x2, ushort y2)
@@ -175,12 +600,25 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             return dx * dx + dy * dy;
         }
 
+        public void InvalidateAddressCache()
+        {
+            Console.WriteLine("[UnitMemoryAdapter] 주소 캐시 무효화");
+            _isAddressCached = false;
+            _cachedUnitArrayAddress = 0;
+            _unitArrayBaseAddress = 0;
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
 
             _units = null;
             _previousUnits = null;
+            
+            // 캐시 정리
+            _isAddressCached = false;
+            _cachedUnitArrayAddress = 0;
+            _unitArrayBaseAddress = 0;
 
             _disposed = true;
             Console.WriteLine("UnitMemoryAdapter 리소스 정리 완료");

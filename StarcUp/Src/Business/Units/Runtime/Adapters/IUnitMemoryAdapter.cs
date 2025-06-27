@@ -7,6 +7,8 @@ namespace StarcUp.Business.Units.Runtime.Adapters
     public interface IUnitMemoryAdapter : IDisposable
     {
         void SetUnitArrayBaseAddress(nint baseAddress);
+        bool InitializeUnitArrayAddress();
+        void InvalidateAddressCache();
         bool LoadAllUnits();
         bool RefreshUnits();
         
