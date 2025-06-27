@@ -38,8 +38,27 @@ namespace StarcUp.Business.MemoryService
 
         nint GetPebAddress();
         List<TebInfo> GetTebAddresses();
-        nint GetStackStart(int threadIndex = 0);
+        /// <summary>
+        /// 지정된 스레드의 스택 상단 주소를 가져옵니다 (TEB + 0x08, 높은 주소)
+        /// </summary>
+        /// <param name="threadIndex">스레드 인덱스 (0부터 시작)</param>
+        /// <returns>스택 상단 주소 (StackBase)</returns>
         nint GetStackTop(int threadIndex = 0);
+        
+        /// <summary>
+        /// 지정된 스레드의 스택 하단 주소를 가져옵니다 (TEB + 0x10, 낮은 주소)
+        /// </summary>
+        /// <param name="threadIndex">스레드 인덱스 (0부터 시작)</param>
+        /// <returns>스택 하단 주소 (StackLimit)</returns>
+        nint GetStackBottom(int threadIndex = 0);
+        
+        /// <summary>
+        /// 치트엔진 방식으로 스레드 스택 주소를 계산합니다 (kernel32 기반 검색)
+        /// GameTime 등 특정 메모리 해킹 용도로 사용됩니다.
+        /// </summary>
+        /// <param name="threadIndex">스레드 인덱스 (0부터 시작)</param>
+        /// <returns>치트엔진 방식 스택 주소</returns>
+        nint GetThreadStackAddress(int threadIndex = 0);
 
         bool FindModule(string moduleName, out ModuleInfo moduleInfo);
         ModuleInfo GetKernel32Module();
@@ -59,5 +78,8 @@ namespace StarcUp.Business.MemoryService
         ModuleInfo FindModuleCheatEngineStyle(string targetModuleName);
 
         void FindModulesByPattern(string searchPattern);
+
+        int ReadLocalPlayerIndex();
+        int ReadGameTime();
     }
 }

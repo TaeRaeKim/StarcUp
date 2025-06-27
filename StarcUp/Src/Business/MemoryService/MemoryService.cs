@@ -417,7 +417,6 @@ namespace StarcUp.Business.MemoryService
             {
                 if (_cachedTebList != null)
                 {
-                    Console.WriteLine("[MemoryService] TEB 캐시 사용");
                     return new List<TebInfo>(_cachedTebList);
                 }
 
@@ -476,30 +475,6 @@ namespace StarcUp.Business.MemoryService
             }
         }
 
-        public nint GetStackStart(int threadIndex = 0)
-        {
-            var tebList = GetTebAddresses();
-            if (threadIndex < 0 || threadIndex >= tebList.Count)
-            {
-                Console.WriteLine($"[MemoryService] GetStackStart: 잘못된 스레드 인덱스 {threadIndex} (최대: {tebList.Count - 1})");
-                return 0;
-            }
-
-            try
-            {
-                nint tebAddress = tebList[threadIndex].TebAddress;
-                nint stackTopPtr = tebAddress + 0x08;
-                nint stackStart = ReadPointer(stackTopPtr);
-                Console.WriteLine($"[MemoryService] 스레드 {threadIndex} 스택 시작: 0x{stackStart:X}");
-                return stackStart;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MemoryService] GetStackStart 오류: {ex.Message}");
-                return 0;
-            }
-        }
-
         public nint GetStackTop(int threadIndex = 0)
         {
             var tebList = GetTebAddresses();
@@ -512,14 +487,94 @@ namespace StarcUp.Business.MemoryService
             try
             {
                 nint tebAddress = tebList[threadIndex].TebAddress;
-                nint stackBottomPtr = tebAddress + 0x10;
-                nint stackTop = ReadPointer(stackBottomPtr);
-                Console.WriteLine($"[MemoryService] 스레드 {threadIndex} 스택 끝: 0x{stackTop:X}");
+                nint stackTopPtr = tebAddress + 0x08;
+                nint stackTop = ReadPointer(stackTopPtr);
                 return stackTop;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[MemoryService] GetStackTop 오류: {ex.Message}");
+                return 0;
+            }
+        }
+
+        public nint GetStackBottom(int threadIndex = 0)
+        {
+            var tebList = GetTebAddresses();
+            if (threadIndex < 0 || threadIndex >= tebList.Count)
+            {
+                Console.WriteLine($"[MemoryService] GetStackBottom: 잘못된 스레드 인덱스 {threadIndex} (최대: {tebList.Count - 1})");
+                return 0;
+            }
+
+            try
+            {
+                nint tebAddress = tebList[threadIndex].TebAddress;
+                nint stackBottomPtr = tebAddress + 0x10;
+                nint stackBottom = ReadPointer(stackBottomPtr);
+                Console.WriteLine($"[MemoryService] 스레드 {threadIndex} 스택 하단: 0x{stackBottom:X}");
+                return stackBottom;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] GetStackBottom 오류: {ex.Message}");
+                return 0;
+            }
+        }
+
+        public nint GetThreadStackAddress(int threadIndex = 0)
+        {
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] GetThreadStackAddress: 프로세스에 연결되지 않음");
+                return 0;
+            }
+
+            try
+            {
+                var kernel32Module = GetKernel32Module();
+                if (kernel32Module == null)
+                {
+                    Console.WriteLine("[MemoryService] GetThreadStackAddress: kernel32.dll 모듈 정보를 가져올 수 없음");
+                    return 0;
+                }
+
+                nint stackTop = GetStackTop(threadIndex);
+                if (stackTop == 0)
+                {
+                    Console.WriteLine("[MemoryService] GetThreadStackAddress: StackTop을 가져올 수 없음");
+                    return 0;
+                }
+
+                nint stackSearchStart = stackTop - 4096;
+                byte[] stackBuffer = new byte[4096];
+
+                if (!ReadMemoryIntoBuffer(stackSearchStart, stackBuffer, 4096))
+                {
+                    Console.WriteLine("[MemoryService] GetThreadStackAddress: 스택 메모리 읽기 실패");
+                    return 0;
+                }
+
+                int pointerSize = 8;
+                int numPointers = 4096 / pointerSize;
+
+                for (int i = numPointers - 1; i >= 0; i--)
+                {
+                    nint pointer = (nint)BitConverter.ToInt64(stackBuffer, i * pointerSize);
+
+                    if (IsInKernel32Range(pointer, kernel32Module))
+                    {
+                        nint resultAddress = stackSearchStart + (i * pointerSize);
+                                return resultAddress;
+                    }
+                }
+
+                Console.WriteLine("[MemoryService] GetThreadStackAddress: kernel32를 가리키는 스택 엔트리를 찾을 수 없음");
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] GetThreadStackAddress 오류: {ex.Message}");
                 return 0;
             }
         }
@@ -539,65 +594,37 @@ namespace StarcUp.Business.MemoryService
                 return false;
             }
 
-            try
+            var result = FindModuleCheatEngineStyle(moduleName);
+            if (result != null)
             {
-                nint snapshot = _memoryReader.CreateModuleSnapshot();
-                if (snapshot == 0)
-                {
-                    Console.WriteLine("[MemoryService] 모듈 스냅샷 생성 실패");
-                    return false;
-                }
-
-                try
-                {
-                    if (_memoryReader.GetFirstModule(snapshot, out var moduleEntry))
-                    {
-                        do
-                        {
-                            if (string.Equals(moduleEntry.szModule, moduleName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                moduleInfo = new ModuleInfo(
-                                    moduleEntry.szModule,
-                                    moduleEntry.modBaseAddr,
-                                    moduleEntry.modBaseSize,
-                                    moduleEntry.szExePath
-                                );
-                                Console.WriteLine($"[MemoryService] 모듈 발견: {moduleInfo}");
-                                return true;
-                            }
-                        }
-                        while (_memoryReader.GetNextModule(snapshot, ref moduleEntry));
-                    }
-                }
-                finally
-                {
-                    _memoryReader.CloseHandle(snapshot);
-                }
-
-                Console.WriteLine($"[MemoryService] 모듈 '{moduleName}'을 찾을 수 없음");
-                return false;
+                moduleInfo = result;
+                return true;
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MemoryService] FindModule 오류: {ex.Message}");
-                return false;
-            }
+
+            return false;
         }
 
         public ModuleInfo GetKernel32Module()
         {
             if (_cachedKernel32Module != null)
             {
-                Console.WriteLine("[MemoryService] kernel32 캐시 사용");
                 return _cachedKernel32Module;
             }
 
-            if (FindModule("kernel32.dll", out var moduleInfo))
+            string[] possibleNames = { "kernel32.dll", "KERNEL32.DLL", "kernel32", "KERNEL32" };
+            
+            foreach (string name in possibleNames)
             {
-                _cachedKernel32Module = moduleInfo;
-                Console.WriteLine("[MemoryService] kernel32 캐시 생성");
-                return moduleInfo;
+                Console.WriteLine($"[MemoryService] {name} 검색 시도...");
+                if (FindModule(name, out var moduleInfo))
+                {
+                    _cachedKernel32Module = moduleInfo;
+                    Console.WriteLine($"[MemoryService] kernel32 모듈 발견: {name}");
+                    return moduleInfo;
+                }
             }
+            
+            Console.WriteLine("[MemoryService] kernel32 모듈을 찾지 못했습니다.");
             return null;
         }
 
@@ -1018,6 +1045,105 @@ namespace StarcUp.Business.MemoryService
                 return "[읽기불가]";
 
             return new string(cleanChars);
+        }
+
+        private bool ReadMemoryIntoBuffer(nint address, byte[] buffer, int size)
+        {
+            try
+            {
+                byte[] data = _memoryReader.ReadMemoryRaw(address, size);
+                if (data != null && data.Length >= size)
+                {
+                    Array.Copy(data, buffer, size);
+                    return true;
+                }
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool IsInKernel32Range(nint pointer, ModuleInfo kernel32Module)
+        {
+            if (kernel32Module == null || pointer == 0)
+                return false;
+
+            return pointer >= kernel32Module.BaseAddress && 
+                   pointer < (kernel32Module.BaseAddress + (nint)kernel32Module.Size);
+        }
+
+        public int ReadLocalPlayerIndex()
+        {
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadLocalPlayerIndex: 프로세스에 연결되지 않음");
+                return -1;
+            }
+
+            try
+            {
+                if (!FindModule("StarCraft.exe", out var starcraftModule))
+                {
+                    Console.WriteLine("[MemoryService] ReadLocalPlayerIndex: StarCraft.exe 모듈을 찾을 수 없음");
+                    return -1;
+                }
+
+                nint localPlayerIndexAddress = starcraftModule.BaseAddress + 0xDD5B5C;
+                int localPlayerIndex = ReadInt(localPlayerIndexAddress);
+                
+                Console.WriteLine($"[MemoryService] LocalPlayerIndex 읽기 성공: {localPlayerIndex}");
+                return localPlayerIndex;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadLocalPlayerIndex 예외: {ex.Message}");
+                return -1;
+            }
+        }
+
+        public int ReadGameTime()
+        {
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadGameTime: 프로세스에 연결되지 않음");
+                return -1;
+            }
+
+            try
+            {
+                nint threadStackAddress = GetThreadStackAddress(0);
+                if (threadStackAddress == 0)
+                {
+                    Console.WriteLine("[MemoryService] ReadGameTime: ThreadStack 주소를 가져올 수 없음");
+                    return -1;
+                }
+
+
+                nint baseAddress = threadStackAddress - 0x520;
+                
+                nint pointerAddress = ReadPointer(baseAddress);
+                
+                if (pointerAddress == 0)
+                {
+                    Console.WriteLine("[MemoryService] ReadGameTime: 포인터 읽기 실패");
+                    return -1;
+                }
+
+                nint gameTimeAddress = pointerAddress + 0x14C;
+                
+                int gameTimeFrames = ReadInt(gameTimeAddress);
+                
+                int gameTimeSeconds = gameTimeFrames / 24;
+                
+                return gameTimeSeconds;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadGameTime 예외: {ex.Message}");
+                return -1;
+            }
         }
 
         public void Dispose()

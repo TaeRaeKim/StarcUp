@@ -528,15 +528,14 @@ namespace StarcUp.Presentation.Forms
                     _threadStackListBox.Items.Add($"   Thread ID: {tebInfo.ThreadId}");
                     _threadStackListBox.Items.Add($"   TEB Address: 0x{tebInfo.TebAddress.ToInt64():X16}");
 
-                    // StackStart 주소 가져오기
-                    nint stackStart = _memoryService.GetStackStart(i);
-                    if (stackStart != 0)
+                    nint stackTop = _memoryService.GetStackTop(i);
+                    if (stackTop != 0)
                     {
-                        _threadStackListBox.Items.Add($"   ✅ StackStart: 0x{stackStart.ToInt64():X16}");
+                        _threadStackListBox.Items.Add($"   ✅ StackTop (상단): 0x{stackTop.ToInt64():X16}");
                     }
                     else
                     {
-                        _threadStackListBox.Items.Add($"   ❌ StackStart: 가져올 수 없음");
+                        _threadStackListBox.Items.Add($"   ❌ StackTop: 가져올 수 없음");
                     }
 
                     _threadStackListBox.Items.Add("");

@@ -245,7 +245,6 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             {
                 Array.Copy(_units, _previousUnits, _maxUnits);
 
-                Console.WriteLine($"[UnitMemoryAdapter] 메모리 읽기 시도: 주소=0x{_unitArrayBaseAddress:X}, 크기={_maxUnits}개");
                 
                 bool success = _memoryReader.ReadStructureArrayIntoBuffer<UnitRaw>(
                     _unitArrayBaseAddress, _units, _maxUnits);
@@ -256,27 +255,9 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                     return false;
                 }
 
-                Console.WriteLine("[UnitMemoryAdapter] ✅ 메모리 읽기 성공, 활성 유닛 카운팅 중...");
                 
                 // 0번 인덱스 유닛만 자세히 출력 (디버깅용)
                 var unit0 = _units[0];
-                Console.WriteLine($"[UnitMemoryAdapter] === 0번 인덱스 유닛 상세 정보 ===");
-                Console.WriteLine($"  prevPointer: 0x{unit0.prevPointer:X}");
-                Console.WriteLine($"  nextPointer: 0x{unit0.nextPointer:X}");
-                Console.WriteLine($"  health: {unit0.health}");
-                Console.WriteLine($"  shield: {unit0.shield}");
-                Console.WriteLine($"  destX: {unit0.destX}, destY: {unit0.destY}");
-                Console.WriteLine($"  currentX: {unit0.currentX}, currentY: {unit0.currentY}");
-                Console.WriteLine($"  playerIndex: {unit0.playerIndex}");
-                Console.WriteLine($"  unitType: {unit0.unitType}");
-                Console.WriteLine($"  actionIndex: {unit0.actionIndex}");
-                Console.WriteLine($"  actionState: {unit0.actionState}");
-                Console.WriteLine($"  attackCooldown: {unit0.attackCooldown}");
-                Console.WriteLine($"  timer: {unit0.timer}");
-                Console.WriteLine($"  currentUpgrade: {unit0.currentUpgrade}");
-                Console.WriteLine($"  currentUpgradeLevel: {unit0.currentUpgradeLevel}");
-                Console.WriteLine($"  IsValid: {unit0.IsValid}");
-                Console.WriteLine($"  IsAlive: {unit0.IsAlive}");
                 
                 // nextPointer 계산 테스트
                 if (unit0.nextPointer != 0)
@@ -284,18 +265,10 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                     long addressOffset = unit0.nextPointer - _unitArrayBaseAddress;
                     long nextIndex = addressOffset / _unitSize;
                     
-                    Console.WriteLine($"[UnitMemoryAdapter] === nextPointer 계산 테스트 ===");
-                    Console.WriteLine($"  nextPointer: 0x{unit0.nextPointer:X}");
-                    Console.WriteLine($"  unitArrayBaseAddress: 0x{_unitArrayBaseAddress:X}");
-                    Console.WriteLine($"  addressOffset: 0x{addressOffset:X} ({addressOffset})");
-                    Console.WriteLine($"  unitSize: {_unitSize}");
-                    Console.WriteLine($"  계산된 다음 인덱스: {nextIndex}");
-                    
                     // 다음 인덱스가 유효 범위인지 확인
                     if (nextIndex >= 0 && nextIndex < _maxUnits)
                     {
                         var nextUnit = _units[nextIndex];
-                        Console.WriteLine($"  다음 유닛[{nextIndex}]: Type={nextUnit.unitType}, Player={nextUnit.playerIndex}, HP={nextUnit.health}, Valid={IsRawUnitValid(nextUnit)}");
                     }
                     else
                     {
@@ -306,7 +279,6 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 _currentUnitCount = CountActiveUnits();
 
                 stopwatch.Stop();
-                Console.WriteLine($"유닛 로드 완료: {_currentUnitCount}개 유닛, {stopwatch.ElapsedMilliseconds}ms");
 
                 return true;
             }
@@ -419,31 +391,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
         }
 
         /// <summary>
-        /// nextPointer를 따라가며 연결 리스트 방식으로 활성 유닛 카운팅
-        /// </summary>
-        private int CountActiveUnitsLinkedList()
-        {
-            try
-            {
-                Console.WriteLine("[UnitMemoryAdapter] 연결 리스트 방식으로 활성 유닛 카운팅 시작...");
-                
-                // 첫 번째 유닛부터 시작 (인덱스 0)
-                var activeUnits = GetActiveUnitsFromLinkedList();
-                int count = activeUnits.Count;
-                
-                Console.WriteLine($"[UnitMemoryAdapter] 연결 리스트 방식 카운팅 완료: {count}개");
-                return count;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[UnitMemoryAdapter] 연결 리스트 카운팅 실패: {ex.Message}");
-                // fallback to old method
-                return CountActiveUnitsFullScan();
-            }
-        }
-
-        /// <summary>
-        /// nextPointer를 따라가며 활성 유닛 리스트 반환 (개선된 버전)
+        /// nextPointer를 따라가며 활성 유닛 리스트 반환
         /// </summary>
         private List<(int index, UnitRaw unit)> GetActiveUnitsFromLinkedList()
         {
@@ -452,8 +400,6 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             // 0번 인덱스부터 시작 (일반적으로 연결 리스트의 헤드)
             int currentIndex = 0;
             int iterations = 0;
-
-            Console.WriteLine("[UnitMemoryAdapter] nextPointer 기반 연결 리스트 순회 시작 (0번 인덱스부터)");
 
             while (currentIndex >= 0 && currentIndex < _maxUnits && iterations < _maxUnits)
             {
@@ -464,18 +410,11 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 if (IsRawUnitValid(currentUnit))
                 {
                     activeUnits.Add((currentIndex, currentUnit));
-                    
-                    // 처음 5개와 마지막 몇 개만 로그 출력
-                    if (activeUnits.Count <= 5)
-                    {
-                        Console.WriteLine($"[UnitMemoryAdapter] 활성 유닛[{currentIndex}]: Type={currentUnit.unitType}, Player={currentUnit.playerIndex}, HP={currentUnit.health}");
-                    }
                 }
 
                 // nextPointer가 0이면 연결 리스트 끝
                 if (currentUnit.nextPointer == 0)
                 {
-                    Console.WriteLine($"[UnitMemoryAdapter] 연결 리스트 끝 도달 (인덱스 {currentIndex}, nextPointer=0)");
                     break;
                 }
 
@@ -503,42 +442,13 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                     Console.WriteLine($"[UnitMemoryAdapter] ❌ 계산된 다음 인덱스가 범위를 벗어남: {nextIndex} (범위: 0-{_maxUnits-1})");
                     break;
                 }
-                
-                // 처음 5개만 상세 로그
-                if (iterations <= 5)
-                {
-                    Console.WriteLine($"[UnitMemoryAdapter] [{currentIndex}] nextPointer=0x{currentUnit.nextPointer:X} → offset={addressOffset} → 다음 인덱스={nextIndex}");
-                }
-                
+                                                
                 currentIndex = nextIndex;
             }
 
-            Console.WriteLine($"[UnitMemoryAdapter] ✅ 연결 리스트 순회 완료: {activeUnits.Count}개 유닛, {iterations}번 반복");
             
-            // 마지막 유닛 정보도 출력
-            if (activeUnits.Count > 5)
-            {
-                var lastUnit = activeUnits.Last();
-                Console.WriteLine($"[UnitMemoryAdapter] 마지막 유닛[{lastUnit.index}]: Type={lastUnit.unit.unitType}, Player={lastUnit.unit.playerIndex}, HP={lastUnit.unit.health}");
-            }
             
             return activeUnits;
-        }
-
-        /// <summary>
-        /// 첫 번째 유효한 유닛의 인덱스를 찾기
-        /// </summary>
-        private int FindFirstValidUnit()
-        {
-            for (int i = 0; i < Math.Min(100, _maxUnits); i++) // 처음 100개만 확인
-            {
-                if (IsRawUnitValid(_units[i]))
-                {
-                    Console.WriteLine($"[UnitMemoryAdapter] 첫 번째 유효한 유닛 발견: 인덱스 {i}");
-                    return i;
-                }
-            }
-            return -1;
         }
 
         /// <summary>
@@ -547,24 +457,12 @@ namespace StarcUp.Business.Units.Runtime.Adapters
         private int CountActiveUnitsFullScan()
         {
             int count = 0;
-            int consecutiveEmpty = 0;
-            const int maxConsecutiveEmpty = 100;
             
             for (int i = 0; i < _maxUnits; i++)
             {
                 if (IsRawUnitValid(_units[i]))
                 {
                     count++;
-                    consecutiveEmpty = 0;
-                }
-                else
-                {
-                    consecutiveEmpty++;
-                    if (consecutiveEmpty >= maxConsecutiveEmpty && count > 0)
-                    {
-                        Console.WriteLine($"[UnitMemoryAdapter] 연속 빈 슬롯 {consecutiveEmpty}개 도달, 인덱스 {i}에서 스캔 중단");
-                        break;
-                    }
                 }
             }
             
@@ -583,7 +481,6 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 var activeUnits = GetActiveUnitsFromLinkedList();
                 int linkedListCount = activeUnits.Count;
                 
-                Console.WriteLine($"[UnitMemoryAdapter] 연결 리스트 방식 카운팅 완료: {linkedListCount}개");
                 return linkedListCount;
             }
             catch (Exception ex)

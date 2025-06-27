@@ -4,6 +4,7 @@ using StarcUp.Business.MemoryService;
 using StarcUp.Business.Units.Runtime.Adapters;
 using StarcUp.Business.Units.Runtime.Services;
 using StarcUp.Business.Units.StaticData.Repositories;
+using StarcUp.Business.Game;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Windows;
 
@@ -49,9 +50,11 @@ namespace StarcUp.DependencyInjection
                 c => new UnitService(
                     c.Resolve<IUnitMemoryAdapter>()));
 
-            //container.RegisterSingleton<IGameManager>(
-            //    c => new GameManager(
-            //        c.Resolve<IPointerMonitorService>()));
+            container.RegisterSingleton<IGameManager>(
+                c => new GameManager(
+                    c.Resolve<IInGameDetector>(),
+                    c.Resolve<IUnitService>(),
+                    c.Resolve<IMemoryService>()));
 
             Console.WriteLine("✅ 서비스 등록 완료:");
             Console.WriteLine("   📖 MemoryReader - 통합된 메모리 읽기 서비스");
@@ -62,6 +65,7 @@ namespace StarcUp.DependencyInjection
             Console.WriteLine("   🏗️ UnitInfoRepository - 유닛 정적 데이터 저장소");
             Console.WriteLine("   🔗 UnitMemoryAdapter - 유닛 메모리 접근 어댑터");
             Console.WriteLine("   ⚙️ UnitService - 유닛 비즈니스 로직 서비스");
+            Console.WriteLine("   🎯 GameManager - 게임 관리 서비스 (자동 유닛 데이터 로딩)");
         }
     }
 }

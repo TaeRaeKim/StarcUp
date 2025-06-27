@@ -1,6 +1,8 @@
+using System;
+
 namespace StarcUp.Business.Game
 {
-    public interface IGameManager
+    public interface IGameManager : IDisposable
     {
         LocalGameData LocalGameData { get; }
 
@@ -9,6 +11,5 @@ namespace StarcUp.Business.Game
         nint StartUnitAddress { get; }
         void GameInit();
         void GameExit();
-
     }
 }
