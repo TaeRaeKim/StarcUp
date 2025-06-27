@@ -1,4 +1,4 @@
-﻿using StarcUp.Business.MemoryService;
+using StarcUp.Business.MemoryService;
 using StarcUp.Common.Events;
 using System;
 using System.Collections.Generic;

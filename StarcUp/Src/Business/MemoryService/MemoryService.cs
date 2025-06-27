@@ -1,4 +1,4 @@
-﻿using StarcUp.Common.Events;
+using StarcUp.Common.Events;
 using StarcUp.Infrastructure.Memory;
 using System;
 using System.Collections.Generic;

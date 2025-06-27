@@ -1,4 +1,4 @@
-﻿using StarcUp.Infrastructure.Memory;
+using StarcUp.Infrastructure.Memory;
 using StarcUp.Src.Business.UnitManager;
 using StarcUp.Src.Infrastructure.Memory;
 using Xunit;

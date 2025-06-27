@@ -1,5 +1,5 @@
-## ÅëÇÕµÈ .NET C# ÇÁ·ÎÁ§Æ®¿ë .gitignore
-## Visual Studio ¹× .NET °³¹ß È¯°æÀ» À§ÇÑ ¿ÏÀüÇÑ ¼³Á¤
+## í‘œì¤€ .NET C# í”„ë¡œì íŠ¸ìš© .gitignore
+## Visual Studio ë° .NET ê°œë°œ í™˜ê²½ì„ ìœ„í•œ ì„¤ì •ë“¤
 
 # Build results
 [Dd]ebug/
@@ -361,3 +361,5 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+Directory.Build.props

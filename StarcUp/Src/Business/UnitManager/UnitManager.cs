@@ -1,4 +1,4 @@
-﻿using StarcUp.Business.UnitManager;
+using StarcUp.Business.UnitManager;
 using StarcUp.Infrastructure.Memory;
 using System;
 using System.Collections.Generic;

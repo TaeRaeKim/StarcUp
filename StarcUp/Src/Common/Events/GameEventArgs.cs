@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using StarcUp.Business.GameDetection;
 
 namespace StarcUp.Common.Events

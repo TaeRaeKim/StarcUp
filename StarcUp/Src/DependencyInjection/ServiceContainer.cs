@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using StarcUp.Business.GameDetection;
 using StarcUp.Business.InGameDetector;

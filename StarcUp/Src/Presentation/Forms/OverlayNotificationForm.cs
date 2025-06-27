@@ -1,4 +1,4 @@
-﻿using StarcUp.Business.GameDetection;
+using StarcUp.Business.GameDetection;
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;

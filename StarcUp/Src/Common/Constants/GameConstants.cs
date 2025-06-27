@@ -1,4 +1,4 @@
-﻿namespace StarcUp.Common.Constants
+namespace StarcUp.Common.Constants
 {
     /// <summary>
     /// 게임 관련 상수들

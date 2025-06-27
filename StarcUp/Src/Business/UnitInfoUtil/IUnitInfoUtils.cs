@@ -1,4 +1,4 @@
-﻿namespace StarcUp.Src.Business.UnitInfoUtil
+namespace StarcUp.Src.Business.UnitInfoUtil
 {
     public interface IUnitInfoUtils
     {

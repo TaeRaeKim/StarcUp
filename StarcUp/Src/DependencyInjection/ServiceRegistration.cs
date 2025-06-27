@@ -1,4 +1,4 @@
-﻿using StarcUp.Business.GameDetection;
+using StarcUp.Business.GameDetection;
 using StarcUp.Business.InGameDetector;
 using StarcUp.Business.MemoryService;
 using StarcUp.Infrastructure.Memory;
