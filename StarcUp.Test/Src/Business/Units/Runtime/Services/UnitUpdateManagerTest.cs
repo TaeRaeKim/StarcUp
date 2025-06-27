@@ -1,4 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using StarcUp.Business.Units.Runtime.Models;
 using StarcUp.Business.Units.Runtime.Services;
@@ -7,18 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace StarcUp.Test.Business.Units.Runtime.Services
 {
-    [TestClass]
     public class UnitUpdateManagerTest
     {
         private Mock<IUnitService> _mockUnitService;
         private List<Unit> _player0Units;
         private List<Unit> _player1Units;
 
-        [TestInitialize]
-        public void Setup()
+        public UnitUpdateManagerTest()
         {
             _mockUnitService = new Mock<IUnitService>();
             
@@ -57,47 +55,63 @@ namespace StarcUp.Test.Business.Units.Runtime.Services
             };
 
             // Mock 설정
-            _mockUnitService.Setup(x => x.GetPlayerUnitsUsingAllyPointer(0))
-                           .Returns(_player0Units);
             _mockUnitService.Setup(x => x.GetPlayerUnits(0))
                            .Returns(_player0Units);
+            _mockUnitService.Setup(x => x.GetPlayerUnitsToBuffer(0, It.IsAny<Unit[]>(), It.IsAny<int>()))
+                           .Returns((byte playerId, Unit[] buffer, int maxCount) => 
+                           {
+                               var units = _player0Units.Take(maxCount).ToArray();
+                               for (int i = 0; i < units.Length && i < buffer.Length; i++)
+                               {
+                                   buffer[i] = units[i];
+                               }
+                               return units.Length;
+                           });
             
-            _mockUnitService.Setup(x => x.GetPlayerUnitsUsingAllyPointer(1))
-                           .Returns(_player1Units);
             _mockUnitService.Setup(x => x.GetPlayerUnits(1))
                            .Returns(_player1Units);
+            _mockUnitService.Setup(x => x.GetPlayerUnitsToBuffer(1, It.IsAny<Unit[]>(), It.IsAny<int>()))
+                           .Returns((byte playerId, Unit[] buffer, int maxCount) => 
+                           {
+                               var units = _player1Units.Take(maxCount).ToArray();
+                               for (int i = 0; i < units.Length && i < buffer.Length; i++)
+                               {
+                                   buffer[i] = units[i];
+                               }
+                               return units.Length;
+                           });
 
             // 다른 플레이어들은 빈 목록 반환
             for (byte i = 2; i < 8; i++)
             {
-                _mockUnitService.Setup(x => x.GetPlayerUnitsUsingAllyPointer(i))
-                               .Returns(new List<Unit>());
                 _mockUnitService.Setup(x => x.GetPlayerUnits(i))
                                .Returns(new List<Unit>());
+                _mockUnitService.Setup(x => x.GetPlayerUnitsToBuffer(i, It.IsAny<Unit[]>(), It.IsAny<int>()))
+                               .Returns(0);
             }
         }
 
-        [TestMethod]
+        [Fact]
         public void Constructor_ValidUnitService_ShouldInitialize()
         {
             // Act
             using var manager = new UnitUpdateManager(_mockUnitService.Object);
 
             // Assert
-            Assert.IsNotNull(manager);
-            Assert.AreEqual(0, manager.GetActivePlayerIds().Count);
+            Assert.NotNull(manager);
+            Assert.Equal(0, manager.GetActivePlayerIds().Count);
             Console.WriteLine("✅ UnitUpdateManager 생성자 테스트 통과");
         }
 
-        [TestMethod]
+        [Fact]
         public void Constructor_NullUnitService_ShouldThrowException()
         {
             // Act & Assert
-            Assert.ThrowsException<ArgumentNullException>(() => new UnitUpdateManager(null));
+            Assert.Throws<ArgumentNullException>(() => new UnitUpdateManager(null));
             Console.WriteLine("✅ null UnitService 예외 처리 테스트 통과");
         }
 
-        [TestMethod]
+        [Fact]
         public async Task StartCurrentPlayerUpdates_ShouldStartPlayer0()
         {
             // Arrange
@@ -115,18 +129,18 @@ namespace StarcUp.Test.Business.Units.Runtime.Services
             await Task.Delay(150);
 
             // Assert
-            Assert.IsTrue(updateReceived, "Player 0 업데이트가 발생해야 함");
-            Assert.IsTrue(manager.IsPlayerUpdateActive(0), "Player 0이 활성화되어야 함");
-            Assert.AreEqual(1, manager.GetActivePlayerIds().Count, "활성 플레이어가 1명이어야 함");
+            Assert.True(updateReceived);
+            Assert.True(manager.IsPlayerUpdateActive(0));
+            Assert.Equal(1, manager.GetActivePlayerIds().Count);
 
             var currentUnits = manager.GetCurrentPlayerUnits();
-            Assert.AreEqual(2, currentUnits.Count, "현재 플레이어 유닛이 2개여야 함");
+            Assert.Equal(2, currentUnits.Count);
 
             manager.StopPlayerUnitUpdates(0);
             Console.WriteLine("✅ 현재 플레이어 업데이트 시작 테스트 통과");
         }
 
-        [TestMethod]
+        [Fact]
         public async Task StartPlayerUnitUpdates_SpecificPlayer_ShouldWork()
         {
             // Arrange
@@ -144,18 +158,18 @@ namespace StarcUp.Test.Business.Units.Runtime.Services
             await Task.Delay(150);
 
             // Assert
-            Assert.IsTrue(player1UpdateReceived, "Player 1 업데이트가 발생해야 함");
-            Assert.IsTrue(manager.IsPlayerUpdateActive(1), "Player 1이 활성화되어야 함");
+            Assert.True(player1UpdateReceived);
+            Assert.True(manager.IsPlayerUpdateActive(1));
 
             var player1Units = manager.GetLatestPlayerUnits(1);
-            Assert.AreEqual(1, player1Units.Count, "Player 1 유닛이 1개여야 함");
-            Assert.AreEqual(UnitType.ProtossZealot, player1Units[0].UnitType, "유닛 타입이 일치해야 함");
+            Assert.Equal(1, player1Units.Count);
+            Assert.Equal(UnitType.ProtossZealot, player1Units[0].UnitType);
 
             manager.StopPlayerUnitUpdates(1);
             Console.WriteLine("✅ 특정 플레이어 업데이트 시작 테스트 통과");
         }
 
-        [TestMethod]
+        [Fact]
         public async Task StartAllPlayerUpdates_ShouldStartAllPlayers()
         {
             // Arrange
@@ -167,23 +181,23 @@ namespace StarcUp.Test.Business.Units.Runtime.Services
 
             // Assert
             var activePlayerIds = manager.GetActivePlayerIds();
-            Assert.AreEqual(8, activePlayerIds.Count, "8명의 플레이어가 모두 활성화되어야 함");
+            Assert.Equal(8, activePlayerIds.Count);
 
             for (byte i = 0; i < 8; i++)
             {
-                Assert.IsTrue(manager.IsPlayerUpdateActive(i), $"Player {i}이 활성화되어야 함");
+                Assert.True(manager.IsPlayerUpdateActive(i));
             }
 
             // Player 0과 1만 유닛이 있어야 함
-            Assert.AreEqual(2, manager.GetLatestPlayerUnits(0).Count, "Player 0은 2개 유닛");
-            Assert.AreEqual(1, manager.GetLatestPlayerUnits(1).Count, "Player 1은 1개 유닛");
-            Assert.AreEqual(0, manager.GetLatestPlayerUnits(2).Count, "Player 2는 0개 유닛");
+            Assert.Equal(2, manager.GetLatestPlayerUnits(0).Count);
+            Assert.Equal(1, manager.GetLatestPlayerUnits(1).Count);
+            Assert.Equal(0, manager.GetLatestPlayerUnits(2).Count);
 
             manager.StopAllUpdates();
             Console.WriteLine("✅ 모든 플레이어 업데이트 시작 테스트 통과");
         }
 
-        [TestMethod]
+        [Fact]
         public void StopPlayerUnitUpdates_ShouldStopSpecificPlayer()
         {
             // Arrange
@@ -195,15 +209,15 @@ namespace StarcUp.Test.Business.Units.Runtime.Services
             manager.StopPlayerUnitUpdates(0);
 
             // Assert
-            Assert.IsFalse(manager.IsPlayerUpdateActive(0), "Player 0이 비활성화되어야 함");
-            Assert.IsTrue(manager.IsPlayerUpdateActive(1), "Player 1은 여전히 활성화되어야 함");
-            Assert.AreEqual(1, manager.GetActivePlayerIds().Count, "활성 플레이어가 1명이어야 함");
+            Assert.False(manager.IsPlayerUpdateActive(0));
+            Assert.True(manager.IsPlayerUpdateActive(1));
+            Assert.Equal(1, manager.GetActivePlayerIds().Count);
 
             manager.StopAllUpdates();
             Console.WriteLine("✅ 특정 플레이어 업데이트 중지 테스트 통과");
         }
 
-        [TestMethod]
+        [Fact]
         public void StopAllUpdates_ShouldStopAllPlayers()
         {
             // Arrange
@@ -216,15 +230,15 @@ namespace StarcUp.Test.Business.Units.Runtime.Services
             manager.StopAllUpdates();
 
             // Assert
-            Assert.AreEqual(0, manager.GetActivePlayerIds().Count, "모든 플레이어가 비활성화되어야 함");
-            Assert.IsFalse(manager.IsPlayerUpdateActive(0), "Player 0이 비활성화되어야 함");
-            Assert.IsFalse(manager.IsPlayerUpdateActive(1), "Player 1이 비활성화되어야 함");
-            Assert.IsFalse(manager.IsPlayerUpdateActive(2), "Player 2가 비활성화되어야 함");
+            Assert.Equal(0, manager.GetActivePlayerIds().Count);
+            Assert.False(manager.IsPlayerUpdateActive(0));
+            Assert.False(manager.IsPlayerUpdateActive(1));
+            Assert.False(manager.IsPlayerUpdateActive(2));
 
             Console.WriteLine("✅ 모든 업데이트 중지 테스트 통과");
         }
 
-        [TestMethod]
+        [Fact]
         public void GetLatestPlayerUnits_NoUpdatesStarted_ShouldReturnEmptyList()
         {
             // Arrange
@@ -234,13 +248,13 @@ namespace StarcUp.Test.Business.Units.Runtime.Services
             var units = manager.GetLatestPlayerUnits(0);
 
             // Assert
-            Assert.IsNotNull(units, "결과가 null이 아니어야 함");
-            Assert.AreEqual(0, units.Count, "업데이트가 시작되지 않았으면 빈 목록이어야 함");
+            Assert.NotNull(units);
+            Assert.Equal(0, units.Count);
 
             Console.WriteLine("✅ 업데이트 미시작 시 빈 목록 반환 테스트 통과");
         }
 
-        [TestMethod] 
+        [Fact] 
         public void StartPlayerUnitUpdates_SamePlayerTwice_ShouldNotDuplicate()
         {
             // Arrange
@@ -251,14 +265,14 @@ namespace StarcUp.Test.Business.Units.Runtime.Services
             manager.StartPlayerUnitUpdates(0); // 중복 호출
 
             // Assert
-            Assert.AreEqual(1, manager.GetActivePlayerIds().Count, "중복 시작해도 1개만 있어야 함");
-            Assert.IsTrue(manager.IsPlayerUpdateActive(0), "Player 0이 활성화되어야 함");
+            Assert.Equal(1, manager.GetActivePlayerIds().Count);
+            Assert.True(manager.IsPlayerUpdateActive(0));
 
             manager.StopAllUpdates();
             Console.WriteLine("✅ 중복 플레이어 시작 방지 테스트 통과");
         }
 
-        [TestMethod]
+        [Fact]
         public void Dispose_ShouldStopAllUpdatesAndCleanup()
         {
             // Arrange
@@ -270,7 +284,7 @@ namespace StarcUp.Test.Business.Units.Runtime.Services
             manager.Dispose();
 
             // Assert - Dispose 후에는 모든 업데이트가 중지되어야 함
-            Assert.AreEqual(0, manager.GetActivePlayerIds().Count, "Dispose 후 모든 플레이어가 비활성화되어야 함");
+            Assert.Equal(0, manager.GetActivePlayerIds().Count);
 
             Console.WriteLine("✅ Dispose 기능 테스트 통과");
         }

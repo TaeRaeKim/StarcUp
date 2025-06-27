@@ -396,6 +396,16 @@ namespace StarcUp.Test.Src.Business.Units.Runtime.Services
             LastBaseAddress = baseAddress;
         }
 
+        public bool InitializeUnitArrayAddress()
+        {
+            return true;
+        }
+
+        public void InvalidateAddressCache()
+        {
+            // Mock implementation - no action needed
+        }
+
         public bool LoadAllUnits()
         {
             LoadAllUnitsCalled = true;
@@ -418,6 +428,21 @@ namespace StarcUp.Test.Src.Business.Units.Runtime.Services
             GetPlayerRawUnitsCalled = true;
             LastPlayerId = playerId;
             return _playerUnits.TryGetValue(playerId, out var units) ? units : Enumerable.Empty<UnitRaw>();
+        }
+
+        public IEnumerable<UnitRaw> GetPlayerUnits(byte playerId)
+        {
+            return GetPlayerRawUnits(playerId);
+        }
+
+        public int GetPlayerUnitsToBuffer(byte playerId, Unit[] buffer, int maxCount)
+        {
+            var rawUnits = GetPlayerRawUnits(playerId).Take(maxCount).ToArray();
+            for (int i = 0; i < rawUnits.Length && i < buffer.Length; i++)
+            {
+                buffer[i] = Unit.FromRaw(rawUnits[i]);
+            }
+            return Math.Min(rawUnits.Length, maxCount);
         }
 
         public IEnumerable<UnitRaw> GetRawUnitsByType(ushort unitType)

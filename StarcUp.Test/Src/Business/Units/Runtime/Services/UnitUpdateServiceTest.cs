@@ -1,4 +1,3 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using StarcUp.Business.Units.Runtime.Models;
 using StarcUp.Business.Units.Runtime.Services;
@@ -8,17 +7,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace StarcUp.Test.Business.Units.Runtime.Services
 {
-    [TestClass]
     public class UnitUpdateServiceTest
     {
         private Mock<IUnitService> _mockUnitService;
         private List<Unit> _testUnits;
 
-        [TestInitialize]
-        public void Setup()
+        public UnitUpdateServiceTest()
         {
             _mockUnitService = new Mock<IUnitService>();
             
@@ -44,32 +42,40 @@ namespace StarcUp.Test.Business.Units.Runtime.Services
             };
 
             // Mock 설정
-            _mockUnitService.Setup(x => x.GetPlayerUnitsUsingAllyPointer(0))
-                           .Returns(_testUnits);
             _mockUnitService.Setup(x => x.GetPlayerUnits(0))
                            .Returns(_testUnits);
+            _mockUnitService.Setup(x => x.GetPlayerUnitsToBuffer(0, It.IsAny<Unit[]>(), It.IsAny<int>()))
+                           .Returns((byte playerId, Unit[] buffer, int maxCount) => 
+                           {
+                               var units = _testUnits.Take(maxCount).ToArray();
+                               for (int i = 0; i < units.Length && i < buffer.Length; i++)
+                               {
+                                   buffer[i] = units[i];
+                               }
+                               return units.Length;
+                           });
         }
 
-        [TestMethod]
+        [Fact]
         public void Constructor_ValidUnitService_ShouldInitialize()
         {
             // Act
             using var service = new UnitUpdateService(_mockUnitService.Object, 0);
 
             // Assert
-            Assert.IsNotNull(service);
+            Assert.NotNull(service);
             Console.WriteLine("✅ UnitUpdateService 생성자 테스트 통과");
         }
 
-        [TestMethod]
+        [Fact]
         public void Constructor_NullUnitService_ShouldThrowException()
         {
             // Act & Assert
-            Assert.ThrowsException<ArgumentNullException>(() => new UnitUpdateService(null, 0));
+            Assert.Throws<ArgumentNullException>(() => new UnitUpdateService(null, 0));
             Console.WriteLine("✅ null UnitService 예외 처리 테스트 통과");
         }
 
-        [TestMethod]
+        [Fact]
         public async Task StartAndStop_ShouldWorkCorrectly()
         {
             // Arrange
@@ -89,15 +95,15 @@ namespace StarcUp.Test.Business.Units.Runtime.Services
             service.Stop();
 
             // Assert
-            Assert.IsTrue(updateReceived, "업데이트 이벤트가 발생해야 함");
-            Assert.IsNotNull(receivedArgs, "이벤트 인자가 null이 아니어야 함");
-            Assert.AreEqual(0, receivedArgs.PlayerId, "플레이어 ID가 일치해야 함");
-            Assert.AreEqual(2, receivedArgs.Units.Count, "유닛 수가 일치해야 함");
+            Assert.True(updateReceived);
+            Assert.NotNull(receivedArgs);
+            Assert.Equal(0, receivedArgs.PlayerId);
+            Assert.Equal(2, receivedArgs.Units.Count);
             
             Console.WriteLine("✅ Start/Stop 기능 테스트 통과");
         }
 
-        [TestMethod]
+        [Fact]
         public async Task UnitsUpdated_ShouldContainCorrectData()
         {
             // Arrange
@@ -115,19 +121,19 @@ namespace StarcUp.Test.Business.Units.Runtime.Services
             service.Stop();
 
             // Assert
-            Assert.IsNotNull(receivedArgs);
-            Assert.AreEqual(0, receivedArgs.PlayerId);
-            Assert.AreEqual(2, receivedArgs.Units.Count);
+            Assert.NotNull(receivedArgs);
+            Assert.Equal(0, receivedArgs.PlayerId);
+            Assert.Equal(2, receivedArgs.Units.Count);
             
             var marine = receivedArgs.Units.First(u => u.UnitType == UnitType.TerranMarine);
-            Assert.AreEqual(40, marine.Health);
-            Assert.AreEqual(100, marine.CurrentX);
-            Assert.AreEqual(200, marine.CurrentY);
+            Assert.Equal(40u, marine.Health);
+            Assert.Equal(100, marine.CurrentX);
+            Assert.Equal(200, marine.CurrentY);
 
             Console.WriteLine("✅ 업데이트 데이터 정확성 테스트 통과");
         }
 
-        [TestMethod]
+        [Fact]
         public void Dispose_ShouldStopUpdatesAndCleanup()
         {
             // Arrange
@@ -143,12 +149,12 @@ namespace StarcUp.Test.Business.Units.Runtime.Services
             // Assert - Dispose 후에는 업데이트가 중지되어야 함
             var initialCount = updateCount;
             Thread.Sleep(200);
-            Assert.AreEqual(initialCount, updateCount, "Dispose 후에는 더 이상 업데이트가 발생하지 않아야 함");
+            Assert.Equal(initialCount, updateCount);
 
             Console.WriteLine("✅ Dispose 기능 테스트 통과");
         }
 
-        [TestMethod]
+        [Fact]
         public void Start_WhenAlreadyRunning_ShouldNotStartAgain()
         {
             // Arrange
@@ -165,7 +171,7 @@ namespace StarcUp.Test.Business.Units.Runtime.Services
             Console.WriteLine("✅ 중복 Start 호출 처리 테스트 통과");
         }
 
-        [TestMethod]
+        [Fact]
         public void Stop_WhenNotRunning_ShouldNotThrow()
         {
             // Arrange
