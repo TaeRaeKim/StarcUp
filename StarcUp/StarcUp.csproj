@@ -9,24 +9,6 @@
     <StartupObject>StarcUp.Program</StartupObject>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Remove="Src\claudeai\**" />
-    <EmbeddedResource Remove="Src\claudeai\**" />
-    <None Remove="Src\claudeai\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="claudeai\starcraft_extensions_csharp.cs" />
-    <Compile Remove="claudeai\starcraft_units_csharp.cs" />
-    <Compile Remove="claudeai\starcraft_usage_example_csharp.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="claudeai\starcraft_extensions_csharp.cs" />
-    <None Include="claudeai\starcraft_units_csharp.cs" />
-    <None Include="claudeai\starcraft_usage_example_csharp.cs" />
-  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Management" Version="9.0.6" />
   </ItemGroup>
