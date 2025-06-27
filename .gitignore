@@ -362,4 +362,4 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 
-Directory.Build.props
+.claude/
