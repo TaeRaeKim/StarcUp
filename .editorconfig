@@ -1,4 +1,4 @@
-﻿[*.cs]
+[*.cs]
 
 # CS8622: 매개 변수 형식에서 참조 형식의 Null 허용 여부가 대상 대리자와 일치하지 않습니다(Null 허용 여부 특성 때문일 수 있음).
 dotnet_diagnostic.CS8622.severity = suggestion
