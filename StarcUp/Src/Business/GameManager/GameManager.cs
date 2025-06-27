@@ -1,18 +1,18 @@
-﻿using StarcUp.Business.InGameStateMonitor;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using StarcUp.Business.InGameDetector;
 
 namespace StarcUp.Business.Game
 {
     public class GameManager : IGameManager
     {
 
-        iInGameDetector _pointerMonitorService;
+        IInGameDetector _pointerMonitorService;
 
-        public GameManager(iInGameDetector pointerMonitorService)
+        public GameManager(IInGameDetector pointerMonitorService)
         {
             _pointerMonitorService = pointerMonitorService;
         }
@@ -35,7 +35,7 @@ namespace StarcUp.Business.Game
         {
             // 객체 초기화
             Array.ForEach(Players, player => player.Init());
-            
+
             // 메모리 매핑 및 모니터링
 
             // 오버레이 활성화

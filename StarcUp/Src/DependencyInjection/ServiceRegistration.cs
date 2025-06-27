@@ -32,7 +32,7 @@ namespace StarcUp.DependencyInjection
                     c.Resolve<IWindowManager>()));
 
             // InGameStateMonitor
-            container.RegisterSingleton<iInGameDetector>(
+            container.RegisterSingleton<IInGameDetector>(
                 c => new InGameDetector(
                     c.Resolve<IMemoryService>()));
 

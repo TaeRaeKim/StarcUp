@@ -5,7 +5,7 @@ using System;
 
 namespace StarcUp.Business.InGameDetector
 {
-    public class InGameDetector : iInGameDetector
+    public class InGameDetector : IInGameDetector
     {
         private readonly IMemoryService _memoryService;
         private bool _isMonitoring;
