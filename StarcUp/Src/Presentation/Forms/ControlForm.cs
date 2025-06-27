@@ -1,8 +1,12 @@
 using System;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 using StarcUp.Business.GameDetection;
 using StarcUp.Business.MemoryService;
+using StarcUp.Business.InGameDetector;
+using StarcUp.Business.Units.Runtime.Services;
+using StarcUp.Business.Units.Types;
 using StarcUp.Common.Events;
 using Timer = System.Windows.Forms.Timer;
 
@@ -16,6 +20,8 @@ namespace StarcUp.Presentation.Forms
         private readonly IGameDetector _gameDetectionService;
         private readonly IMemoryService _memoryService;
         private readonly GameDetector _hybridDetector; // 직접 참조로 상태 정보 접근
+        private readonly IInGameDetector _inGameDetector;
+        private readonly IUnitService _unitService;
 
         // UI 컨트롤들
         private GroupBox _detectionStatusGroup = null!;
@@ -37,6 +43,13 @@ namespace StarcUp.Presentation.Forms
         private ListBox _threadStackListBox = null!;
         private Button _refreshMemoryButton = null!;
 
+        private GroupBox _unitTestGroup = null!;
+        private NumericUpDown _playerIndexNumeric = null!;
+        private ComboBox _unitTypeComboBox = null!;
+        private Button _searchUnitsButton = null!;
+        private ListBox _unitResultListBox = null!;
+        private Label _unitTestStatusLabel = null!;
+
         private NotifyIcon _notifyIcon = null!;
 
         // 오버레이 관련
@@ -45,11 +58,13 @@ namespace StarcUp.Presentation.Forms
         private bool _isOverlayActive = false;
         private bool _isDisposed = false;
 
-        public ControlForm(IGameDetector gameDetectionService, IMemoryService memoryService)
+        public ControlForm(IGameDetector gameDetectionService, IMemoryService memoryService, IInGameDetector inGameDetector, IUnitService unitService)
         {
             _gameDetectionService = gameDetectionService ?? throw new ArgumentNullException(nameof(gameDetectionService));
             _memoryService = memoryService ?? throw new ArgumentNullException(nameof(memoryService));
             _hybridDetector = gameDetectionService as GameDetector; // 타입 캐스팅
+            _inGameDetector = inGameDetector ?? throw new ArgumentNullException(nameof(inGameDetector));
+            _unitService = unitService ?? throw new ArgumentNullException(nameof(unitService));
 
             InitializeComponent();
             SetupEventHandlers();
@@ -65,7 +80,7 @@ namespace StarcUp.Presentation.Forms
         private void InitializeComponent()
         {
             this.Text = "StarcUp - 하이브리드 스타크래프트 감지";
-            this.Size = new Size(600, 750);
+            this.Size = new Size(600, 900);
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -190,12 +205,83 @@ namespace StarcUp.Presentation.Forms
                 _overlayActiveLabel, _showOverlayNotificationButton
             });
 
+            // 유닛 테스트 그룹
+            _unitTestGroup = new GroupBox
+            {
+                Text = "🎮 유닛 테스트 도구 (InGame Only)",
+                Size = new Size(560, 200),
+                Location = new Point(10, 340)
+            };
+
+            _unitTestStatusLabel = new Label
+            {
+                Text = "상태: InGame 대기 중...",
+                Location = new Point(10, 25),
+                Size = new Size(300, 20),
+                ForeColor = Color.Red,
+                Font = new Font("맑은 고딕", 9, FontStyle.Bold)
+            };
+
+            var playerLabel = new Label
+            {
+                Text = "플레이어 인덱스:",
+                Location = new Point(10, 55),
+                Size = new Size(100, 20)
+            };
+
+            _playerIndexNumeric = new NumericUpDown
+            {
+                Location = new Point(120, 53),
+                Size = new Size(60, 23),
+                Minimum = 0,
+                Maximum = 7,
+                Value = 0,
+                Enabled = false
+            };
+
+            var unitTypeLabel = new Label
+            {
+                Text = "유닛 타입:",
+                Location = new Point(200, 55),
+                Size = new Size(70, 20)
+            };
+
+            _unitTypeComboBox = new ComboBox
+            {
+                Location = new Point(275, 53),
+                Size = new Size(180, 23),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Enabled = false
+            };
+
+            _searchUnitsButton = new Button
+            {
+                Text = "유닛 조회",
+                Location = new Point(470, 53),
+                Size = new Size(80, 25),
+                BackColor = Color.LightGreen,
+                Enabled = false
+            };
+
+            _unitResultListBox = new ListBox
+            {
+                Location = new Point(10, 85),
+                Size = new Size(540, 100),
+                Font = new Font("Consolas", 8, FontStyle.Regular),
+                ScrollAlwaysVisible = true
+            };
+
+            _unitTestGroup.Controls.AddRange(new Control[] {
+                _unitTestStatusLabel, playerLabel, _playerIndexNumeric,
+                unitTypeLabel, _unitTypeComboBox, _searchUnitsButton, _unitResultListBox
+            });
+
             // 메모리 정보 그룹
             _memoryInfoGroup = new GroupBox
             {
                 Text = "ThreadStack 메모리 정보",
                 Size = new Size(560, 320),
-                Location = new Point(10, 340)
+                Location = new Point(10, 550)
             };
 
             _threadStackListBox = new ListBox
@@ -224,7 +310,7 @@ namespace StarcUp.Presentation.Forms
         private void LayoutControls()
         {
             this.Controls.AddRange(new Control[] {
-                _detectionStatusGroup, _gameMonitorGroup, _overlayStatusGroup, _memoryInfoGroup
+                _detectionStatusGroup, _gameMonitorGroup, _overlayStatusGroup, _unitTestGroup, _memoryInfoGroup
             });
         }
 
@@ -234,6 +320,13 @@ namespace StarcUp.Presentation.Forms
             _refreshMemoryButton.Click += RefreshMemoryButton_Click;
             _showOverlayNotificationButton.Click += ShowOverlayNotificationButton_Click;
             _showStatusButton.Click += ShowStatusButton_Click;
+            _searchUnitsButton.Click += SearchUnitsButton_Click;
+
+            // InGame 상태 변경 이벤트
+            _inGameDetector.InGameStateChanged += OnInGameStateChanged;
+
+            // UnitType ComboBox 초기화
+            InitializeUnitTypeComboBox();
 
             // 게임 감지 서비스 이벤트
             _gameDetectionService.HandleFound += OnGameFound;
@@ -643,6 +736,9 @@ namespace StarcUp.Presentation.Forms
             }
 
             _refreshMemoryButton.Enabled = _isConnectedToProcess && _memoryService.IsConnected;
+
+            // 유닛 테스트 UI 업데이트
+            UpdateUnitTestUI();
         }
 
         private void ControlForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -709,6 +805,165 @@ namespace StarcUp.Presentation.Forms
             }
         }
 
+        private void InitializeUnitTypeComboBox()
+        {
+            var popularUnits = new[]
+            {
+                UnitType.TerranMarine,
+                UnitType.TerranSCV,
+                UnitType.TerranSiegeTankTankMode,
+                UnitType.TerranGoliath,
+                UnitType.ProtossZealot,
+                UnitType.ProtossProbe,
+                UnitType.ProtossDragoon,
+                UnitType.ProtossCarrier,
+                UnitType.ZergZergling,
+                UnitType.ZergDrone,
+                UnitType.ZergHydralisk,
+                UnitType.ZergMutalisk,
+                UnitType.ZergUltralisk,
+                UnitType.TerranCommandCenter,
+                UnitType.ProtossNexus,
+                UnitType.ZergHatchery
+            };
+
+            _unitTypeComboBox.Items.Clear();
+            _unitTypeComboBox.Items.Add("전체 유닛 (All Units)");
+            
+            foreach (var unitType in popularUnits)
+            {
+                _unitTypeComboBox.Items.Add($"{unitType.GetUnitName()} [{(int)unitType}]");
+            }
+
+            _unitTypeComboBox.SelectedIndex = 0;
+        }
+
+        private void OnInGameStateChanged(object sender, InGameEventArgs e)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action<object, InGameEventArgs>(OnInGameStateChanged), sender, e);
+                return;
+            }
+
+            UpdateUnitTestUI();
+        }
+
+        private void UpdateUnitTestUI()
+        {
+            bool canUseUnitTest = _inGameDetector.IsInGame && _isConnectedToProcess;
+
+            if (_inGameDetector.IsInGame)
+            {
+                _unitTestStatusLabel.Text = "상태: ✅ InGame - 유닛 테스트 가능";
+                _unitTestStatusLabel.ForeColor = Color.Green;
+            }
+            else
+            {
+                _unitTestStatusLabel.Text = "상태: ❌ InGame 대기 중...";
+                _unitTestStatusLabel.ForeColor = Color.Red;
+            }
+
+            _playerIndexNumeric.Enabled = canUseUnitTest;
+            _unitTypeComboBox.Enabled = canUseUnitTest;
+            _searchUnitsButton.Enabled = canUseUnitTest;
+        }
+
+        private void SearchUnitsButton_Click(object sender, EventArgs e)
+        {
+            if (!_inGameDetector.IsInGame)
+            {
+                MessageBox.Show("InGame 상태에서만 유닛 검색이 가능합니다.", "유닛 테스트",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!_isConnectedToProcess || !_memoryService.IsConnected)
+            {
+                MessageBox.Show("프로세스에 연결되지 않았습니다.", "유닛 테스트",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                _unitResultListBox.Items.Clear();
+                _unitResultListBox.Items.Add("=== 유닛 검색 중... ===");
+                Application.DoEvents();
+
+                byte playerIndex = (byte)_playerIndexNumeric.Value;
+                string selectedItem = _unitTypeComboBox.SelectedItem?.ToString() ?? "";
+
+                _unitResultListBox.Items.Clear();
+
+                if (selectedItem.StartsWith("전체 유닛"))
+                {
+                    // 전체 유닛 조회
+                    var allUnits = _unitService.GetPlayerUnits(playerIndex).ToList();
+                    _unitResultListBox.Items.Add($"=== 플레이어 {playerIndex} 전체 유닛 ({allUnits.Count}개) ===");
+                    _unitResultListBox.Items.Add("");
+
+                    if (allUnits.Count == 0)
+                    {
+                        _unitResultListBox.Items.Add("❌ 유닛이 없습니다.");
+                    }
+                    else
+                    {
+                        foreach (var unit in allUnits.Take(20)) // 최대 20개만 표시
+                        {
+                            _unitResultListBox.Items.Add($"🔸 {unit.UnitType.GetUnitName()} [ID:{unit.UnitType.GetId()}]");
+                            _unitResultListBox.Items.Add($"   위치: ({unit.CurrentX}, {unit.CurrentY}), HP: {unit.Health}+{unit.Shield}");
+                        }
+                        
+                        if (allUnits.Count > 20)
+                        {
+                            _unitResultListBox.Items.Add($"... 총 {allUnits.Count}개 중 20개만 표시");
+                        }
+                    }
+                }
+                else
+                {
+                    // 특정 유닛 타입 조회
+                    var unitTypeText = selectedItem.Split('[')[0].Trim();
+                    var unitType = UnitTypeExtensions.ParseFromName(unitTypeText);
+                    
+                    if (unitType.HasValue)
+                    {
+                        var specificUnits = _unitService.GetPlayerUnits(playerIndex)
+                            .Where(u => u.UnitType == unitType.Value).ToList();
+                        
+                        _unitResultListBox.Items.Add($"=== 플레이어 {playerIndex} {unitTypeText} ({specificUnits.Count}개) ===");
+                        _unitResultListBox.Items.Add("");
+
+                        if (specificUnits.Count == 0)
+                        {
+                            _unitResultListBox.Items.Add("❌ 해당 유닛이 없습니다.");
+                        }
+                        else
+                        {
+                            foreach (var unit in specificUnits)
+                            {
+                                _unitResultListBox.Items.Add($"🔸 {unit.UnitType.GetUnitName()}");
+                                _unitResultListBox.Items.Add($"   위치: ({unit.CurrentX}, {unit.CurrentY})");
+                                _unitResultListBox.Items.Add($"   HP: {unit.Health}+{unit.Shield} (Total: {unit.TotalHitPoints})");
+                                _unitResultListBox.Items.Add($"   상태: {(unit.IsAlive ? "생존" : "사망")}");
+                                _unitResultListBox.Items.Add("");
+                            }
+                        }
+                    }
+                }
+
+                _unitResultListBox.Items.Add("=== 검색 완료 ===");
+            }
+            catch (Exception ex)
+            {
+                _unitResultListBox.Items.Clear();
+                _unitResultListBox.Items.Add("❌ 유닛 검색 실패:");
+                _unitResultListBox.Items.Add($"   오류: {ex.Message}");
+                Console.WriteLine($"유닛 검색 실패: {ex.Message}");
+            }
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (!_isDisposed && disposing)
@@ -720,6 +975,7 @@ namespace StarcUp.Presentation.Forms
 
                 _overlayNotificationForm?.CloseForm();
                 _notifyIcon?.Dispose();
+                _unitService?.Dispose();
                 _isDisposed = true;
             }
             base.Dispose(disposing);

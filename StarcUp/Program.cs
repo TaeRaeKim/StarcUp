@@ -1,5 +1,7 @@
 using StarcUp.Business.GameDetection;
 using StarcUp.Business.MemoryService;
+using StarcUp.Business.InGameDetector;
+using StarcUp.Business.Units.Runtime.Services;
 using StarcUp.DependencyInjection;
 using StarcUp.Presentation.Forms;
 using System;
@@ -61,9 +63,11 @@ namespace StarcUp
                 // 필요한 서비스들 가져오기 (오버레이 관련 제거)
                 var gameDetectionService = _container.Resolve<IGameDetector>();
                 var memoryService = _container.Resolve<IMemoryService>();
+                var inGameDetector = _container.Resolve<IInGameDetector>();
+                var unitService = _container.Resolve<IUnitService>();
 
                 // 컨트롤 폼 생성 (단순한 모니터링 전용)
-                _controlForm = new ControlForm(gameDetectionService, memoryService);
+                _controlForm = new ControlForm(gameDetectionService, memoryService, inGameDetector, unitService);
 
                 // 게임 감지 서비스 즉시 시작 (자동 모니터링)
                 gameDetectionService.StartDetection();
