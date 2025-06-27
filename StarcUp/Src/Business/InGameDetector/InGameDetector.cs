@@ -13,6 +13,8 @@ namespace StarcUp.Business.InGameDetector
 
         private ModuleInfo _starcraftModule;
         private ModuleInfo _user32Module;
+        private nint _cachedInGameAddress; // 캐싱된 InGame 상태 주소
+        private bool _isAddressCached; // 주소 캐싱 여부
 
         public event EventHandler<InGameEventArgs> InGameStateChanged;
 
@@ -69,6 +71,8 @@ namespace StarcUp.Business.InGameDetector
 
             _starcraftModule = null;
             _user32Module = null;
+            _cachedInGameAddress = 0;
+            _isAddressCached = false;
             IsInGame = false;
 
             _isMonitoring = false;
@@ -165,6 +169,16 @@ namespace StarcUp.Business.InGameDetector
         {
             try
             {
+                // 캐싱된 주소가 있으면 바로 사용
+                if (_isAddressCached && _cachedInGameAddress != 0)
+                {
+                    //Console.WriteLine($"InGame 체크 (캐싱됨): 주소=0x{_cachedInGameAddress:X}");
+                    return _memoryService.ReadBool(_cachedInGameAddress);
+                }
+
+                // 첫 번째 호출이거나 캐시가 무효한 경우 주소 계산
+                Console.WriteLine("[InGameDetector] InGame 주소 계산 중...");
+
                 // 1. TEB[0] 주소 가져오기 (첫 번째 스레드 = 메인 스레드)
                 var tebList = _memoryService.GetTebAddresses();
                 if (tebList.Count == 0)
@@ -201,16 +215,25 @@ namespace StarcUp.Business.InGameDetector
 
                 nint finalAddress = step2 + 0xB4;
 
-                // 5. InGame 상태 값 읽기
-                bool isInGame = _memoryService.ReadBool(finalAddress);
+                // 5. 주소 캐싱
+                _cachedInGameAddress = finalAddress;
+                _isAddressCached = true;
 
-                //Console.WriteLine($"InGame 체크: TEB[0]=0x{tebBaseAddress:X}, B=0x{bValue:X}, Final=0x{finalAddress:X}, InGame={isInGame}");
+                Console.WriteLine($"[InGameDetector] ✅ InGame 주소 캐싱 완료: 0x{finalAddress:X}");
+                Console.WriteLine($"  - TEB[0]: 0x{tebBaseAddress:X}");
+                Console.WriteLine($"  - B값: 0x{bValue:X}");
+                Console.WriteLine($"  - 최종주소: 0x{finalAddress:X}");
+
+                // 6. InGame 상태 값 읽기
+                bool isInGame = _memoryService.ReadBool(finalAddress);
+                Console.WriteLine($"[InGameDetector] InGame 상태: {isInGame}");
 
                 return isInGame;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"InGame 상태 읽기 실패: {ex.Message}");
+                _isAddressCached = false; // 오류 발생 시 캐시 무효화
                 return false;
             }
         }
@@ -259,6 +282,8 @@ namespace StarcUp.Business.InGameDetector
         private void OnProcessDisconnect(object sender, ProcessEventArgs e)
         {
             Console.WriteLine("InGameMonitoring: 프로세스 연결 해제됨");
+            _isAddressCached = false; // 캐시 무효화
+            _cachedInGameAddress = 0;
             StopMonitoring();
         }
 
