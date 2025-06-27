@@ -26,6 +26,10 @@ namespace StarcUp.Business.Units.Runtime.Adapters
         private nint _cachedUnitArrayAddress;
         private bool _isAddressCached;
 
+        // 플레이어별 유닛 포인터 주소들
+        private readonly Dictionary<byte, nint> _playerUnitPointers = new Dictionary<byte, nint>();
+        private nint _starcraftBaseAddress;
+
         public UnitMemoryAdapter(IMemoryReader memoryReader)
         {
             _memoryReader = memoryReader ?? throw new ArgumentNullException(nameof(memoryReader));
@@ -89,6 +93,12 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 }
 
                 Console.WriteLine($"[UnitMemoryAdapter] StarCraft.exe 베이스 주소: 0x{starcraftModule.Value.modBaseAddr:X}");
+
+                // StarCraft 베이스 주소 저장
+                _starcraftBaseAddress = starcraftModule.Value.modBaseAddr;
+                
+                // 플레이어별 유닛 포인터 주소 초기화
+                InitializePlayerUnitPointers();
 
                 // Step 1: 포인터 주소 계산
                 nint pointerAddress = starcraftModule.Value.modBaseAddr + 0xE77FE0 + 0x80;
@@ -323,18 +333,24 @@ namespace StarcUp.Business.Units.Runtime.Adapters
 
             try
             {
-                // 연결 리스트 방식으로 활성 유닛들을 가져온 후 플레이어 필터링
-                var activeUnits = GetActiveUnitsFromLinkedList();
-                var playerUnits = activeUnits.Where(x => x.unit.playerIndex == playerId).Select(x => x.unit);
-                var playerUnitsList = playerUnits.ToList();
+                // nextAllyPointer를 사용한 효율적인 플레이어 유닛 조회
+                var playerUnits = GetPlayerUnits(playerId).ToList();
                 
-                Console.WriteLine($"[UnitMemoryAdapter] GetPlayerRawUnits(Player {playerId}): 연결 리스트에서 {playerUnitsList.Count}개 유닛 반환");
-                return playerUnitsList;
+                if (playerUnits.Count > 0)
+                {
+                    return playerUnits;
+                }
+                
+                // nextAllyPointer 방식이 실패하면 기존 방식으로 fallback
+                var activeUnits = GetActiveUnitsFromLinkedList();
+                var fallbackUnits = activeUnits.Where(x => x.unit.playerIndex == playerId).Select(x => x.unit).ToList();
+                
+                return fallbackUnits;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UnitMemoryAdapter] GetPlayerRawUnits 연결 리스트 방식 실패: {ex.Message}");
-                // fallback to old method
+                Console.WriteLine($"[UnitMemoryAdapter] GetPlayerRawUnits 실패: {ex.Message}");
+                // 마지막 fallback - 전체 스캔
                 return _units
                     .Take(_currentUnitCount)
                     .Where(unit => unit.playerIndex == playerId && IsRawUnitValid(unit));
@@ -497,12 +513,214 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             return dx * dx + dy * dy;
         }
 
+        /// <summary>
+        /// 플레이어별 유닛 포인터 주소 초기화
+        /// </summary>
+        private void InitializePlayerUnitPointers()
+        {
+            if (_starcraftBaseAddress == 0)
+            {
+                Console.WriteLine("[UnitMemoryAdapter] ❌ StarCraft 베이스 주소가 설정되지 않음");
+                return;
+            }
+
+            // 플레이어별 유닛 포인터 주소 계산
+            // 0번 플레이어: StarCraft.exe + E77FE0 + 20 = 0x20 오프셋
+            // 1번 플레이어: StarCraft.exe + E77FE0 + 28 = 0x28 오프셋 (0x20 + 8)
+            // 2번 플레이어: StarCraft.exe + E77FE0 + 30 = 0x30 오프셋 (0x20 + 16)
+            // 3번 플레이어: StarCraft.exe + E77FE0 + 38 = 0x38 오프셋 (0x20 + 24)
+            
+            _playerUnitPointers.Clear();
+            
+            for (byte playerId = 0; playerId < 8; playerId++) // 최대 8명 플레이어
+            {
+                nint playerPointerAddress = _starcraftBaseAddress + 0xE77FE0 + 0x20 + (playerId * 8);
+                _playerUnitPointers[playerId] = playerPointerAddress;
+                
+            }
+        }
+
+        /// <summary>
+        /// 특정 플레이어의 유닛만 nextAllyPointer를 통해 순회하여 반환 (IEnumerable 방식)
+        /// </summary>
+        /// <param name="playerId">플레이어 ID (0-7)</param>
+        /// <returns>해당 플레이어의 유닛 목록</returns>
+        public IEnumerable<UnitRaw> GetPlayerUnits(byte playerId)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(UnitMemoryAdapter));
+
+            if (!_playerUnitPointers.ContainsKey(playerId))
+            {
+                return Enumerable.Empty<UnitRaw>();
+            }
+
+            var playerUnits = new List<UnitRaw>();
+            
+            try
+            {
+                // 플레이어의 첫 번째 유닛 포인터 읽기
+                nint playerPointerAddress = _playerUnitPointers[playerId];
+                nint firstUnitPointer = _memoryReader.ReadPointer(playerPointerAddress);
+                
+                if (firstUnitPointer == 0)
+                {
+                    return playerUnits;
+                }
+
+                // nextAllyPointer를 따라가며 해당 플레이어의 유닛들 순회
+                nint currentUnitPointer = firstUnitPointer;
+                int iterations = 0;
+                const int maxIterations = 200; // 무한 루프 방지
+
+                while (currentUnitPointer != 0 && iterations < maxIterations)
+                {
+                    iterations++;
+
+                    // 포인터 주소가 유효한 유닛 배열 범위 내인지 확인
+                    if (currentUnitPointer < _unitArrayBaseAddress || 
+                        currentUnitPointer >= _unitArrayBaseAddress + (_maxUnits * _unitSize))
+                    {
+                        break;
+                    }
+
+                    // 유닛 인덱스 계산
+                    long unitOffset = currentUnitPointer - _unitArrayBaseAddress;
+                    if (unitOffset % _unitSize != 0)
+                    {
+                        break;
+                    }
+
+                    int unitIndex = (int)(unitOffset / _unitSize);
+                    if (unitIndex < 0 || unitIndex >= _maxUnits)
+                    {
+                        break;
+                    }
+
+                    // 유닛 데이터 가져오기
+                    var currentUnit = _units[unitIndex];
+                    
+                    // 유닛이 유효하고 해당 플레이어의 유닛인지 확인
+                    if (IsRawUnitValid(currentUnit) && currentUnit.playerIndex == playerId)
+                    {
+                        playerUnits.Add(currentUnit);
+                    }
+
+                    // 다음 아군 포인터로 이동
+                    currentUnitPointer = currentUnit.nextAllyPointer;
+                }
+
+                return playerUnits;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UnitMemoryAdapter] Player {playerId} 유닛 순회 중 오류: {ex.Message}");
+                return Enumerable.Empty<UnitRaw>();
+            }
+        }
+
+        /// <summary>
+        /// 특정 플레이어의 유닛을 Unit 배열에 직접 복사 (nextAllyPointer 사용, 최고 효율성)
+        /// </summary>
+        /// <param name="playerId">플레이어 ID (0-7)</param>
+        /// <param name="buffer">결과를 저장할 Unit 배열</param>
+        /// <param name="maxCount">버퍼의 최대 크기</param>
+        /// <returns>실제로 복사된 유닛 수</returns>
+        public int GetPlayerUnitsToBuffer(byte playerId, Unit[] buffer, int maxCount)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(UnitMemoryAdapter));
+
+            if (buffer == null)
+                throw new ArgumentNullException(nameof(buffer));
+
+            if (maxCount <= 0 || maxCount > buffer.Length)
+                throw new ArgumentException("Invalid maxCount", nameof(maxCount));
+
+            if (!_playerUnitPointers.ContainsKey(playerId))
+            {
+                return 0; // 플레이어 포인터가 설정되지 않음
+            }
+
+            int unitCount = 0;
+            
+            try
+            {
+                // 플레이어의 첫 번째 유닛 포인터 읽기
+                nint playerPointerAddress = _playerUnitPointers[playerId];
+                nint firstUnitPointer = _memoryReader.ReadPointer(playerPointerAddress);
+                
+                if (firstUnitPointer == 0)
+                {
+                    return 0; // 유닛 없음
+                }
+
+                // nextAllyPointer를 따라가며 해당 플레이어의 유닛들을 Unit으로 변환하여 버퍼에 직접 복사
+                nint currentUnitPointer = firstUnitPointer;
+                int iterations = 0;
+                const int maxIterations = 200; // 무한 루프 방지
+
+                while (currentUnitPointer != 0 && iterations < maxIterations && unitCount < maxCount)
+                {
+                    iterations++;
+
+                    // 포인터 주소가 유효한 유닛 배열 범위 내인지 확인
+                    if (currentUnitPointer < _unitArrayBaseAddress || 
+                        currentUnitPointer >= _unitArrayBaseAddress + (_maxUnits * _unitSize))
+                    {
+                        break;
+                    }
+
+                    // 유닛 인덱스 계산
+                    long unitOffset = currentUnitPointer - _unitArrayBaseAddress;
+                    if (unitOffset % _unitSize != 0)
+                    {
+                        break;
+                    }
+
+                    int unitIndex = (int)(unitOffset / _unitSize);
+                    if (unitIndex < 0 || unitIndex >= _maxUnits)
+                    {
+                        break;
+                    }
+
+                    // 유닛 데이터 가져오기
+                    var currentUnitRaw = _units[unitIndex];
+                    
+                    // 유닛이 유효하고 해당 플레이어의 유닛인지 확인
+                    if (IsRawUnitValid(currentUnitRaw) && currentUnitRaw.playerIndex == playerId)
+                    {
+                        // 기존 Unit 인스턴스에 UnitRaw 데이터를 직접 파싱 (메모리 재활용)
+                        buffer[unitCount].ParseRaw(currentUnitRaw);
+                        
+                        // Unit 레벨에서도 유효성 검사
+                        if (buffer[unitCount].IsValid)
+                        {
+                            unitCount++;
+                        }
+                    }
+
+                    // 다음 아군 포인터로 이동
+                    currentUnitPointer = currentUnitRaw.nextAllyPointer;
+                }
+
+                return unitCount;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UnitMemoryAdapter] Player {playerId} 유닛 버퍼 복사 중 오류: {ex.Message}");
+                return unitCount; // 지금까지 복사된 개수 반환
+            }
+        }
+
         public void InvalidateAddressCache()
         {
             Console.WriteLine("[UnitMemoryAdapter] 주소 캐시 무효화");
             _isAddressCached = false;
             _cachedUnitArrayAddress = 0;
             _unitArrayBaseAddress = 0;
+            _starcraftBaseAddress = 0;
+            _playerUnitPointers.Clear();
         }
 
         public void Dispose()
@@ -516,6 +734,8 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             _isAddressCached = false;
             _cachedUnitArrayAddress = 0;
             _unitArrayBaseAddress = 0;
+            _starcraftBaseAddress = 0;
+            _playerUnitPointers.Clear();
 
             _disposed = true;
             Console.WriteLine("UnitMemoryAdapter 리소스 정리 완료");

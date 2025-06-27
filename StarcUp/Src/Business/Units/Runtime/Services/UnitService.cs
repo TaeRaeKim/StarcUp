@@ -78,6 +78,15 @@ namespace StarcUp.Business.Units.Runtime.Services
                 .Where(IsUnitValid);
         }
 
+        public int GetPlayerUnitsToBuffer(byte playerId, Unit[] buffer, int maxCount)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(UnitService));
+
+            // UnitMemoryAdapter에서 직접 Unit 배열로 변환하여 반환 (유효성 검사 포함)
+            return _memoryAdapter.GetPlayerUnitsToBuffer(playerId, buffer, maxCount);
+        }
+
         public IEnumerable<Unit> GetUnitsByType(UnitType unitType)
         {
             if (_disposed)
