@@ -699,6 +699,68 @@ namespace StarcUp.Business.MemoryService
             }
         }
 
+        public bool ReadMemoryIntoBuffer(nint address, byte[] buffer, int size)
+        {
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadMemoryIntoBuffer: 프로세스에 연결되지 않음");
+                return false;
+            }
+
+            if (!IsValidAddress(address))
+            {
+                Console.WriteLine($"[MemoryService] ReadMemoryIntoBuffer: 잘못된 주소 0x{address:X}");
+                return false;
+            }
+
+            if (buffer == null || size <= 0 || size > buffer.Length)
+            {
+                Console.WriteLine("[MemoryService] ReadMemoryIntoBuffer: 잘못된 버퍼 또는 크기");
+                return false;
+            }
+
+            try
+            {
+                return _memoryReader.ReadMemoryIntoBuffer(address, buffer, size);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadMemoryIntoBuffer 오류: {ex.Message}");
+                return false;
+            }
+        }
+
+        public bool ReadStructureArrayIntoBuffer<T>(nint address, T[] buffer, int count) where T : unmanaged
+        {
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadStructureArrayIntoBuffer: 프로세스에 연결되지 않음");
+                return false;
+            }
+
+            if (!IsValidAddress(address))
+            {
+                Console.WriteLine($"[MemoryService] ReadStructureArrayIntoBuffer: 잘못된 주소 0x{address:X}");
+                return false;
+            }
+
+            if (buffer == null || count <= 0 || count > buffer.Length)
+            {
+                Console.WriteLine("[MemoryService] ReadStructureArrayIntoBuffer: 잘못된 버퍼 또는 카운트");
+                return false;
+            }
+
+            try
+            {
+                return _memoryReader.ReadStructureArrayIntoBuffer<T>(address, buffer, count);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadStructureArrayIntoBuffer 오류: {ex.Message}");
+                return false;
+            }
+        }
+
         public void DebugAllModules()
         {
             if (!IsConnected)
@@ -1045,24 +1107,6 @@ namespace StarcUp.Business.MemoryService
                 return "[읽기불가]";
 
             return new string(cleanChars);
-        }
-
-        private bool ReadMemoryIntoBuffer(nint address, byte[] buffer, int size)
-        {
-            try
-            {
-                byte[] data = _memoryReader.ReadMemoryRaw(address, size);
-                if (data != null && data.Length >= size)
-                {
-                    Array.Copy(data, buffer, size);
-                    return true;
-                }
-                return false;
-            }
-            catch
-            {
-                return false;
-            }
         }
 
         private bool IsInKernel32Range(nint pointer, ModuleInfo kernel32Module)

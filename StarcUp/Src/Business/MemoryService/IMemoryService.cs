@@ -36,6 +36,9 @@ namespace StarcUp.Business.MemoryService
         T ReadStructure<T>(nint address) where T : struct;
         T[] ReadStructureArray<T>(nint address, int count) where T : struct;
 
+        bool ReadMemoryIntoBuffer(nint address, byte[] buffer, int size);
+        bool ReadStructureArrayIntoBuffer<T>(nint address, T[] buffer, int count) where T : unmanaged;
+
         nint GetPebAddress();
         List<TebInfo> GetTebAddresses();
         /// <summary>

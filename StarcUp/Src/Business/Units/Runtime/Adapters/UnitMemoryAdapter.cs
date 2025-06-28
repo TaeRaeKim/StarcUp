@@ -1,5 +1,5 @@
 using StarcUp.Business.Units.Runtime.Models;
-using StarcUp.Infrastructure.Memory;
+using StarcUp.Business.MemoryService;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -11,7 +11,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
 {
     public class UnitMemoryAdapter : IUnitMemoryAdapter
     {
-        private readonly IMemoryReader _memoryReader;
+        private readonly IMemoryService _memoryService;
         private readonly int _maxUnits;
         private readonly int _unitSize;
 
@@ -30,9 +30,9 @@ namespace StarcUp.Business.Units.Runtime.Adapters
         private readonly Dictionary<byte, nint> _playerUnitPointers = new Dictionary<byte, nint>();
         private nint _starcraftBaseAddress;
 
-        public UnitMemoryAdapter(IMemoryReader memoryReader)
+        public UnitMemoryAdapter(IMemoryService memoryService)
         {
-            _memoryReader = memoryReader ?? throw new ArgumentNullException(nameof(memoryReader));
+            _memoryService = memoryService ?? throw new ArgumentNullException(nameof(memoryService));
 
             _maxUnits = 3400;
             _unitSize = Marshal.SizeOf<UnitRaw>();
@@ -85,29 +85,28 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 Console.WriteLine("[UnitMemoryAdapter] 유닛 배열 주소 계산 중...");
 
                 // StarCraft.exe 모듈 찾기
-                var starcraftModule = FindStarCraftModule();
-                if (starcraftModule == null)
+                if (!_memoryService.FindModule("StarCraft.exe", out var starcraftModule))
                 {
                     Console.WriteLine("[UnitMemoryAdapter] ❌ StarCraft.exe 모듈을 찾을 수 없습니다.");
                     return false;
                 }
 
-                Console.WriteLine($"[UnitMemoryAdapter] StarCraft.exe 베이스 주소: 0x{starcraftModule.Value.modBaseAddr:X}");
+                Console.WriteLine($"[UnitMemoryAdapter] StarCraft.exe 베이스 주소: 0x{starcraftModule.BaseAddress:X}");
 
                 // StarCraft 베이스 주소 저장
-                _starcraftBaseAddress = starcraftModule.Value.modBaseAddr;
+                _starcraftBaseAddress = starcraftModule.BaseAddress;
                 
                 // 플레이어별 유닛 포인터 주소 초기화
                 InitializePlayerUnitPointers();
 
                 // Step 1: 포인터 주소 계산
-                nint pointerAddress = starcraftModule.Value.modBaseAddr + 0xE77FE0 + 0x80;
+                nint pointerAddress = starcraftModule.BaseAddress + 0xE77FE0 + 0x80;
                 
                 // Step 2: 실제 유닛 배열 주소 읽기
-                nint finalUnitArrayAddress = _memoryReader.ReadPointer(pointerAddress);
+                nint finalUnitArrayAddress = _memoryService.ReadPointer(pointerAddress);
 
                 Console.WriteLine($"[UnitMemoryAdapter] 올바른 주소 계산:");
-                Console.WriteLine($"  - StarCraft.exe BaseAddr: 0x{starcraftModule.Value.modBaseAddr:X}");
+                Console.WriteLine($"  - StarCraft.exe BaseAddr: 0x{starcraftModule.BaseAddress:X}");
                 Console.WriteLine($"  - 포인터 주소 (Base + 0xE77FE0 + 0x80): 0x{pointerAddress:X}");
                 Console.WriteLine($"  - 실제 유닛 배열 주소 (포인터에서 읽은 값): 0x{finalUnitArrayAddress:X}");
 
@@ -150,84 +149,6 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             }
         }
 
-        private MemoryAPI.MODULEENTRY32? FindStarCraftModule()
-        {
-            // 가능한 모듈명 (정리된 버전)
-            string[] possibleNames = {
-                "StarCraft.exe",
-                "StarCraft"
-            };
-
-            Console.WriteLine("[UnitMemoryAdapter] 모듈 검색 시도...");
-
-            // PSAPI 방식 (EnumProcessModules) - 기존 성공 방식
-            foreach (string targetName in possibleNames)
-            {
-                var module = FindModuleByPSAPI(targetName);
-                if (module.HasValue)
-                {
-                    Console.WriteLine($"[UnitMemoryAdapter] PSAPI로 모듈 발견: {module.Value.szModule}");
-                    return module;
-                }
-            }
-
-            Console.WriteLine("[UnitMemoryAdapter] StarCraft 모듈을 찾을 수 없음");
-            return null;
-        }
-
-        private MemoryAPI.MODULEENTRY32? FindModuleByPSAPI(string targetName)
-        {
-            try
-            {
-                nint processHandle = _memoryReader.GetProcessHandle();
-                IntPtr[] moduleHandles = new IntPtr[1024];
-                uint bytesNeeded = 0;
-
-                if (!MemoryAPI.EnumProcessModules(processHandle, moduleHandles, 
-                    (uint)(moduleHandles.Length * IntPtr.Size), out bytesNeeded))
-                {
-                    return null;
-                }
-
-                int moduleCount = (int)(bytesNeeded / IntPtr.Size);
-                
-                for (int i = 0; i < moduleCount; i++)
-                {
-                    var moduleHandle = moduleHandles[i];
-                    if (moduleHandle == IntPtr.Zero) continue;
-
-                    var fileName = new StringBuilder(256);
-                    uint result = MemoryAPI.GetModuleFileNameEx(processHandle, moduleHandle, fileName, 256);
-                    
-                    if (result > 0)
-                    {
-                        string moduleName = System.IO.Path.GetFileName(fileName.ToString());
-                        
-                        if (moduleName.IndexOf(targetName, StringComparison.OrdinalIgnoreCase) >= 0)
-                        {
-                            // MODULEENTRY32 구조로 변환
-                            if (_memoryReader.GetModuleInformation(moduleHandle, out var moduleInfo))
-                            {
-                                var moduleEntry = new MemoryAPI.MODULEENTRY32
-                                {
-                                    modBaseAddr = moduleInfo.lpBaseOfDll,
-                                    modBaseSize = moduleInfo.SizeOfImage,
-                                    szModule = moduleName,
-                                    szExePath = fileName.ToString()
-                                };
-                                return moduleEntry;
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[UnitMemoryAdapter] PSAPI 모듈 검색 오류: {ex.Message}");
-            }
-
-            return null;
-        }
 
         public bool LoadAllUnits()
         {
@@ -256,7 +177,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 Array.Copy(_units, _previousUnits, _maxUnits);
 
                 
-                bool success = _memoryReader.ReadStructureArrayIntoBuffer<UnitRaw>(
+                bool success = _memoryService.ReadStructureArrayIntoBuffer<UnitRaw>(
                     _unitArrayBaseAddress, _units, _maxUnits);
 
                 if (!success)
@@ -561,7 +482,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             {
                 // 플레이어의 첫 번째 유닛 포인터 읽기
                 nint playerPointerAddress = _playerUnitPointers[playerId];
-                nint firstUnitPointer = _memoryReader.ReadPointer(playerPointerAddress);
+                nint firstUnitPointer = _memoryService.ReadPointer(playerPointerAddress);
                 
                 if (firstUnitPointer == 0)
                 {
@@ -648,7 +569,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             {
                 // 플레이어의 첫 번째 유닛 포인터 읽기
                 nint playerPointerAddress = _playerUnitPointers[playerId];
-                nint firstUnitPointer = _memoryReader.ReadPointer(playerPointerAddress);
+                nint firstUnitPointer = _memoryService.ReadPointer(playerPointerAddress);
                 
                 if (firstUnitPointer == 0)
                 {

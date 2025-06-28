@@ -3,8 +3,10 @@ using StarcUp.Business.InGameDetector;
 using StarcUp.Business.MemoryService;
 using StarcUp.Business.Units.Runtime.Adapters;
 using StarcUp.Business.Units.Runtime.Services;
+using StarcUp.Business.Units.Runtime.Repositories;
 using StarcUp.Business.Units.StaticData.Repositories;
 using StarcUp.Business.Game;
+using StarcUp.Business.GameManager.Extensions;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Windows;
 
@@ -45,16 +47,32 @@ namespace StarcUp.DependencyInjection
                 c => new UnitInfoRepository());
             container.RegisterSingleton<IUnitMemoryAdapter>(
                 c => new UnitMemoryAdapter(
-                    c.Resolve<IMemoryReader>()));
+                    c.Resolve<IMemoryService>()));
             container.RegisterSingleton<IUnitService>(
                 c => new UnitService(
                     c.Resolve<IUnitMemoryAdapter>()));
+
+            // Unit Count Services
+            container.RegisterSingleton<UnitOffsetRepository>(
+                c => new UnitOffsetRepository("Data"));
+            container.RegisterSingleton<IUnitCountAdapter>(
+                c => new UnitCountAdapter(
+                    c.Resolve<IMemoryService>(),
+                    c.Resolve<UnitOffsetRepository>()));
+            container.RegisterSingleton<IUnitCountService>(
+                c => new UnitCountService(
+                    c.Resolve<IUnitCountAdapter>()));
+
+            // PlayerExtensions에 UnitCountService 설정
+            var unitCountService = container.Resolve<IUnitCountService>();
+            PlayerExtensions.SetUnitCountService(unitCountService);
 
             container.RegisterSingleton<IGameManager>(
                 c => new GameManager(
                     c.Resolve<IInGameDetector>(),
                     c.Resolve<IUnitService>(),
-                    c.Resolve<IMemoryService>()));
+                    c.Resolve<IMemoryService>(),
+                    c.Resolve<IUnitCountService>()));
 
             Console.WriteLine("✅ 서비스 등록 완료:");
             Console.WriteLine("   📖 MemoryReader - 통합된 메모리 읽기 서비스");
@@ -65,6 +83,9 @@ namespace StarcUp.DependencyInjection
             Console.WriteLine("   🏗️ UnitInfoRepository - 유닛 정적 데이터 저장소");
             Console.WriteLine("   🔗 UnitMemoryAdapter - 유닛 메모리 접근 어댑터");
             Console.WriteLine("   ⚙️ UnitService - 유닛 비즈니스 로직 서비스");
+            Console.WriteLine("   🏗️ UnitOffsetRepository - 유닛 오프셋 설정 저장소");
+            Console.WriteLine("   🔢 UnitCountAdapter - 유닛 카운트 메모리 어댑터");
+            Console.WriteLine("   📊 UnitCountService - 유닛 카운트 관리 서비스");
             Console.WriteLine("   🎯 GameManager - 게임 관리 서비스 (자동 유닛 데이터 로딩)");
         }
     }

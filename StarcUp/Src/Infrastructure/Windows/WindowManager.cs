@@ -183,7 +183,7 @@ namespace StarcUp.Infrastructure.Windows
                         break;
 
                     case WindowsAPI.EVENT_SYSTEM_FOREGROUND:
-                        Console.WriteLine($"[WindowManager] 포어그라운드 변경: 0x{hwnd:X8}");
+                        //Console.WriteLine($"[WindowManager] 포어그라운드 변경: 0x{hwnd:X8}");
 
                         // 현재 프로세스는 무시
                         WindowsAPI.GetWindowThreadProcessId(hwnd, out uint processId);
