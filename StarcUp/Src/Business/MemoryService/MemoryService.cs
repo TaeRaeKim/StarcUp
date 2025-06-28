@@ -21,6 +21,7 @@ namespace StarcUp.Business.MemoryService
         private List<TebInfo> _cachedTebList;
         private ModuleInfo _cachedKernel32Module;
         private ModuleInfo _cachedUser32Module;
+        private ModuleInfo _cachedStarCraftModule;
 
         public bool IsConnected => _memoryReader?.IsConnected ?? false;
         public int ConnectedProcessId => _memoryReader?.ConnectedProcessId ?? 0;
@@ -594,7 +595,7 @@ namespace StarcUp.Business.MemoryService
                 return false;
             }
 
-            var result = FindModuleCheatEngineStyle(moduleName);
+            var result = FindModule(moduleName);
             if (result != null)
             {
                 moduleInfo = result;
@@ -642,6 +643,30 @@ namespace StarcUp.Business.MemoryService
                 Console.WriteLine("[MemoryService] user32 캐시 생성");
                 return moduleInfo;
             }
+            return null;
+        }
+        
+        public ModuleInfo GetStarCraftModule()
+        {
+            if (_cachedStarCraftModule != null)
+            {
+                return _cachedStarCraftModule;
+            }
+
+            string[] possibleNames = {"StarCraft.exe", "StarCraft"};
+            
+            foreach (string name in possibleNames)
+            {
+                Console.WriteLine($"[MemoryService] {name} 검색 시도...");
+                if (FindModule(name, out var moduleInfo))
+                {
+                    _cachedStarCraftModule = moduleInfo;
+                    Console.WriteLine($"[MemoryService] kernel32 모듈 발견: {name}");
+                    return moduleInfo;
+                }
+            }
+            
+            Console.WriteLine("[MemoryService] starcraft 모듈을 찾지 못했습니다.");
             return null;
         }
 
@@ -917,7 +942,7 @@ namespace StarcUp.Business.MemoryService
             }
         }
 
-        public ModuleInfo FindModuleCheatEngineStyle(string targetModuleName)
+        public ModuleInfo FindModule(string targetModuleName)
         {
             if (!IsConnected)
             {
@@ -1128,14 +1153,15 @@ namespace StarcUp.Business.MemoryService
 
             try
             {
-                if (!FindModule("StarCraft.exe", out var starcraftModule))
+                var starcraftModule = GetStarCraftModule();
+                if (starcraftModule == null)
                 {
-                    Console.WriteLine("[MemoryService] ReadLocalPlayerIndex: StarCraft.exe 모듈을 찾을 수 없음");
+                    Console.WriteLine("[MemoryService] ReadLocalPlayerIndex: StarCraft 모듈을 찾을 수 없음");
                     return -1;
                 }
 
                 nint localPlayerIndexAddress = starcraftModule.BaseAddress + 0xDD5B5C;
-                int localPlayerIndex = ReadInt(localPlayerIndexAddress);
+                int localPlayerIndex = ReadByte(localPlayerIndexAddress);
                 
                 Console.WriteLine($"[MemoryService] LocalPlayerIndex 읽기 성공: {localPlayerIndex}");
                 return localPlayerIndex;

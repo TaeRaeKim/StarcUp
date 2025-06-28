@@ -13,9 +13,9 @@ namespace StarcUp.Business.Units.Runtime.Adapters
         bool RefreshUnits();
         
         IEnumerable<UnitRaw> GetAllRawUnits();
-        IEnumerable<UnitRaw> GetPlayerRawUnits(byte playerId);
-        IEnumerable<UnitRaw> GetPlayerUnits(byte playerId);
-        int GetPlayerUnitsToBuffer(byte playerId, Unit[] buffer, int maxCount);
+        IEnumerable<UnitRaw> GetPlayerRawUnits(int playerId);
+        IEnumerable<UnitRaw> GetPlayerUnits(int playerId);
+        int GetPlayerUnitsToBuffer(int playerId, Unit[] buffer, int maxCount);
         IEnumerable<UnitRaw> GetRawUnitsByType(ushort unitType);
         IEnumerable<UnitRaw> GetRawUnitsNearPosition(ushort x, ushort y, int radius);
         IEnumerable<(int Index, UnitRaw Current, UnitRaw Previous)> GetChangedRawUnits();

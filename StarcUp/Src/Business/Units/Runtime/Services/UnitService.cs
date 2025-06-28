@@ -68,7 +68,7 @@ namespace StarcUp.Business.Units.Runtime.Services
                 .Where(IsUnitValid);
         }
 
-        public IEnumerable<Unit> GetPlayerUnits(byte playerId)
+        public IEnumerable<Unit> GetPlayerUnits(int playerId)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UnitService));
@@ -78,7 +78,7 @@ namespace StarcUp.Business.Units.Runtime.Services
                 .Where(IsUnitValid);
         }
 
-        public int GetPlayerUnitsToBuffer(byte playerId, Unit[] buffer, int maxCount)
+        public int GetPlayerUnitsToBuffer(int playerId, Unit[] buffer, int maxCount)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UnitService));

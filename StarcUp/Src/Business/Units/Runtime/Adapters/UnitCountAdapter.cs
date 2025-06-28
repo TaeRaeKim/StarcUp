@@ -50,14 +50,17 @@ namespace StarcUp.Business.Units.Runtime.Adapters
 
                 // MemoryService의 GetThreadStackAddress 사용
                 var threadStackAddress = _memoryService.GetThreadStackAddress(0);
+                Console.WriteLine($"[UnitCountAdapter] THREADSTACK0 주소: 0x{threadStackAddress:X}");
+
                 if (threadStackAddress == 0)
                 {
                     Console.WriteLine("[UnitCountAdapter] ❌ THREADSTACK0 주소를 찾을 수 없습니다.");
                     return false;
                 }
 
-                // ThreadStack0 + _baseOffset( -0x520)으로 포인터 읽기
-                nint pointerAddress = _memoryService.ReadPointer(threadStackAddress + _baseOffset);
+                Console.WriteLine($"[UnitCountAdapter] 포인터 읽기 시도: 0x{threadStackAddress - _baseOffset:X}");
+
+                nint pointerAddress = _memoryService.ReadPointer(threadStackAddress - _baseOffset);
                 if (pointerAddress == 0)
                 {
                     Console.WriteLine("[UnitCountAdapter] ❌ 포인터 읽기 실패");
@@ -117,7 +120,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             }
         }
 
-        public int GetUnitCount(UnitType unitType, byte playerIndex, bool includeProduction = false)
+        public int GetUnitCount(UnitType unitType, int playerIndex, bool includeProduction = false)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UnitCountAdapter));
@@ -155,7 +158,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             }
         }
 
-        public Dictionary<UnitType, int> GetAllUnitCounts(byte playerIndex, bool includeProduction = false)
+        public Dictionary<UnitType, int> GetAllUnitCounts(int playerIndex, bool includeProduction = false)
         {
             var result = new Dictionary<UnitType, int>();
 
@@ -171,7 +174,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             return result;
         }
 
-        public List<UnitCount> GetAllUnitCountsToBuffer(byte playerIndex, bool includeProduction = false)
+        public List<UnitCount> GetAllUnitCountsToBuffer(int playerIndex, bool includeProduction = false)
         {
             var result = new List<UnitCount>();
 

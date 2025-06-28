@@ -35,7 +35,7 @@ namespace StarcUp.Business.Units.Runtime.Services
         /// <param name="playerIndex">플레이어 인덱스 (0-7)</param>
         /// <param name="includeProduction">생산중인 유닛 포함 여부</param>
         /// <returns>유닛 개수</returns>
-        int GetUnitCount(UnitType unitType, byte playerIndex, bool includeProduction = false);
+        int GetUnitCount(UnitType unitType, int playerIndex, bool includeProduction = false);
 
         /// <summary>
         /// 특정 플레이어의 모든 유닛 카운트 조회
@@ -43,7 +43,7 @@ namespace StarcUp.Business.Units.Runtime.Services
         /// <param name="playerIndex">플레이어 인덱스 (0-7)</param>
         /// <param name="includeProduction">생산중인 유닛 포함 여부</param>
         /// <returns>UnitCount 객체 리스트</returns>
-        List<UnitCount> GetAllUnitCounts(byte playerIndex, bool includeProduction = false);
+        List<UnitCount> GetAllUnitCounts(int playerIndex, bool includeProduction = false);
 
         /// <summary>
         /// 특정 플레이어의 특정 카테고리 유닛 카운트 조회
@@ -52,7 +52,7 @@ namespace StarcUp.Business.Units.Runtime.Services
         /// <param name="category">유닛 카테고리</param>
         /// <param name="includeProduction">생산중인 유닛 포함 여부</param>
         /// <returns>UnitCount 객체 리스트</returns>
-        List<UnitCount> GetUnitCountsByCategory(byte playerIndex, UnitCategory category, bool includeProduction = false);
+        List<UnitCount> GetUnitCountsByCategory(int playerIndex, UnitCategory category, bool includeProduction = false);
 
         /// <summary>
         /// 서비스 실행 상태

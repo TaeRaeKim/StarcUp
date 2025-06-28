@@ -30,7 +30,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
         /// <param name="playerIndex">플레이어 인덱스 (0-7)</param>
         /// <param name="includeProduction">생산중인 유닛 포함 여부</param>
         /// <returns>유닛 개수</returns>
-        int GetUnitCount(UnitType unitType, byte playerIndex, bool includeProduction = false);
+        int GetUnitCount(UnitType unitType, int playerIndex, bool includeProduction = false);
 
         /// <summary>
         /// 특정 플레이어의 모든 유닛 카운트 조회 (Dictionary 형태)
@@ -38,7 +38,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
         /// <param name="playerIndex">플레이어 인덱스 (0-7)</param>
         /// <param name="includeProduction">생산중인 유닛 포함 여부</param>
         /// <returns>유닛 타입별 카운트</returns>
-        Dictionary<UnitType, int> GetAllUnitCounts(byte playerIndex, bool includeProduction = false);
+        Dictionary<UnitType, int> GetAllUnitCounts(int playerIndex, bool includeProduction = false);
 
         /// <summary>
         /// 특정 플레이어의 모든 유닛 카운트 조회 (UnitCount 리스트 형태)
@@ -46,7 +46,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
         /// <param name="playerIndex">플레이어 인덱스 (0-7)</param>
         /// <param name="includeProduction">생산중인 유닛 포함 여부</param>
         /// <returns>UnitCount 객체 리스트</returns>
-        List<UnitCount> GetAllUnitCountsToBuffer(byte playerIndex, bool includeProduction = false);
+        List<UnitCount> GetAllUnitCountsToBuffer(int playerIndex, bool includeProduction = false);
 
         /// <summary>
         /// 유닛 카운트 데이터 새로고침

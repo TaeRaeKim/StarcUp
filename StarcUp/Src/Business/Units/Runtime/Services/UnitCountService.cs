@@ -1,37 +1,30 @@
 using StarcUp.Business.Units.Runtime.Adapters;
 using StarcUp.Business.Units.Runtime.Models;
 using StarcUp.Business.Units.Types;
-using System.Timers;
 
 namespace StarcUp.Business.Units.Runtime.Services
 {
     public class UnitCountService : IUnitCountService
     {
         private readonly IUnitCountAdapter _unitCountAdapter;
-        private readonly System.Timers.Timer _updateTimer;
         private readonly object _lockObject = new object();
         
         private bool _disposed;
-        private bool _isRunning;
+        private bool _isInitialized;
         private DateTime _lastUpdateTime;
 
         // 캐시된 데이터 (최근 업데이트된 유닛 카운트들)
         private readonly Dictionary<byte, Dictionary<UnitType, UnitCount>> _cachedCompletedCounts = new();
         private readonly Dictionary<byte, Dictionary<UnitType, UnitCount>> _cachedProductionCounts = new();
 
-        public bool IsRunning => _isRunning;
+        public bool IsRunning => _isInitialized;
         public DateTime LastUpdateTime => _lastUpdateTime;
 
         public UnitCountService(IUnitCountAdapter unitCountAdapter)
         {
             _unitCountAdapter = unitCountAdapter ?? throw new ArgumentNullException(nameof(unitCountAdapter));
 
-            // 1초에 10번 = 100ms 간격
-            _updateTimer = new System.Timers.Timer(100);
-            _updateTimer.Elapsed += OnTimerElapsed;
-            _updateTimer.AutoReset = true;
-
-            Console.WriteLine("[UnitCountService] 초기화 완료 - 업데이트 간격: 100ms");
+            Console.WriteLine("[UnitCountService] 초기화 완료 - 수동 업데이트 방식");
         }
 
         public bool Initialize()
@@ -55,11 +48,9 @@ namespace StarcUp.Business.Units.Runtime.Services
                     return false;
                 }
 
-                // 타이머 시작
-                _updateTimer.Start();
-                _isRunning = true;
+                _isInitialized = true;
 
-                Console.WriteLine("[UnitCountService] ✅ 서비스 초기화 및 시작 완료");
+                Console.WriteLine("[UnitCountService] ✅ 서비스 초기화 완료");
                 return true;
             }
             catch (Exception ex)
@@ -74,8 +65,7 @@ namespace StarcUp.Business.Units.Runtime.Services
             if (_disposed)
                 return;
 
-            _updateTimer.Stop();
-            _isRunning = false;
+            _isInitialized = false;
             Console.WriteLine("[UnitCountService] 서비스 중지됨");
         }
 
@@ -122,19 +112,19 @@ namespace StarcUp.Business.Units.Runtime.Services
             _cachedProductionCounts[playerId] = productionCounts.ToDictionary(uc => uc.UnitType, uc => uc);
         }
 
-        public int GetUnitCount(UnitType unitType, byte playerIndex, bool includeProduction = false)
+        public int GetUnitCount(UnitType unitType, int playerIndex, bool includeProduction = false)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UnitCountService));
 
-            if (playerIndex >= 8)
+            if (playerIndex < 0 || playerIndex >= 8)
                 throw new ArgumentOutOfRangeException(nameof(playerIndex), "플레이어 인덱스는 0-7 범위여야 합니다.");
 
             lock (_lockObject)
             {
                 var cache = includeProduction ? _cachedProductionCounts : _cachedCompletedCounts;
                 
-                if (cache.TryGetValue(playerIndex, out var playerCounts) &&
+                if (cache.TryGetValue((byte)playerIndex, out var playerCounts) &&
                     playerCounts.TryGetValue(unitType, out var unitCount))
                 {
                     return includeProduction ? unitCount.TotalCount : unitCount.CompletedCount;
@@ -144,19 +134,19 @@ namespace StarcUp.Business.Units.Runtime.Services
             }
         }
 
-        public List<UnitCount> GetAllUnitCounts(byte playerIndex, bool includeProduction = false)
+        public List<UnitCount> GetAllUnitCounts(int playerIndex, bool includeProduction = false)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UnitCountService));
 
-            if (playerIndex >= 8)
+            if (playerIndex < 0 || playerIndex >= 8)
                 throw new ArgumentOutOfRangeException(nameof(playerIndex), "플레이어 인덱스는 0-7 범위여야 합니다.");
 
             lock (_lockObject)
             {
                 var cache = includeProduction ? _cachedProductionCounts : _cachedCompletedCounts;
                 
-                if (cache.TryGetValue(playerIndex, out var playerCounts))
+                if (cache.TryGetValue((byte)playerIndex, out var playerCounts))
                 {
                     return playerCounts.Values.Where(uc => uc.IsValid).ToList();
                 }
@@ -165,26 +155,12 @@ namespace StarcUp.Business.Units.Runtime.Services
             }
         }
 
-        public List<UnitCount> GetUnitCountsByCategory(byte playerIndex, UnitCategory category, bool includeProduction = false)
+        public List<UnitCount> GetUnitCountsByCategory(int playerIndex, UnitCategory category, bool includeProduction = false)
         {
             var allCounts = GetAllUnitCounts(playerIndex, includeProduction);
             return allCounts.Where(uc => uc.UnitType.GetCategory() == category).ToList();
         }
 
-        private void OnTimerElapsed(object? sender, ElapsedEventArgs e)
-        {
-            if (_disposed || !_isRunning)
-                return;
-
-            try
-            {
-                RefreshData();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[UnitCountService] 타이머 업데이트 중 오류: {ex.Message}");
-            }
-        }
 
         public void Dispose()
         {
@@ -192,7 +168,6 @@ namespace StarcUp.Business.Units.Runtime.Services
                 return;
 
             Stop();
-            _updateTimer?.Dispose();
             _unitCountAdapter?.Dispose();
 
             _cachedCompletedCounts.Clear();

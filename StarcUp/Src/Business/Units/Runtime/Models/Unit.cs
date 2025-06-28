@@ -115,6 +115,37 @@ namespace StarcUp.Business.Units.Runtime.Models
             }
         }
 
+        public void CopyFrom(Unit other)
+        {
+            if (other == null) return;
+
+            Health = other.Health;
+            Shield = other.Shield;
+            CurrentX = other.CurrentX;
+            CurrentY = other.CurrentY;
+            DestX = other.DestX;
+            DestY = other.DestY;
+            PlayerIndex = other.PlayerIndex;
+            UnitType = other.UnitType;
+            ActionIndex = other.ActionIndex;
+            ActionState = other.ActionState;
+            AttackCooldown = other.AttackCooldown;
+            Timer = other.Timer;
+            CurrentUpgrade = other.CurrentUpgrade;
+            CurrentUpgradeLevel = other.CurrentUpgradeLevel;
+
+            // ProductionQueue 배열 재활용
+            if (ProductionQueue == null || ProductionQueue.Length != 5)
+            {
+                ProductionQueue = new ushort[5];
+            }
+            
+            for (int i = 0; i < 5; i++)
+            {
+                ProductionQueue[i] = other.ProductionQueue[i];
+            }
+        }
+
         public override string ToString()
         {
             return $"{DisplayName} [Player={PlayerIndex}, HP={Health}/{Shield}, Pos=({CurrentX},{CurrentY})]";

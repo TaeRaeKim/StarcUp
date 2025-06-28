@@ -75,7 +75,7 @@ namespace StarcUp.Business.Units.Runtime.Repositories
         {
             var config = LoadConfig();
             var completedOffset = GetCompletedOffset(unitType);
-            return completedOffset + config.ProductionOffset;
+            return completedOffset - config.ProductionOffset;
         }
 
         public int GetPlayerOffset(UnitType unitType, byte playerIndex, bool includeProduction = false)

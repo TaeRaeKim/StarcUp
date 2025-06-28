@@ -27,7 +27,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
         private bool _isAddressCached;
 
         // 플레이어별 유닛 포인터 주소들
-        private readonly Dictionary<byte, nint> _playerUnitPointers = new Dictionary<byte, nint>();
+        private readonly Dictionary<int, nint> _playerUnitPointers = new Dictionary<int, nint>();
         private nint _starcraftBaseAddress;
 
         public UnitMemoryAdapter(IMemoryService memoryService)
@@ -247,7 +247,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             }
         }
 
-        public IEnumerable<UnitRaw> GetPlayerRawUnits(byte playerId)
+        public IEnumerable<UnitRaw> GetPlayerRawUnits(int playerId)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UnitMemoryAdapter));
@@ -264,7 +264,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 
                 // nextAllyPointer 방식이 실패하면 기존 방식으로 fallback
                 var activeUnits = GetActiveUnitsFromLinkedList();
-                var fallbackUnits = activeUnits.Where(x => x.unit.playerIndex == playerId).Select(x => x.unit).ToList();
+                var fallbackUnits = activeUnits.Where(x => x.unit.playerIndex == (byte)playerId).Select(x => x.unit).ToList();
                 
                 return fallbackUnits;
             }
@@ -274,7 +274,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 // 마지막 fallback - 전체 스캔
                 return _units
                     .Take(_currentUnitCount)
-                    .Where(unit => unit.playerIndex == playerId && IsRawUnitValid(unit));
+                    .Where(unit => unit.playerIndex == (byte)playerId && IsRawUnitValid(unit));
             }
         }
 
@@ -466,7 +466,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
         /// </summary>
         /// <param name="playerId">플레이어 ID (0-7)</param>
         /// <returns>해당 플레이어의 유닛 목록</returns>
-        public IEnumerable<UnitRaw> GetPlayerUnits(byte playerId)
+        public IEnumerable<UnitRaw> GetPlayerUnits(int playerId)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UnitMemoryAdapter));
@@ -522,7 +522,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                     var currentUnit = _units[unitIndex];
                     
                     // 유닛이 유효하고 해당 플레이어의 유닛인지 확인
-                    if (IsRawUnitValid(currentUnit) && currentUnit.playerIndex == playerId)
+                    if (IsRawUnitValid(currentUnit) && currentUnit.playerIndex == (byte)playerId)
                     {
                         playerUnits.Add(currentUnit);
                     }
@@ -547,7 +547,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
         /// <param name="buffer">결과를 저장할 Unit 배열</param>
         /// <param name="maxCount">버퍼의 최대 크기</param>
         /// <returns>실제로 복사된 유닛 수</returns>
-        public int GetPlayerUnitsToBuffer(byte playerId, Unit[] buffer, int maxCount)
+        public int GetPlayerUnitsToBuffer(int playerId, Unit[] buffer, int maxCount)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UnitMemoryAdapter));
@@ -609,7 +609,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                     var currentUnitRaw = _units[unitIndex];
                     
                     // 유닛이 유효하고 해당 플레이어의 유닛인지 확인
-                    if (IsRawUnitValid(currentUnitRaw) && currentUnitRaw.playerIndex == playerId)
+                    if (IsRawUnitValid(currentUnitRaw) && currentUnitRaw.playerIndex == (byte)playerId)
                     {
                         // 기존 Unit 인스턴스에 UnitRaw 데이터를 직접 파싱 (메모리 재활용)
                         buffer[unitCount].ParseRaw(currentUnitRaw);

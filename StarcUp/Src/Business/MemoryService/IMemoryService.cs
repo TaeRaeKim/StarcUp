@@ -47,14 +47,14 @@ namespace StarcUp.Business.MemoryService
         /// <param name="threadIndex">스레드 인덱스 (0부터 시작)</param>
         /// <returns>스택 상단 주소 (StackBase)</returns>
         nint GetStackTop(int threadIndex = 0);
-        
+
         /// <summary>
         /// 지정된 스레드의 스택 하단 주소를 가져옵니다 (TEB + 0x10, 낮은 주소)
         /// </summary>
         /// <param name="threadIndex">스레드 인덱스 (0부터 시작)</param>
         /// <returns>스택 하단 주소 (StackLimit)</returns>
         nint GetStackBottom(int threadIndex = 0);
-        
+
         /// <summary>
         /// 치트엔진 방식으로 스레드 스택 주소를 계산합니다 (kernel32 기반 검색)
         /// GameTime 등 특정 메모리 해킹 용도로 사용됩니다.
@@ -64,8 +64,10 @@ namespace StarcUp.Business.MemoryService
         nint GetThreadStackAddress(int threadIndex = 0);
 
         bool FindModule(string moduleName, out ModuleInfo moduleInfo);
+        ModuleInfo FindModule(string targetModuleName);
         ModuleInfo GetKernel32Module();
         ModuleInfo GetUser32Module();
+        ModuleInfo GetStarCraftModule();
 
         bool IsValidAddress(nint address);
         bool IsInModuleRange(nint address, string moduleName);
@@ -77,9 +79,7 @@ namespace StarcUp.Business.MemoryService
         void DebugAllModules();
 
         void DebugAllModulesCheatEngineStyle();
-
-        ModuleInfo FindModuleCheatEngineStyle(string targetModuleName);
-
+        
         void FindModulesByPattern(string searchPattern);
 
         int ReadLocalPlayerIndex();

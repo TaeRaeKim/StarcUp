@@ -63,9 +63,9 @@ namespace StarcUp.DependencyInjection
                 c => new UnitCountService(
                     c.Resolve<IUnitCountAdapter>()));
 
-            // PlayerExtensions에 UnitCountService 설정
-            var unitCountService = container.Resolve<IUnitCountService>();
-            PlayerExtensions.SetUnitCountService(unitCountService);
+
+            PlayerExtensions.SetUnitCountService(container.Resolve<IUnitCountService>());
+            PlayerExtensions.SetUnitService(container.Resolve<IUnitService>());
 
             container.RegisterSingleton<IGameManager>(
                 c => new GameManager(

@@ -14,8 +14,8 @@ namespace StarcUp.Business.Units.Runtime.Services
         bool RefreshUnits();
 
         IEnumerable<Unit> GetAllUnits();
-        IEnumerable<Unit> GetPlayerUnits(byte playerId);
-        int GetPlayerUnitsToBuffer(byte playerId, Unit[] buffer, int maxCount);
+        IEnumerable<Unit> GetPlayerUnits(int playerId);
+        int GetPlayerUnitsToBuffer(int playerId, Unit[] buffer, int maxCount);
         IEnumerable<Unit> GetUnitsByType(UnitType unitType);
         IEnumerable<Unit> GetUnitsNearPosition(ushort x, ushort y, int radius);
         IEnumerable<Unit> GetAliveUnits();

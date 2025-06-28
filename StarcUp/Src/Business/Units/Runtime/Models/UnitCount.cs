@@ -8,7 +8,7 @@ namespace StarcUp.Business.Units.Runtime.Models
     public class UnitCount
     {
         public UnitType UnitType { get; set; }
-        public byte PlayerIndex { get; set; }
+        public int PlayerIndex { get; set; }
         public int CompletedCount { get; set; }
         public int ProductionCount { get; set; }
         public int TotalCount => CompletedCount + ProductionCount;
@@ -17,7 +17,7 @@ namespace StarcUp.Business.Units.Runtime.Models
         {
         }
 
-        public UnitCount(UnitType unitType, byte playerIndex, int completedCount, int productionCount)
+        public UnitCount(UnitType unitType, int playerIndex, int completedCount, int productionCount)
         {
             UnitType = unitType;
             PlayerIndex = playerIndex;
@@ -28,7 +28,7 @@ namespace StarcUp.Business.Units.Runtime.Models
         /// <summary>
         /// 버퍼에서 읽어온 데이터로 객체 업데이트 (메모리 재사용)
         /// </summary>
-        public void ReadFromBuffer(UnitType unitType, byte playerIndex, int completedCount, int productionCount)
+        public void ReadFromBuffer(UnitType unitType, int playerIndex, int completedCount, int productionCount)
         {
             UnitType = unitType;
             PlayerIndex = playerIndex;
