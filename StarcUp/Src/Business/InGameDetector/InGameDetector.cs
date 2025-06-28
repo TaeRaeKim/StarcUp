@@ -1,3 +1,4 @@
+using StarcUp.Business.GameDetection;
 using StarcUp.Business.MemoryService;
 using StarcUp.Common.Constants;
 using StarcUp.Common.Events;
@@ -11,8 +12,6 @@ namespace StarcUp.Business.InGameDetector
         private bool _isMonitoring;
         private System.Timers.Timer _monitorTimer;
 
-        private ModuleInfo _starcraftModule;
-        private ModuleInfo _user32Module;
         private nint _cachedInGameAddress; // 캐싱된 InGame 상태 주소
         private bool _isAddressCached; // 주소 캐싱 여부
 
@@ -27,6 +26,7 @@ namespace StarcUp.Business.InGameDetector
             _memoryService.ProcessDisconnect += OnProcessDisconnect;
         }
 
+
         public void StartMonitoring(int processId)
         {
             if (_isMonitoring)
@@ -36,11 +36,9 @@ namespace StarcUp.Business.InGameDetector
 
             try
             {
-                CacheModuleInformation();
-
-                if (_starcraftModule == null || _user32Module == null)
+                if (GetIsAddress() == 0)
                 {
-                    Console.WriteLine("필수 모듈이 로드되지 않아 모니터링을 시작할 수 없습니다.");
+                    Console.WriteLine($"[InGameStateMonitor] ❌ InGame 상태 주소를 캐싱할 수 없습니다. 모니터링을 중지합니다.");
                     return;
                 }
 
@@ -69,80 +67,17 @@ namespace StarcUp.Business.InGameDetector
             _monitorTimer?.Dispose();
             _monitorTimer = null;
 
-            _starcraftModule = null;
-            _user32Module = null;
-            _cachedInGameAddress = 0;
-            _isAddressCached = false;
             IsInGame = false;
 
             _isMonitoring = false;
             Console.WriteLine("InGame 상태 모니터링 중지됨");
         }
 
-        private void CacheModuleInformation()
-        {
-            Console.WriteLine("[InGameStateMonitor] 모듈 정보 캐싱 시작...");
-
-            Console.WriteLine("[InGameStateMonitor] === 전체 모듈 목록 (치트엔진 스타일) ===");
-            _memoryService.DebugAllModulesCheatEngineStyle();
-
-            Console.WriteLine("[InGameStateMonitor] === StarCraft 관련 모듈 검색 ===");
-            _memoryService.FindModulesByPattern("star");
-
-            Console.WriteLine("[InGameStateMonitor] === StarCraft 모듈 검색 (치트엔진 스타일) ===");
-
-            // 간소화된 모듈명 목록 (대소문자 구분 없이 처리됨)
-            string[] possibleNames = {
-                "StarCraft.exe",
-                "StarCraft"
-            };
-
-            foreach (string moduleName in possibleNames)
-            {
-                _starcraftModule = _memoryService.FindModuleCheatEngineStyle(moduleName);
-                if (_starcraftModule != null)
-                {
-                    Console.WriteLine($"[InGameStateMonitor] ★ StarCraft 모듈 발견: {_starcraftModule}");
-                    break;
-                }
-            }
-
-            if (_starcraftModule == null)
-            {
-                Console.WriteLine("[InGameStateMonitor] ❌ StarCraft 모듈을 찾을 수 없습니다.");
-            }
-
-            Console.WriteLine("[InGameStateMonitor] === USER32 모듈 검색 ===");
-            _user32Module = _memoryService.FindModuleCheatEngineStyle("user32.dll");
-
-            if (_user32Module != null)
-            {
-                Console.WriteLine($"[InGameStateMonitor] ★ USER32 모듈 발견: {_user32Module}");
-            }
-            else
-            {
-                Console.WriteLine("[InGameStateMonitor] ❌ USER32 모듈을 찾을 수 없습니다.");
-            }
-
-            Console.WriteLine("[InGameStateMonitor] === 모듈 캐싱 결과 ===");
-            Console.WriteLine($"StarCraft 모듈: {(_starcraftModule != null ? "✅ 성공" : "❌ 실패")}");
-            Console.WriteLine($"USER32 모듈: {(_user32Module != null ? "✅ 성공" : "❌ 실패")}");
-
-            if (_starcraftModule != null && _user32Module != null)
-            {
-                Console.WriteLine("[InGameStateMonitor] ✅ 모든 필수 모듈 로드 완료!");
-            }
-            else
-            {
-                Console.WriteLine("[InGameStateMonitor] ⚠️ 일부 모듈 로드 실패 - InGame 상태 모니터링이 제한될 수 있습니다.");
-            }
-        }
-
         private void CheckInGameState(object sender, System.Timers.ElapsedEventArgs e)
         {
             try
             {
-                if (!_memoryService.IsConnected || _starcraftModule == null || _user32Module == null)
+                if (!_memoryService.IsConnected)
                 {
                     StopMonitoring();
                     return;
@@ -169,64 +104,9 @@ namespace StarcUp.Business.InGameDetector
         {
             try
             {
-                // 캐싱된 주소가 있으면 바로 사용
-                if (_isAddressCached && _cachedInGameAddress != 0)
-                {
-                    //Console.WriteLine($"InGame 체크 (캐싱됨): 주소=0x{_cachedInGameAddress:X}");
-                    return _memoryService.ReadBool(_cachedInGameAddress);
-                }
+                var finalAddress = GetIsAddress(); ;
 
-                // 첫 번째 호출이거나 캐시가 무효한 경우 주소 계산
-                Console.WriteLine("[InGameDetector] InGame 주소 계산 중...");
-
-                // 1. TEB[0] 주소 가져오기 (첫 번째 스레드 = 메인 스레드)
-                var tebList = _memoryService.GetTebAddresses();
-                if (tebList.Count == 0)
-                {
-                    Console.WriteLine("TEB 주소를 가져올 수 없습니다.");
-                    return false;
-                }
-
-                // 2. TEB[0] 주소 직접 사용 (TEB + 0x30 값이 TEB 자체 주소이므로)
-                nint tebBaseAddress = tebList[0].TebAddress;
-
-                // 3. B 값 계산
-                nint bValue = CalculateBValue();
-                if (bValue == 0)
-                {
-                    Console.WriteLine("B 값을 계산할 수 없습니다.");
-                    return false;
-                }
-
-                // 4. 최종 주소 계산: [[TEB + 0x828] + [B] + 0xD8] + 0xB4
-                nint step1 = _memoryService.ReadPointer(tebBaseAddress + 0x828);
-                if (step1 == 0)
-                {
-                    Console.WriteLine("Step1 포인터 읽기 실패");
-                    return false;
-                }
-
-                nint step2 = _memoryService.ReadPointer(step1 + bValue + 0xD8);
-                if (step2 == 0)
-                {
-                    Console.WriteLine("Step2 포인터 읽기 실패");
-                    return false;
-                }
-
-                nint finalAddress = step2 + 0xB4;
-
-                // 5. 주소 캐싱
-                _cachedInGameAddress = finalAddress;
-                _isAddressCached = true;
-
-                Console.WriteLine($"[InGameDetector] ✅ InGame 주소 캐싱 완료: 0x{finalAddress:X}");
-                Console.WriteLine($"  - TEB[0]: 0x{tebBaseAddress:X}");
-                Console.WriteLine($"  - B값: 0x{bValue:X}");
-                Console.WriteLine($"  - 최종주소: 0x{finalAddress:X}");
-
-                // 6. InGame 상태 값 읽기
                 bool isInGame = _memoryService.ReadBool(finalAddress);
-                Console.WriteLine($"[InGameDetector] InGame 상태: {isInGame}");
 
                 return isInGame;
             }
@@ -238,10 +118,68 @@ namespace StarcUp.Business.InGameDetector
             }
         }
 
+        private nint GetIsAddress()
+        {
+            if (_isAddressCached && _cachedInGameAddress != 0)
+            {
+                return _cachedInGameAddress;
+            }
+
+            Console.WriteLine("[InGameDetector] InGame 주소 계산 중...");
+
+            // 1. TEB[0] 주소 가져오기 (첫 번째 스레드 = 메인 스레드)
+            var tebList = _memoryService.GetTebAddresses();
+            if (tebList.Count == 0)
+            {
+                Console.WriteLine("TEB 주소를 가져올 수 없습니다.");
+                return 0;
+            }
+
+            // 2. TEB[0] 주소 직접 사용 (TEB + 0x30 값이 TEB 자체 주소이므로)
+            nint tebBaseAddress = tebList[0].TebAddress;
+            Console.WriteLine($"  - TEB[0]: 0x{tebBaseAddress:X}");
+
+            // 3. B 값 계산
+            nint bValue = CalculateBValue();
+            if (bValue == 0)
+            {
+                Console.WriteLine("B 값을 계산할 수 없습니다.");
+                return 0;
+            }
+            Console.WriteLine($"  - B값: 0x{bValue:X}");
+
+            // 4. 최종 주소 계산: [[TEB + 0x828] + [B] + 0xD8] + 0xB4
+            nint step1 = _memoryService.ReadPointer(tebBaseAddress + 0x828);
+            if (step1 == 0)
+            {
+                Console.WriteLine("Step1 포인터 읽기 실패");
+                return 0;
+            }
+
+            nint step2 = _memoryService.ReadPointer(step1 + bValue + 0xD8);
+            if (step2 == 0)
+            {
+                Console.WriteLine("Step2 포인터 읽기 실패");
+                return 0;
+            }
+
+            nint finalAddress = step2 + 0xB4;
+            Console.WriteLine($"  - 최종주소: 0x{finalAddress:X}");
+
+            // 5. 주소 캐싱
+            _cachedInGameAddress = finalAddress;
+            _isAddressCached = true;
+
+            return finalAddress;
+        }
+
         private nint CalculateBValue()
         {
             try
             {
+                var _starcraftModule = _memoryService.GetStarCraftModule();
+                var _user32Module = _memoryService.GetUser32Module();
+
                 if (_starcraftModule == null || _user32Module == null)
                 {
                     Console.WriteLine("모듈 정보가 없습니다.");
@@ -290,6 +228,8 @@ namespace StarcUp.Business.InGameDetector
         public void Dispose()
         {
             StopMonitoring();
+            _cachedInGameAddress = 0;
+            _isAddressCached = false;
 
             if (_memoryService != null)
             {
