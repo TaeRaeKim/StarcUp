@@ -11,6 +11,7 @@ namespace StarcUp.Business.GameManager.Extensions
     public static class PlayerExtensions
     {
         private static IUnitCountService? _unitCountService;
+        private static IUnitService? _unitService;
 
         /// <summary>
         /// UnitCountService 인스턴스 설정 (DI 컨테이너에서 호출)
@@ -18,6 +19,14 @@ namespace StarcUp.Business.GameManager.Extensions
         public static void SetUnitCountService(IUnitCountService unitCountService)
         {
             _unitCountService = unitCountService;
+        }
+
+        /// <summary>
+        /// UnitService 인스턴스 설정 (DI 컨테이너에서 호출)
+        /// </summary>
+        public static void SetUnitService(IUnitService unitService)
+        {
+            _unitService = unitService;
         }
 
         /// <summary>
@@ -37,7 +46,14 @@ namespace StarcUp.Business.GameManager.Extensions
 
             try
             {
-                return _unitCountService.GetUnitCount(unitType, (byte)player.PlayerIndex, includeProduction);
+                // UnitType.AllUnits인 경우 모든 유닛의 총합 반환
+                if (unitType == UnitType.AllUnits)
+                {
+                    var allCounts = _unitCountService.GetAllUnitCounts(player.PlayerIndex, includeProduction);
+                    return allCounts.Sum(uc => includeProduction ? uc.TotalCount : uc.CompletedCount);
+                }
+
+                return _unitCountService.GetUnitCount(unitType, player.PlayerIndex, includeProduction);
             }
             catch (Exception ex)
             {
@@ -62,7 +78,7 @@ namespace StarcUp.Business.GameManager.Extensions
 
             try
             {
-                return _unitCountService.GetAllUnitCounts((byte)player.PlayerIndex, includeProduction);
+                return _unitCountService.GetAllUnitCounts(player.PlayerIndex, includeProduction);
             }
             catch (Exception ex)
             {
@@ -88,7 +104,7 @@ namespace StarcUp.Business.GameManager.Extensions
 
             try
             {
-                return _unitCountService.GetUnitCountsByCategory((byte)player.PlayerIndex, category, includeProduction);
+                return _unitCountService.GetUnitCountsByCategory(player.PlayerIndex, category, includeProduction);
             }
             catch (Exception ex)
             {
@@ -98,29 +114,33 @@ namespace StarcUp.Business.GameManager.Extensions
         }
 
         /// <summary>
-        /// 프로토스 건물 카운트 조회 (편의 메서드)
+        /// 플레이어의 유닛 정보를 업데이트합니다
         /// </summary>
-        public static int GetUnitCount(this Player player, UnitType unitType, IncludeProduction includeProduction)
+        /// <param name="player">플레이어</param>
+        public static void UpdateUnits(this Player player)
         {
-            return player.GetUnitCount(unitType, includeProduction == IncludeProduction.Yes);
+
+            if (_unitService == null)
+            {
+                Console.WriteLine("[PlayerExtensions] UnitService가 설정되지 않음");
+                return;
+            }
+
+            try
+            {
+                player.SetUnitCount(
+                    _unitService.GetPlayerUnitsToBuffer(
+                        player.PlayerIndex,
+                        player.GetPlayerUnits(),
+                        player.GetMaxUnits()
+                        )
+                    );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PlayerExtensions] Player {player.PlayerIndex} 유닛 업데이트 중 오류: {ex.Message}");
+            }
         }
-    }
 
-    /// <summary>
-    /// 생산중 유닛 포함 여부를 나타내는 열거형
-    /// </summary>
-    public enum IncludeProduction
-    {
-        No = 0,
-        Yes = 1
-    }
-
-    /// <summary>
-    /// 편의를 위한 상수 클래스 (사용자 요청 스타일)
-    /// </summary>
-    public static class ProductionConstants
-    {
-        public const IncludeProduction INCLUDE_PRODUCTION = IncludeProduction.Yes;
-        public const IncludeProduction EXCLUDE_PRODUCTION = IncludeProduction.No;
     }
 }
