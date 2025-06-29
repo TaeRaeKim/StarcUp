@@ -363,5 +363,5 @@ FodyWeavers.xsd
 *.sln.iml
 
 .claude/
-.github/
 CLAUDE.md
+.editorconfig
