@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>팀 컬러 변경 프로그램</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .file-input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .file-input-wrapper:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        .drop-zone {
+            width: 280px;
+            height: 200px;
+            border: 3px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 0;
+            position: relative;
+        }
+        
+        .drop-zone:hover {
+            border-color: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .drop-zone.dragover {
+            border-color: #00ff00;
+            background: rgba(0, 255, 0, 0.1);
+            transform: scale(1.02);
+        }
+        
+        .drop-zone-text {
+            text-align: center;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .drop-zone-subtext {
+            font-size: 12px;
+            opacity: 0.7;
+            text-align: center;
+        }
+        
+        .color-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .color-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 15px;
+        }
+        
+        .color-picker {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .color-picker:hover {
+            transform: scale(1.1);
+        }
+        
+        .preset-colors {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 15px;
+            justify-items: center;
+            max-width: 300px;
+        }
+        
+        .preset-color {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .preset-color:hover {
+            transform: scale(1.2);
+            border-color: white;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+        
+        .preset-color:hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+        }
+        
+        .size-control {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .size-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+            justify-content: center;
+        }
+        
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: white;
+            transition: all 0.3s ease;
+            padding: 4px 8px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .radio-label:hover {
+            color: #00ff88;
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .radio-label input[type="radio"] {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .radio-label input[type="radio"]:checked {
+            background: #00ff88;
+            border-color: #00ff88;
+        }
+        
+        .radio-label input[type="radio"]:checked::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 6px;
+            height: 6px;
+            background: white;
+            border-radius: 50%;
+        }
+        
+        .radio-label input[type="radio"]:hover {
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .checkbox-label:hover {
+            color: #00ff88;
+        }
+        
+        .checkbox-label input[type="checkbox"] {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .checkbox-label input[type="checkbox"]:checked {
+            background: #00ff88;
+            border-color: #00ff88;
+        }
+        
+        .checkbox-label input[type="checkbox"]:checked::after {
+            content: '✓';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .checkbox-label input[type="checkbox"]:hover {
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .small-size-container {
+            background-color: rgba(0, 0, 0, 0.75) !important;
+            border: 2px solid rgba(255, 255, 255, 0.3) !important;
+            border-radius: 4px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            position: relative !important;
+        }
+        
+        .download-btn {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+            margin-top: 8px;
+        }
+        
+        .download-btn:hover {
+            background: linear-gradient(135deg, #45a049, #3d8b40);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+        
+        .download-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 10px rgba(76, 175, 80, 0.3);
+        }
+        
+        .download-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .canvas-container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+        
+        .canvas-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            min-height: 350px; /* 32x32 모드에서도 레이아웃 안정성 확보 */
+            justify-content: flex-start;
+        }
+        
+        .canvas-group canvas {
+            display: block;
+            margin: 0 auto;
+        }
+        
+        canvas {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            background-image: 
+                linear-gradient(45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #ccc 75%), 
+                linear-gradient(-45deg, transparent 75%, #ccc 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease;
+        }
+        
+        #resultCanvas {
+            background: transparent !important;
+        }
+        
+        canvas:hover {
+            transform: scale(1.02);
+        }
+        
+        .canvas-label {
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        .info {
+            text-align: center;
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            line-height: 1.6;
+        }
+        
+        .sample-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            margin-top: 5px;
+        }
+        
+        .sample-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        .debug-info {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 팀 컬러 변경 프로그램</h1>
+        
+        <div class="controls">
+            <div class="file-input-group">
+                <div class="drop-zone" id="diffuseDropZone">
+                    <div class="drop-zone-text">📸 Diffuse 이미지</div>
+                    <div class="drop-zone-subtext">클릭하거나 파일을 드래그하세요</div>
+                    <input type="file" id="diffuseFile" accept="image/*" style="display: none;">
+                </div>
+                <div class="file-input-wrapper" onclick="document.getElementById('diffuseFile').click()">
+                    <span>📁 파일 선택</span>
+                </div>
+                <button class="sample-btn" onclick="teamColorChanger.createSampleDiffuse()">샘플 생성</button>
+            </div>
+            
+            <div class="file-input-group">
+                <div class="drop-zone" id="teamColorDropZone">
+                    <div class="drop-zone-text">🎯 Team Color 마스크</div>
+                    <div class="drop-zone-subtext">클릭하거나 파일을 드래그하세요</div>
+                    <input type="file" id="teamColorFile" accept="image/*" style="display: none;">
+                </div>
+                <div class="file-input-wrapper" onclick="document.getElementById('teamColorFile').click()">
+                    <span>📁 파일 선택</span>
+                </div>
+                <button class="sample-btn" onclick="teamColorChanger.createSampleMask()">샘플 생성</button>
+            </div>
+            
+            <div class="color-controls">
+                <div class="color-group">
+                    <label>팀 컬러:</label>
+                    <input type="color" id="teamColorPicker" class="color-picker" value="#F40404">
+                </div>
+                
+                <div class="preset-colors">
+                    <div class="preset-color" style="background-color: #F40404" data-color="#F40404" title="Red"></div>
+                    <div class="preset-color" style="background-color: #0C48CC" data-color="#0C48CC" title="Blue"></div>
+                    <div class="preset-color" style="background-color: #2CB494" data-color="#2CB494" title="Teal"></div>
+                    <div class="preset-color" style="background-color: #88409C" data-color="#88409C" title="Purple"></div>
+                    <div class="preset-color" style="background-color: #F88C14" data-color="#F88C14" title="Orange"></div>
+                    <div class="preset-color" style="background-color: #703014" data-color="#703014" title="Brown"></div>
+                    <div class="preset-color" style="background-color: #CCE0D0" data-color="#CCE0D0" title="White"></div>
+                    <div class="preset-color" style="background-color: #FCFC38" data-color="#FCFC38" title="Yellow"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <div class="canvas-group">
+                <canvas id="originalCanvas" width="300" height="300"></canvas>
+                <div class="canvas-label">원본 이미지</div>
+            </div>
+            
+            <div class="canvas-group">
+                <canvas id="maskCanvas" width="300" height="300"></canvas>
+                <div class="canvas-label">팀 컬러 마스크</div>
+            </div>
+            
+            <div class="canvas-group">
+                <canvas id="resultCanvas" width="300" height="300"></canvas>
+                <div class="canvas-label">결과 이미지</div>
+                <div class="size-control">
+                    <div class="size-options">
+                        <label class="radio-label">
+                            <input type="radio" name="sizeToggle" id="originalSizeToggle" checked>
+                            <span class="checkmark"></span>
+                            원본 크기
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="sizeToggle" id="size32Toggle" value="32">
+                            <span class="checkmark"></span>
+                            32x32
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="sizeToggle" id="size48Toggle" value="48">
+                            <span class="checkmark"></span>
+                            48x48
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="sizeToggle" id="size64Toggle" value="64">
+                            <span class="checkmark"></span>
+                            64x64
+                        </label>
+                    </div>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="autoCropToggle" checked>
+                        <span class="checkmark"></span>
+                        동적 캔버스 크기 조절
+                    </label>
+                    <button class="download-btn" onclick="teamColorChanger.downloadResult()">
+                        📥 결과 이미지 다운로드
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info">
+            <p><strong>사용 방법:</strong></p>
+            <p>1. <strong>파일 업로드 방법:</strong></p>
+            <p>   • 드롭존을 클릭하여 파일 선택</p>
+            <p>   • 파일을 드래그해서 드롭존에 드롭</p>
+            <p>   • "파일 선택" 버튼 클릭</p>
+            <p>   • "샘플 생성" 버튼으로 테스트</p>
+            <p>2. 팀 컬러를 선택하거나 프리셋 컬러를 클릭하세요</p>
+            <p>3. 실시간으로 팀 컬러가 적용된 결과를 확인하세요!</p>
+            <p>4. <strong>"동적 캔버스 크기 조절"</strong>로 캔버스를 객체 크기에 딱 맞게 조절 (완전한 여백 제거)</p>
+            <p>5. <strong>크기 옵션 선택</strong>으로 32x32, 48x48, 64x64 크기로 게임 내 실제 크기 확인</p>
+            <p>6. <strong>"결과 이미지 다운로드"</strong>로 완성된 팀 컬러 이미지 저장</p>
+            <p><small>🎯 픽셀 퍼펙트: 동적 크기 조절 시 패딩 없이 완전한 여백 제거</small></p>
+            <p><small>⚡ 크기 안정성: 색상 변경 시에도 이미지 크기가 일정하게 유지</small></p>
+        </div>
+        
+        <div id="debugInfo" class="debug-info" style="display: none;"></div>
+    </div>
+
+    <script>
+        class TeamColorChanger {
+            constructor() {
+                this.diffuseImage = null;
+                this.teamColorImage = null;
+                this.currentTeamColor = '#F40404'; // Red로 기본값 변경
+                this.autoCropEnabled = true; // 자동 여백 제거 기본값
+                
+                this.initializeCanvases();
+                this.bindEvents();
+            }
+            
+            initializeCanvases() {
+                this.originalCanvas = document.getElementById('originalCanvas');
+                this.maskCanvas = document.getElementById('maskCanvas');
+                this.resultCanvas = document.getElementById('resultCanvas');
+                
+                this.originalCtx = this.originalCanvas.getContext('2d');
+                this.maskCtx = this.maskCanvas.getContext('2d');
+                this.resultCtx = this.resultCanvas.getContext('2d');
+                
+                // 기본 배경 설정
+                this.clearCanvas(this.originalCtx, '원본 이미지를 업로드하세요');
+                this.clearCanvas(this.maskCtx, '팀 컬러 마스크를 업로드하세요');
+                this.clearCanvas(this.resultCtx, '이미지를 업로드하면 결과가 표시됩니다');
+                
+                // 결과 캔버스 크기 초기화
+                this.resetResultCanvasSize();
+            }
+            
+            resetResultCanvasSize() {
+                // 결과 캔버스를 기본 크기로 재설정
+                this.resultCanvas.width = 300;
+                this.resultCanvas.height = 300;
+                this.clearCanvas(this.resultCtx, '이미지를 업로드하면 결과가 표시됩니다');
+            }
+            
+            clearCanvas(ctx, text) {
+                ctx.clearRect(0, 0, 300, 300);
+                // 반투명 회색 배경으로 텍스트 가독성 확보
+                ctx.fillStyle = 'rgba(240, 240, 240, 0.8)';
+                ctx.fillRect(50, 140, 200, 30);
+                ctx.fillStyle = '#666';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(text, 150, 160);
+            }
+            
+            bindEvents() {
+                // 파일 업로드 이벤트
+                document.getElementById('diffuseFile').addEventListener('change', (e) => {
+                    this.log('Diffuse 파일 선택됨');
+                    this.loadImage(e.target.files[0], 'diffuse');
+                });
+                
+                document.getElementById('teamColorFile').addEventListener('change', (e) => {
+                    this.log('Team Color 파일 선택됨');
+                    this.loadImage(e.target.files[0], 'teamColor');
+                });
+                
+                // 드래그앤드롭 이벤트 설정
+                this.setupDropZone('diffuseDropZone', 'diffuseFile', 'diffuse');
+                this.setupDropZone('teamColorDropZone', 'teamColorFile', 'teamColor');
+                
+                // 컬러 피커 이벤트
+                document.getElementById('teamColorPicker').addEventListener('input', (e) => {
+                    this.currentTeamColor = e.target.value;
+                    this.log(`팀 컬러 변경: ${this.currentTeamColor}`);
+                    this.applyTeamColor();
+                });
+                
+                // 프리셋 컬러 이벤트
+                document.querySelectorAll('.preset-color').forEach(colorDiv => {
+                    colorDiv.addEventListener('click', (e) => {
+                        const color = e.target.dataset.color;
+                        const colorName = e.target.getAttribute('title');
+                        this.currentTeamColor = color;
+                        document.getElementById('teamColorPicker').value = color;
+                        this.log(`프리셋 컬러 선택: ${colorName} (${color})`);
+                        this.applyTeamColor();
+                    });
+                });
+                
+                // 크기 라디오 버튼 이벤트
+                document.querySelectorAll('input[name="sizeToggle"]').forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        if (e.target.checked) {
+                            const size = e.target.value || 'original';
+                            this.toggleSize(size);
+                        }
+                    });
+                });
+                
+                // 자동 여백 제거 토글 이벤트
+                document.getElementById('autoCropToggle').addEventListener('change', (e) => {
+                    this.autoCropEnabled = e.target.checked;
+                    this.log(`동적 캔버스 크기 조절: ${this.autoCropEnabled ? '활성화' : '비활성화'}`);
+                    if (!this.autoCropEnabled) {
+                        // 비활성화 시 캔버스 크기를 기본값으로 복원
+                        this.resetResultCanvasSize();
+                    }
+                    this.applyTeamColor();
+                });
+            }
+            
+            setupDropZone(dropZoneId, fileInputId, type) {
+                const dropZone = document.getElementById(dropZoneId);
+                const fileInput = document.getElementById(fileInputId);
+                
+                // 클릭으로 파일 선택
+                dropZone.addEventListener('click', () => {
+                    this.log(`${type} 파일 선택 창 열기`);
+                    fileInput.click();
+                });
+                
+                // 드래그 이벤트 방지
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    dropZone.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                });
+                
+                // 드래그 오버 시각적 피드백
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    dropZone.addEventListener(eventName, () => {
+                        dropZone.classList.add('dragover');
+                    });
+                });
+                
+                ['dragleave', 'drop'].forEach(eventName => {
+                    dropZone.addEventListener(eventName, () => {
+                        dropZone.classList.remove('dragover');
+                    });
+                });
+                
+                // 파일 드롭 처리
+                dropZone.addEventListener('drop', (e) => {
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        const file = files[0];
+                        if (file.type.startsWith('image/')) {
+                            this.log(`${type} 파일 드롭됨: ${file.name}`);
+                            this.loadImage(file, type);
+                            // 파일 input에도 반영
+                            const dataTransfer = new DataTransfer();
+                            dataTransfer.items.add(file);
+                            fileInput.files = dataTransfer.files;
+                        } else {
+                            this.log(`${type}: 이미지 파일이 아닙니다`);
+                            alert('이미지 파일만 업로드 가능합니다.');
+                        }
+                    }
+                });
+                
+                // 전체 페이지 드래그 방지
+                document.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                });
+                document.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                });
+            }
+            
+            log(message) {
+                const debugDiv = document.getElementById('debugInfo');
+                debugDiv.style.display = 'block';
+                debugDiv.innerHTML += `[${new Date().toLocaleTimeString()}] ${message}<br>`;
+                console.log(message);
+            }
+            
+            createSampleDiffuse() {
+                this.log('샘플 Diffuse 이미지 생성 중...');
+                const canvas = document.createElement('canvas');
+                canvas.width = 200;
+                canvas.height = 200;
+                const ctx = canvas.getContext('2d');
+                
+                // 투명 배경 (검은 배경 대신)
+                
+                // 팀 컬러가 적용될 부분을 흰색으로
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(85, 60, 30, 20); // 가슴 부분
+                ctx.fillRect(90, 40, 20, 20); // 머리 부분
+                ctx.fillRect(70, 75, 8, 8); // 왼쪽 어깨 장식
+                ctx.fillRect(122, 75, 8, 8); // 오른쪽 어깨 장식
+                
+                // 회색으로 약간의 팀 컬러 적용
+                ctx.fillStyle = '#808080';
+                ctx.fillRect(75, 140, 50, 10); // 하체 일부
+                ctx.fillRect(99, 35, 2, 10); // 안테나
+                
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const img = new Image();
+                    img.onload = () => {
+                        this.teamColorImage = img;
+                        this.drawImageToCanvas(img, this.maskCtx);
+                        this.log('[SAMPLE] Team Color 마스크 생성 완료 (투명 배경)');
+                        // 샘플 생성 시 결과 캔버스 크기 초기화
+                        this.resetResultCanvasSize();
+                        this.applyTeamColor();
+                        URL.revokeObjectURL(url);
+                    };
+                    img.src = url;
+                }, 'image/png'); // PNG로 투명도 보존
+            }
+            
+            loadImage(file, type) {
+                if (!file) {
+                    this.log(`${type} 파일이 선택되지 않음`);
+                    return;
+                }
+                
+                this.log(`${type} 파일 로딩 시작: ${file.name} (${file.size} bytes)`);
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.log(`${type} 파일 읽기 완료`);
+                    const img = new Image();
+                    img.onload = () => {
+                        this.log(`${type} 이미지 로딩 완료: ${img.width}x${img.height}`);
+                        if (type === 'diffuse') {
+                            this.diffuseImage = img;
+                            this.drawImageToCanvas(img, this.originalCtx);
+                        } else if (type === 'teamColor') {
+                            this.teamColorImage = img;
+                            this.drawImageToCanvas(img, this.maskCtx);
+                        }
+                        // 새 이미지 로드 시 결과 캔버스 크기 초기화
+                        this.resetResultCanvasSize();
+                        this.applyTeamColor();
+                    };
+                    img.onerror = (error) => {
+                        this.log(`${type} 이미지 로딩 실패: ${error}`);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.onerror = (error) => {
+                    this.log(`${type} 파일 읽기 실패: ${error}`);
+                };
+                reader.readAsDataURL(file);
+            }
+            
+            drawImageToCanvas(img, ctx) {
+                const canvas = ctx.canvas;
+                const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+                const width = img.width * scale;
+                const height = img.height * scale;
+                const x = (canvas.width - width) / 2;
+                const y = (canvas.height - height) / 2;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // 투명 배경을 위해 fillRect 제거
+                ctx.drawImage(img, x, y, width, height);
+            }
+            
+            hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : null;
+            }
+            
+            applyTeamColor() {
+                if (!this.diffuseImage || !this.teamColorImage) {
+                    return;
+                }
+                
+                // 원본 크기로 임시 캔버스 생성하여 크기 축소 방지
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.width = 300;
+                tempCanvas.height = 300;
+                
+                // 팀 컬러 마스크용 임시 캔버스
+                const maskCanvas = document.createElement('canvas');
+                const maskCtx = maskCanvas.getContext('2d');
+                maskCanvas.width = 300;
+                maskCanvas.height = 300;
+                
+                // 원본 크기로 diffuse 이미지 그리기
+                this.drawImageToCanvas(this.diffuseImage, tempCtx);
+                
+                // 원본 크기로 팀 컬러 마스크 그리기
+                this.drawImageToCanvas(this.teamColorImage, maskCtx);
+                
+                // 이미지 데이터 가져오기
+                const diffuseData = tempCtx.getImageData(0, 0, 300, 300);
+                const maskData = maskCtx.getImageData(0, 0, 300, 300);
+                const resultData = tempCtx.createImageData(300, 300);
+                
+                const teamColor = this.hexToRgb(this.currentTeamColor);
+                
+                // 픽셀별로 처리
+                for (let i = 0; i < diffuseData.data.length; i += 4) {
+                    const maskIntensity = maskData.data[i] / 255; // 마스크의 밝기 (0-1)
+                    
+                    if (maskIntensity > 0.1) { // 마스크가 있는 부분
+                        // 원본 색상과 팀 컬러를 블렌딩
+                        const originalR = diffuseData.data[i];
+                        const originalG = diffuseData.data[i + 1];
+                        const originalB = diffuseData.data[i + 2];
+                        
+                        // 팀 컬러를 원본의 명도에 따라 조정
+                        const brightness = (originalR + originalG + originalB) / (3 * 255);
+                        
+                        resultData.data[i] = teamColor.r * brightness * maskIntensity + originalR * (1 - maskIntensity);
+                        resultData.data[i + 1] = teamColor.g * brightness * maskIntensity + originalG * (1 - maskIntensity);
+                        resultData.data[i + 2] = teamColor.b * brightness * maskIntensity + originalB * (1 - maskIntensity);
+                        resultData.data[i + 3] = diffuseData.data[i + 3]; // 알파 채널 유지
+                    } else {
+                        // 마스크가 없는 부분은 원본 그대로
+                        resultData.data[i] = diffuseData.data[i];
+                        resultData.data[i + 1] = diffuseData.data[i + 1];
+                        resultData.data[i + 2] = diffuseData.data[i + 2];
+                        resultData.data[i + 3] = diffuseData.data[i + 3];
+                    }
+                }
+                
+                // 결과를 임시 캔버스에 그리기
+                tempCtx.putImageData(resultData, 0, 0);
+                
+                // 결과 캔버스 크기 초기화
+                const resultCanvas = this.resultCanvas;
+                const resultCtx = this.resultCtx;
+                
+                if (this.autoCropEnabled) {
+                    // 동적 크기 조절이 활성화된 경우, 임시 캔버스에서 크롭
+                    this.applyCropToCanvas(tempCtx, resultCtx);
+                } else {
+                    // 고정 크기 모드: 300x300으로 설정 후 이미지 복사
+                    resultCanvas.width = 300;
+                    resultCanvas.height = 300;
+                    resultCtx.clearRect(0, 0, 300, 300);
+                    resultCtx.drawImage(tempCanvas, 0, 0);
+                }
+            }
+            
+            // 크롭 적용 함수 (원본 크기에서 크롭하여 결과 캔버스에 적용)
+            applyCropToCanvas(sourceCtx, targetCtx) {
+                const sourceCanvas = sourceCtx.canvas;
+                const imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+                const data = imageData.data;
+                
+                let minX = sourceCanvas.width;
+                let minY = sourceCanvas.height;
+                let maxX = -1;
+                let maxY = -1;
+                
+                // 의미있는 픽셀 임계값 (투명도 10% 이상)
+                const alphaThreshold = 25;
+                
+                // 투명하지 않은 픽셀의 정확한 경계 찾기
+                for (let y = 0; y < sourceCanvas.height; y++) {
+                    for (let x = 0; x < sourceCanvas.width; x++) {
+                        const index = (y * sourceCanvas.width + x) * 4;
+                        const alpha = data[index + 3];
+                        
+                        if (alpha > alphaThreshold) { // 시각적으로 의미있는 픽셀만
+                            minX = Math.min(minX, x);
+                            minY = Math.min(minY, y);
+                            maxX = Math.max(maxX, x);
+                            maxY = Math.max(maxY, y);
+                        }
+                    }
+                }
+                
+                // 유효한 객체가 있는 경우에만 크롭
+                if (maxX >= minX && maxY >= minY) {
+                    const finalWidth = maxX - minX + 1;
+                    const finalHeight = maxY - minY + 1;
+                    
+                    // 정확한 경계로 크롭된 영역 추출
+                    const croppedImageData = sourceCtx.getImageData(minX, minY, finalWidth, finalHeight);
+                    
+                    // 결과 캔버스 크기를 정확한 객체 크기로 변경
+                    const targetCanvas = targetCtx.canvas;
+                    targetCanvas.width = finalWidth;
+                    targetCanvas.height = finalHeight;
+                    
+                    // 캔버스 클리어 후 크롭된 이미지 그리기
+                    targetCtx.clearRect(0, 0, finalWidth, finalHeight);
+                    targetCtx.putImageData(croppedImageData, 0, 0);
+                    
+                    this.log(`완전한 여백 제거 완료: 원본(300x300) → 최적화(${finalWidth}x${finalHeight}) | 공간 절약: ${(100 - (finalWidth * finalHeight) / (300 * 300) * 100).toFixed(1)}%`);
+                } else {
+                    this.log('크롭할 객체를 찾을 수 없음 (투명도 임계값: ' + alphaThreshold + ')');
+                }
+            }
+            
+            // 중심점을 빨간 점으로 표시하는 함수 (제거됨 - 동적 크기 조절에서 불필요)
+            drawCenterPoint(ctx) {
+                // 이 함수는 더 이상 사용되지 않습니다
+                return;
+            }
+            
+            // 결과 이미지 다운로드 함수
+            downloadResult() {
+                const resultCanvas = document.getElementById('resultCanvas');
+                
+                if (!this.diffuseImage || !this.teamColorImage) {
+                    alert('다운로드하려면 먼저 이미지를 업로드하거나 샘플을 생성하세요.');
+                    return;
+                }
+                
+                // 현재 팀 컬러 이름 가져오기
+                const colorName = this.getCurrentColorName();
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename = `team_color_${colorName}_${timestamp}.png`;
+                
+                // 다운로드 실행
+                resultCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    
+                    this.log(`다운로드 완료: ${filename}`);
+                }, 'image/png');
+            }
+            
+            // 중심점 없이 결과 이미지 재생성 (제거됨)
+            regenerateResultWithoutCenter(ctx) {
+                // 이 함수는 더 이상 사용되지 않습니다
+                return;
+            }
+            
+            // 완전한 여백 제거 함수 (다운로드용) - 더 이상 사용되지 않음
+            autoCropCanvasOriginalRatio(ctx) {
+                // 이 함수는 더 이상 사용되지 않습니다
+                return;
+            }
+            
+            // 현재 팀 컬러 이름 가져오기
+            getCurrentColorName() {
+                const colorMap = {
+                    '#F40404': 'Red',
+                    '#0C48CC': 'Blue',
+                    '#2CB494': 'Teal',
+                    '#88409C': 'Purple',
+                    '#F88C14': 'Orange',
+                    '#703014': 'Brown',
+                    '#CCE0D0': 'White',
+                    '#FCFC38': 'Yellow'
+                };
+                
+                return colorMap[this.currentTeamColor.toUpperCase()] || 'Custom';
+            }
+            
+            toggleSize(size) {
+                const resultCanvas = document.getElementById('resultCanvas');
+                const canvasGroup = resultCanvas.closest('.canvas-group');
+                
+                if (size !== 'original') {
+                    const targetSize = parseInt(size);
+                    
+                    // 원본 크기 저장
+                    if (!resultCanvas.dataset.originalWidth) {
+                        resultCanvas.dataset.originalWidth = resultCanvas.width;
+                        resultCanvas.dataset.originalHeight = resultCanvas.height;
+                        resultCanvas.dataset.originalStyle = resultCanvas.style.cssText;
+                    }
+                    
+                    // 비율 계산
+                    const originalWidth = parseInt(resultCanvas.dataset.originalWidth);
+                    const originalHeight = parseInt(resultCanvas.dataset.originalHeight);
+                    const aspectRatio = originalWidth / originalHeight;
+                    
+                    // 지정된 크기의 컨테이너 안에서 비율 유지하며 최대 크기 계산
+                    let displayWidth, displayHeight;
+                    if (aspectRatio > 1) {
+                        // 가로가 더 긴 경우
+                        displayWidth = targetSize;
+                        displayHeight = targetSize / aspectRatio;
+                    } else {
+                        // 세로가 더 길거나 정사각형인 경우
+                        displayHeight = targetSize;
+                        displayWidth = targetSize * aspectRatio;
+                    }
+                    
+                    // 기존 컨테이너 제거
+                    const existingContainer = resultCanvas.parentElement;
+                    if (existingContainer.classList.contains('small-size-container')) {
+                        const canvasGroup = existingContainer.parentElement;
+                        canvasGroup.insertBefore(resultCanvas, existingContainer);
+                        canvasGroup.removeChild(existingContainer);
+                    }
+                    
+                    // 새 크기 컨테이너 생성
+                    const container = document.createElement('div');
+                    container.className = 'small-size-container';
+                    container.style.cssText = `
+                        width: ${targetSize}px;
+                        height: ${targetSize}px;
+                        background-color: rgba(0, 0, 0, 0.75);
+                        border: 2px solid rgba(255, 255, 255, 0.3);
+                        border-radius: 4px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        position: relative;
+                    `;
+                    
+                    // 캔버스를 컨테이너로 감싸기
+                    resultCanvas.parentElement.insertBefore(container, resultCanvas);
+                    container.appendChild(resultCanvas);
+                    
+                    // 캔버스 스타일 적용
+                    resultCanvas.style.width = displayWidth + 'px';
+                    resultCanvas.style.height = displayHeight + 'px';
+                    resultCanvas.style.imageRendering = 'pixelated';
+                    resultCanvas.style.imageRendering = '-moz-crisp-edges';
+                    resultCanvas.style.imageRendering = 'crisp-edges';
+                    resultCanvas.style.objectFit = 'contain';
+                    resultCanvas.style.border = 'none';
+                    resultCanvas.style.borderRadius = '0';
+                    resultCanvas.style.boxShadow = 'none';
+                    
+                    this.log(`${targetSize}x${targetSize} 크기로 변경됨 (배경: ${targetSize}x${targetSize}, 이미지: ${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)})`);
+                } else {
+                    // 컨테이너에서 캔버스 제거하고 원래 위치로 복원
+                    const container = resultCanvas.parentElement;
+                    if (container.classList.contains('small-size-container')) {
+                        const canvasGroup = container.parentElement;
+                        canvasGroup.insertBefore(resultCanvas, container);
+                        canvasGroup.removeChild(container);
+                    }
+                    
+                    // 원본 스타일로 복원
+                    if (resultCanvas.dataset.originalStyle) {
+                        resultCanvas.style.cssText = resultCanvas.dataset.originalStyle;
+                    } else {
+                        resultCanvas.style.width = '';
+                        resultCanvas.style.height = '';
+                        resultCanvas.style.imageRendering = '';
+                        resultCanvas.style.objectFit = '';
+                        resultCanvas.style.border = '';
+                        resultCanvas.style.borderRadius = '';
+                        resultCanvas.style.boxShadow = '';
+                    }
+                    this.log('원본 크기로 복원됨');
+                }
+            }
+        }
+        
+        // 프로그램 시작
+        let teamColorChanger;
+        document.addEventListener('DOMContentLoaded', () => {
+            teamColorChanger = new TeamColorChanger();
+            teamColorChanger.log('프로그램 시작됨');
+        });
+    </script>
+</body>
+</html> 배경 (fillRect 하지 않음)
+                
+                // 기본 유닛 모양 (로봇) 그리기
+                ctx.fillStyle = '#666666';
+                ctx.fillRect(75, 50, 50, 100); // 몸체
+                
+                ctx.fillStyle = '#888888';
+                ctx.fillRect(85, 60, 30, 20); // 가슴
+                
+                ctx.fillStyle = '#444444';
+                ctx.fillRect(65, 80, 20, 40); // 왼쪽 팔
+                ctx.fillRect(115, 80, 20, 40); // 오른쪽 팔
+                
+                ctx.fillStyle = '#555555';
+                ctx.fillRect(85, 150, 12, 30); // 왼쪽 다리
+                ctx.fillRect(103, 150, 12, 30); // 오른쪽 다리
+                
+                ctx.fillStyle = '#999999';
+                ctx.fillRect(90, 40, 20, 20); // 머리
+                
+                // 눈
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(93, 45, 3, 3);
+                ctx.fillRect(104, 45, 3, 3);
+                
+                // 안테나
+                ctx.fillStyle = '#777777';
+                ctx.fillRect(99, 35, 2, 10);
+                
+                // 어깨 장식
+                ctx.fillStyle = '#aaaaaa';
+                ctx.fillRect(70, 75, 8, 8);
+                ctx.fillRect(122, 75, 8, 8);
+                
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const img = new Image();
+                    img.onload = () => {
+                        this.diffuseImage = img;
+                        this.drawImageToCanvas(img, this.originalCtx);
+                        this.log('[SAMPLE] Diffuse 이미지 생성 완료 (투명 배경)');
+                        // 샘플 생성 시 결과 캔버스 크기 초기화
+                        this.resetResultCanvasSize();
+                        this.applyTeamColor();
+                        URL.revokeObjectURL(url);
+                    };
+                    img.src = url;
+                }, 'image/png'); // PNG로 투명도 보존
+            }
+            
+            createSampleMask() {
+                this.log('샘플 Team Color 마스크 생성 중...');
+                const canvas = document.createElement('canvas');
+                canvas.width = 200;
+                canvas.height = 200;
+                const ctx = canvas.getContext('2d');
+                
+                // 투명
