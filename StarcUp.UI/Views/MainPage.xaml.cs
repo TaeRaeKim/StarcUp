@@ -1,18 +1,25 @@
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+
 namespace StarcUp.UI.Views
 {
     /// <summary>
-    /// A simple page that can be used on its own or navigated to within a Frame.
+    /// StarcUp 메인 홈페이지 - Discord 스타일의 어두운 테마
     /// </summary>
-    public partial class MainPage : Page
+    public sealed partial class MainPage : Page
     {
-        int count = 0;
-
         public MainPage()
         {
             this.InitializeComponent();
         }
 
-        private void OnCountClicked(object sender, RoutedEventArgs e)
-            => txtCount.Text = $"Current count: {count++}";
+        private void ControlTestButton_Click(object sender, RoutedEventArgs e)
+        {
+            // ControlTestPage로 네비게이션
+            if (this.Frame != null)
+            {
+                this.Frame.Navigate(typeof(ControlTestPage));
+            }
+        }
     }
 }

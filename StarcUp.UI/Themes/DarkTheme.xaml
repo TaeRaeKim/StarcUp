@@ -1,0 +1,45 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Discord Dark Theme Colors -->
+    
+    <!-- Background Colors -->
+    <SolidColorBrush x:Key="BackgroundPrimary" Color="#FF2B2D31"/>
+    <SolidColorBrush x:Key="BackgroundSecondary" Color="#FF1E1F22"/>
+    <SolidColorBrush x:Key="BackgroundTertiary" Color="#FF36393F"/>
+    <SolidColorBrush x:Key="BackgroundAccent" Color="#FF40444B"/>
+    
+    <!-- Text Colors -->
+    <SolidColorBrush x:Key="TextPrimary" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#FFB9BBBE"/>
+    <SolidColorBrush x:Key="TextMuted" Color="#FF72767D"/>
+    
+    <!-- Brand Colors -->
+    <SolidColorBrush x:Key="BrandPrimary" Color="#FF5865F2"/>
+    <SolidColorBrush x:Key="BrandSecondary" Color="#FF4752C4"/>
+    
+    <!-- Status Colors -->
+    <SolidColorBrush x:Key="StatusSuccess" Color="#FF57F287"/>
+    <SolidColorBrush x:Key="StatusWarning" Color="#FFFFA500"/>
+    <SolidColorBrush x:Key="StatusError" Color="#FFED4245"/>
+    <SolidColorBrush x:Key="StatusInfo" Color="#FF5865F2"/>
+    
+    <!-- Interactive Colors -->
+    <SolidColorBrush x:Key="ButtonPrimary" Color="#FF5865F2"/>
+    <SolidColorBrush x:Key="ButtonSecondary" Color="#FF40444B"/>
+    <SolidColorBrush x:Key="ButtonDanger" Color="#FFED4245"/>
+    
+    <!-- Border Colors -->
+    <SolidColorBrush x:Key="BorderPrimary" Color="#FF5865F2"/>
+    <SolidColorBrush x:Key="BorderSecondary" Color="#FF40444B"/>
+    <SolidColorBrush x:Key="BorderAccent" Color="#FFB57EDC"/>
+    
+    <!-- Raw Color Values (for programmatic use) -->
+    <Color x:Key="BackgroundPrimaryColor">#FF2B2D31</Color>
+    <Color x:Key="BackgroundSecondaryColor">#FF1E1F22</Color>
+    <Color x:Key="BackgroundTertiaryColor">#FF36393F</Color>
+    <Color x:Key="TextPrimaryColor">#FFFFFFFF</Color>
+    <Color x:Key="BrandPrimaryColor">#FF5865F2</Color>
+    
+</ResourceDictionary>
