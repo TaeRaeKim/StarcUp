@@ -38,6 +38,7 @@ namespace StarcUp.Presentation.Forms
         private GroupBox _overlayStatusGroup = null!;
         private Label _overlayActiveLabel = null!;
         private Button _showOverlayNotificationButton = null!;
+        private Button _toggleGameOverlayButton = null!;
 
         private GroupBox _memoryInfoGroup = null!;
         private ListBox _threadStackListBox = null!;
@@ -55,6 +56,7 @@ namespace StarcUp.Presentation.Forms
 
         // 오버레이 관련
         private OverlayNotificationForm _overlayNotificationForm = null!;
+        private GameOverlayForm _gameOverlayForm = null!;
         private bool _isConnectedToProcess = false;
         private bool _isOverlayActive = false;
         private bool _isDisposed = false;
@@ -81,7 +83,7 @@ namespace StarcUp.Presentation.Forms
         private void InitializeComponent()
         {
             this.Text = "StarcUp - 하이브리드 스타크래프트 감지";
-            this.Size = new Size(600, 920);
+            this.Size = new Size(600, 950);
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -179,8 +181,8 @@ namespace StarcUp.Presentation.Forms
             // 오버레이 상태 그룹
             _overlayStatusGroup = new GroupBox
             {
-                Text = "오버레이 상태",
-                Size = new Size(560, 80),
+                Text = "🎮 오버레이 상태",
+                Size = new Size(560, 110),
                 Location = new Point(10, 250)
             };
 
@@ -202,8 +204,21 @@ namespace StarcUp.Presentation.Forms
                 Enabled = false
             };
 
+            _toggleGameOverlayButton = new Button
+            {
+                Text = "게임 오버레이 활성화",
+                Size = new Size(160, 30),
+                Location = new Point(10, 55),
+                BackColor = Color.FromArgb(0, 153, 255),
+                ForeColor = Color.White,
+                Font = new Font("맑은 고딕", 9, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                Enabled = true // 항상 활성화되어 있어서 테스트 가능
+            };
+            _toggleGameOverlayButton.FlatAppearance.BorderSize = 0;
+
             _overlayStatusGroup.Controls.AddRange(new Control[] {
-                _overlayActiveLabel, _showOverlayNotificationButton
+                _overlayActiveLabel, _showOverlayNotificationButton, _toggleGameOverlayButton
             });
 
             // 유닛 테스트 그룹
@@ -211,7 +226,7 @@ namespace StarcUp.Presentation.Forms
             {
                 Text = "🎮 유닛 테스트 도구 (InGame Only)",
                 Size = new Size(560, 200),
-                Location = new Point(10, 340)
+                Location = new Point(10, 370)
             };
 
             _unitTestStatusLabel = new Label
@@ -291,7 +306,7 @@ namespace StarcUp.Presentation.Forms
             {
                 Text = "ThreadStack 메모리 정보",
                 Size = new Size(560, 320),
-                Location = new Point(10, 550)
+                Location = new Point(10, 580)
             };
 
             _threadStackListBox = new ListBox
@@ -329,6 +344,7 @@ namespace StarcUp.Presentation.Forms
             _connectToProcessButton.Click += ConnectToProcessButton_Click;
             _refreshMemoryButton.Click += RefreshMemoryButton_Click;
             _showOverlayNotificationButton.Click += ShowOverlayNotificationButton_Click;
+            _toggleGameOverlayButton.Click += ToggleGameOverlayButton_Click;
             _showStatusButton.Click += ShowStatusButton_Click;
             _searchUnitsButton.Click += SearchUnitsButton_Click;
             _updateUnitsButton.Click += UpdateUnitsButton_Click;
@@ -448,6 +464,11 @@ namespace StarcUp.Presentation.Forms
         private void ShowOverlayNotificationButton_Click(object sender, EventArgs e)
         {
             ShowOverlayNotification();
+        }
+
+        private void ToggleGameOverlayButton_Click(object sender, EventArgs e)
+        {
+            ToggleGameOverlay();
         }
 
         private void ConnectToProcess()
@@ -622,7 +643,17 @@ namespace StarcUp.Presentation.Forms
 
             // 오버레이 알림 폼 닫기
             _overlayNotificationForm?.CloseForm();
+            
+            // 게임 오버레이 폼 정리
+            if (_gameOverlayForm != null)
+            {
+                _gameOverlayForm.StopOverlay();
+                _gameOverlayForm.Dispose();
+                _gameOverlayForm = null;
+            }
+            
             _isOverlayActive = false;
+            UpdateGameOverlayButton();
 
             // 메모리 연결 해제
             if (_isConnectedToProcess)
@@ -671,25 +702,103 @@ namespace StarcUp.Presentation.Forms
             Console.WriteLine($"게임 변경: {e.GameInfo}");
         }
 
+        private void ToggleGameOverlay()
+        {
+            try
+            {
+                if (_gameOverlayForm == null || _gameOverlayForm.IsDisposed)
+                {
+                    // 오버레이 활성화
+                    Console.WriteLine("게임 오버레이를 활성화합니다.");
+                    
+                    _gameOverlayForm = new GameOverlayForm();
+                    _gameOverlayForm.StartOverlay();
+                    
+                    _isOverlayActive = true;
+                    UpdateOverlayStatus("오버레이: ✅ 활성화됨 (게임 오버레이)", Color.Green);
+                    UpdateGameOverlayButton();
+                    
+                    _notifyIcon.ShowBalloonTip(2000, "StarcUp",
+                        "게임 오버레이가 활성화되었습니다!", ToolTipIcon.Info);
+                    
+                    Console.WriteLine("게임 오버레이 폼이 활성화되었습니다.");
+                }
+                else
+                {
+                    // 오버레이 비활성화
+                    Console.WriteLine("게임 오버레이를 비활성화합니다.");
+                    
+                    _gameOverlayForm.StopOverlay();
+                    _gameOverlayForm.Dispose();
+                    _gameOverlayForm = null;
+                    
+                    _isOverlayActive = false;
+                    UpdateOverlayStatus("오버레이: ❌ 비활성화됨", Color.Gray);
+                    UpdateGameOverlayButton();
+                    
+                    _notifyIcon.ShowBalloonTip(2000, "StarcUp",
+                        "게임 오버레이가 비활성화되었습니다.", ToolTipIcon.Info);
+                    
+                    Console.WriteLine("게임 오버레이 폼이 비활성화되었습니다.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"게임 오버레이 토글 실패: {ex.Message}");
+                MessageBox.Show($"게임 오버레이 토글 중 오류가 발생했습니다:\n{ex.Message}", "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void UpdateGameOverlayButton()
+        {
+            if (_toggleGameOverlayButton != null)
+            {
+                if (_gameOverlayForm != null && !_gameOverlayForm.IsDisposed)
+                {
+                    _toggleGameOverlayButton.Text = "게임 오버레이 비활성화";
+                    _toggleGameOverlayButton.BackColor = Color.FromArgb(255, 59, 48); // Error color
+                }
+                else
+                {
+                    _toggleGameOverlayButton.Text = "게임 오버레이 활성화";
+                    _toggleGameOverlayButton.BackColor = Color.FromArgb(0, 153, 255); // Brand primary
+                }
+            }
+        }
+
         private void OnOverlayActivationRequested(object sender, EventArgs e)
         {
             try
             {
                 Console.WriteLine("사용자가 오버레이 활성화를 요청했습니다.");
 
+                // 기존 게임 오버레이가 있다면 정리
+                if (_gameOverlayForm != null)
+                {
+                    _gameOverlayForm.StopOverlay();
+                    _gameOverlayForm.Dispose();
+                    _gameOverlayForm = null;
+                }
+
+                // 새로운 게임 오버레이 생성 및 시작
+                _gameOverlayForm = new GameOverlayForm();
+                _gameOverlayForm.StartOverlay();
+
                 _isOverlayActive = true;
-                UpdateOverlayStatus("오버레이: 활성화됨 ✓", Color.Green);
+                UpdateOverlayStatus("오버레이: ✅ 활성화됨 (알림 통해)", Color.Green);
+                UpdateGameOverlayButton();
 
                 _notifyIcon.ShowBalloonTip(2000, "StarcUp",
-                    "오버레이가 활성화되었습니다!", ToolTipIcon.Info);
+                    "게임 오버레이가 활성화되었습니다!", ToolTipIcon.Info);
 
-                // 여기서 실제 오버레이 로직을 구현할 수 있습니다
-                // 예: 실제 게임 오버레이 폼 생성 및 표시
-
+                Console.WriteLine("게임 오버레이 폼이 활성화되었습니다.");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"오버레이 활성화 처리 실패: {ex.Message}");
+                MessageBox.Show($"게임 오버레이 활성화 중 오류가 발생했습니다:\n{ex.Message}", "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1073,6 +1182,15 @@ namespace StarcUp.Presentation.Forms
                 }
 
                 _overlayNotificationForm?.CloseForm();
+                
+                // 게임 오버레이 폼 정리
+                if (_gameOverlayForm != null)
+                {
+                    _gameOverlayForm.StopOverlay();
+                    _gameOverlayForm.Dispose();
+                    _gameOverlayForm = null;
+                }
+                
                 _notifyIcon?.Dispose();
                 _unitService?.Dispose();
                 _isDisposed = true;

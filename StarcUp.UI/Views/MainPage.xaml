@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Page
+    x:Class="StarcUp.UI.Views.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:StarcUp.UI"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+    
+    <Page.Content>
+        <ScrollViewer>
+            <StackPanel Margin="20" Spacing="20">
+                
+                <!-- 감지 상태 그룹 -->
+                <Border BorderBrush="LightBlue" BorderThickness="1" CornerRadius="8" Padding="15">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="🎯 하이브리드 감지 상태" FontWeight="Bold" FontSize="16"/>
+                        <TextBlock x:Name="DetectionModeLabel" 
+                                   Text="감지 모드: 폴링 모드 (2초 간격)" 
+                                   FontWeight="Bold" 
+                                   Foreground="Blue"/>
+                        <TextBlock x:Name="PerformanceLabel" 
+                                   Text="성능 영향: 최소 (폴링 대기 중)" 
+                                   Foreground="Green"/>
+                        <Button x:Name="ShowStatusButton" 
+                                Content="상세 상태" 
+                                Click="ShowStatusButton_Click"
+                                Background="LightBlue"
+                                HorizontalAlignment="Right"
+                                Width="100"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 게임 모니터링 그룹 -->
+                <Border BorderBrush="LightGreen" BorderThickness="1" CornerRadius="8" Padding="15">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="게임 프로세스 모니터링" FontWeight="Bold" FontSize="16"/>
+                        <TextBlock x:Name="GameStatusLabel" 
+                                   Text="게임 상태: 스타크래프트 프로세스 감지 중..." 
+                                   FontWeight="Bold" 
+                                   Foreground="Orange"/>
+                        <TextBlock x:Name="ProcessInfoLabel" 
+                                   Text="프로세스 정보: --" 
+                                   FontFamily="Consolas"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="ConnectionStatusLabel" 
+                                       Text="메모리 연결 상태: 연결되지 않음" 
+                                       Foreground="Red"
+                                       VerticalAlignment="Center"/>
+                            <Button x:Name="ConnectToProcessButton" 
+                                    Grid.Column="1"
+                                    Content="프로세스에 연결" 
+                                    Click="ConnectToProcessButton_Click"
+                                    Background="LightBlue"
+                                    IsEnabled="False"
+                                    Width="120"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- 오버레이 상태 그룹 -->
+                <Border BorderBrush="Purple" BorderThickness="1" CornerRadius="8" Padding="15">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="🎮 오버레이 상태" FontWeight="Bold" FontSize="16"/>
+                        <TextBlock x:Name="OverlayActiveLabel" 
+                                   Text="오버레이: 비활성화 (게임 감지 대기 중)" 
+                                   FontWeight="Bold" 
+                                   Foreground="Gray"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Button x:Name="ShowOverlayNotificationButton" 
+                                    Content="알림 다시 보기" 
+                                    Click="ShowOverlayNotificationButton_Click"
+                                    Background="LightYellow"
+                                    IsEnabled="False"
+                                    Width="120"/>
+                            <Button x:Name="ToggleGameOverlayButton" 
+                                    Grid.Column="2"
+                                    Content="게임 오버레이 활성화" 
+                                    Click="ToggleGameOverlayButton_Click"
+                                    Background="DodgerBlue"
+                                    Foreground="White"
+                                    FontWeight="Bold"
+                                    Width="160"
+                                    Margin="10,0,0,0"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- 유닛 테스트 그룹 -->
+                <Border BorderBrush="Orange" BorderThickness="1" CornerRadius="8" Padding="15">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="🎮 유닛 테스트 도구 (InGame Only)" FontWeight="Bold" FontSize="16"/>
+                        <TextBlock x:Name="UnitTestStatusLabel" 
+                                   Text="상태: InGame 대기 중..." 
+                                   FontWeight="Bold" 
+                                   Foreground="Red"/>
+                        
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <TextBlock Text="플레이어 인덱스:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <NumberBox x:Name="PlayerIndexNumeric" 
+                                       Grid.Column="1"
+                                       Value="0" 
+                                       Minimum="0" 
+                                       Maximum="7"
+                                       IsEnabled="False"/>
+                            
+                            <TextBlock Grid.Column="2" Text="유닛 타입:" VerticalAlignment="Center" Margin="20,0,10,0"/>
+                            <ComboBox x:Name="UnitTypeComboBox" 
+                                      Grid.Column="3"
+                                      IsEnabled="False"/>
+                            
+                            <Button x:Name="SearchUnitsButton" 
+                                    Grid.Column="4"
+                                    Content="유닛 조회" 
+                                    Click="SearchUnitsButton_Click"
+                                    Background="LightGreen"
+                                    IsEnabled="False"
+                                    Width="80"
+                                    Margin="10,0,0,0"/>
+                            
+                            <Button x:Name="UpdateUnitsButton" 
+                                    Grid.Column="5"
+                                    Content="갱신" 
+                                    Click="UpdateUnitsButton_Click"
+                                    Background="LightBlue"
+                                    IsEnabled="False"
+                                    Width="60"
+                                    Margin="10,0,0,0"/>
+                        </Grid>
+                        
+                        <ListBox x:Name="UnitResultListBox" 
+                                 FontFamily="Consolas" 
+                                 FontSize="12"
+                                 Height="200"
+                                 ScrollViewer.HorizontalScrollMode="Auto"
+                                 ScrollViewer.VerticalScrollMode="Auto"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 메모리 정보 그룹 -->
+                <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="8" Padding="15">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="ThreadStack 메모리 정보" FontWeight="Bold" FontSize="16"/>
+                        
+                        <ListBox x:Name="ThreadStackListBox" 
+                                 FontFamily="Consolas" 
+                                 FontSize="11"
+                                 Height="250"
+                                 ScrollViewer.HorizontalScrollMode="Auto"
+                                 ScrollViewer.VerticalScrollMode="Auto"/>
+                        
+                        <Button x:Name="RefreshMemoryButton" 
+                                Content="메모리 정보 새로고침" 
+                                Click="RefreshMemoryButton_Click"
+                                Background="LightGreen"
+                                IsEnabled="False"
+                                Width="180"
+                                HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Page.Content>
+</Page>

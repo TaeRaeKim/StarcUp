@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "StarcUp.UI (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "StarcUp.UI (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
