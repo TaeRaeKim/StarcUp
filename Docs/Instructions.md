@@ -193,10 +193,10 @@ make build          # 전체 솔루션 빌드
 
 #### 특정 프로젝트 빌드
 ```bash
-make build core     # StarcUp.Core 프로젝트만 빌드
-make build ui       # StarcUp.UI 프로젝트만 빌드  
-make build legacy   # StarcUp (Windows Forms) 프로젝트만 빌드
-make build test     # StarcUp.Test 프로젝트만 빌드
+make build-core     # StarcUp.Core 프로젝트만 빌드
+make build-ui       # StarcUp.UI 프로젝트만 빌드  
+make build-legacy   # StarcUp (Windows Forms) 프로젝트만 빌드
+make build-test     # StarcUp.Test 프로젝트만 빌드
 ```
 
 #### 테스트 및 유지보수
@@ -204,13 +204,13 @@ make build test     # StarcUp.Test 프로젝트만 빌드
 make test           # 테스트 실행
 make clean          # 빌드 출력 정리
 make restore        # NuGet 패키지 복원
-make dev setup      # 개발 환경 설정
+make dev-setup      # 개발 환경 설정
 ```
 
 #### 실행 명령어 (참조용)
 ```bash
-make run ui         # WinUI 3 앱 실행 명령어 출력
-make run legacy     # Windows Forms 앱 실행 명령어 출력
+make run-ui         # WinUI 3 앱 실행 명령어 출력
+make run-legacy     # Windows Forms 앱 실행 명령어 출력
 ```
 
 ### 직접 dotnet 명령어
@@ -258,7 +258,7 @@ dotnet run --project StarcUp/StarcUp.csproj
 ```bash
 # SSH를 통한 Makefile 사용 (권장)
 ssh Taerae@main "cd StarcUp && make build"
-ssh Taerae@main "cd StarcUp && make build core"
+ssh Taerae@main "cd StarcUp && make build-core"
 ssh Taerae@main "cd StarcUp && make test"
 
 # SSH를 통한 직접 dotnet 명령어

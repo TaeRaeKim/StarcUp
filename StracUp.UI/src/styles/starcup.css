@@ -1,0 +1,447 @@
+/* StarCraft UI Effects - 게임 상태별 활성화 효과 */
+/* 게임 중 - 초록색 + 베이스 진동 효과 */
+.starcraft-active-playing {
+  background: linear-gradient(330deg, 
+    rgba(0, 255, 0, 0.15) 0%,
+    rgba(15, 47, 15, 0.9) 30%,
+    rgba(0, 255, 0, 0.08) 70%,
+    rgba(15, 47, 15, 0.85) 100%
+  ), var(--starcraft-bg-active);
+  border-color: var(--starcraft-green);
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.3), inset 0 0 20px rgba(0, 255, 0, 0.1);
+  position: relative;
+  overflow: visible;
+}
+
+.starcraft-active-playing::before,
+.starcraft-active-playing::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.starcraft-active-playing::before {
+  width: 130%;
+  height: 130%;
+  background: radial-gradient(circle, 
+    rgba(0, 255, 0, 0.15) 0%, 
+    rgba(0, 255, 0, 0.08) 30%, 
+    transparent 70%
+  );
+  animation: ripple-wave-strong 1.5s ease-out infinite;
+}
+
+.starcraft-active-playing::after {
+  width: 160%;
+  height: 160%;
+  background: radial-gradient(circle, 
+    rgba(0, 255, 0, 0.12) 0%, 
+    rgba(0, 255, 0, 0.05) 30%, 
+    transparent 70%
+  );
+  animation: ripple-wave-strong 1.5s ease-out infinite 0.3s;
+}
+
+/* 대기 중 - 노랑색 + 잔잔한 물결 */
+.starcraft-active-waiting {
+  background: linear-gradient(330deg, 
+    rgba(255, 255, 0, 0.15) 0%,
+    rgba(47, 47, 15, 0.9) 30%,
+    rgba(255, 255, 0, 0.08) 70%,
+    rgba(47, 47, 15, 0.85) 100%
+  ), var(--starcraft-yellow-bg);
+  border-color: var(--starcraft-yellow);
+  box-shadow: 0 0 8px rgba(255, 255, 0, 0.3), inset 0 0 20px rgba(255, 255, 0, 0.1);
+  position: relative;
+  overflow: visible;
+}
+
+.starcraft-active-waiting::before,
+.starcraft-active-waiting::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.starcraft-active-waiting::before {
+  width: 115%;
+  height: 115%;
+  background: radial-gradient(circle, 
+    rgba(255, 255, 0, 0.08) 0%, 
+    rgba(255, 255, 0, 0.04) 30%, 
+    transparent 70%
+  );
+  animation: ripple-wave-gentle 3s ease-out infinite;
+}
+
+.starcraft-active-waiting::after {
+  width: 135%;
+  height: 135%;
+  background: radial-gradient(circle, 
+    rgba(255, 255, 0, 0.06) 0%, 
+    rgba(255, 255, 0, 0.02) 30%, 
+    transparent 70%
+  );
+  animation: ripple-wave-gentle 3s ease-out infinite 1s;
+}
+
+/* 게임 감지 안됨 - 빨강색 (물결 효과 없음) */
+.starcraft-active-error {
+  background: linear-gradient(330deg, 
+    rgba(255, 0, 0, 0.15) 0%,
+    rgba(47, 15, 15, 0.9) 30%,
+    rgba(255, 0, 0, 0.08) 70%,
+    rgba(47, 15, 15, 0.85) 100%
+  ), var(--starcraft-red-bg);
+  border-color: var(--starcraft-red);
+  box-shadow: 0 0 8px rgba(255, 0, 0, 0.3), inset 0 0 20px rgba(255, 0, 0, 0.1);
+  position: relative;
+  overflow: visible;
+}
+
+/* 비활성화 상태 - 개선된 스타일 */
+.starcraft-inactive {
+  background: linear-gradient(330deg, 
+    rgba(85, 85, 85, 0.1) 0%,
+    var(--starcraft-inactive-bg) 30%,
+    rgba(64, 64, 64, 0.05) 70%,
+    var(--starcraft-inactive-bg) 100%
+  );
+  border-color: var(--starcraft-inactive-border);
+  box-shadow: 0 0 4px rgba(85, 85, 85, 0.2), inset 0 0 15px rgba(42, 42, 42, 0.3);
+  transition: all 0.3s ease;
+}
+
+.starcraft-inactive:hover {
+  border-color: var(--starcraft-inactive-secondary);
+  box-shadow: 0 0 6px rgba(85, 85, 85, 0.4), inset 0 0 20px rgba(64, 64, 64, 0.4);
+  background: linear-gradient(330deg, 
+    rgba(85, 85, 85, 0.15) 0%,
+    var(--starcraft-inactive-bg) 25%,
+    rgba(64, 64, 64, 0.08) 75%,
+    var(--starcraft-inactive-bg) 100%
+  );
+}
+
+/* 기능 상태 점들을 위한 스타일 */
+.feature-dot-active {
+  animation: feature-glow 2s ease-in-out infinite;
+}
+
+.feature-dot-inactive {
+  opacity: 0.3;
+  transition: all 0.3s ease;
+}
+
+@keyframes feature-glow {
+  0%, 100% {
+    box-shadow: 
+      0 0 8px rgba(255, 255, 255, 0.8), 
+      0 0 4px rgba(255, 255, 255, 0.6),
+      0 0 2px rgba(255, 255, 255, 1) !important;
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 
+      0 0 12px rgba(255, 255, 255, 1), 
+      0 0 8px rgba(255, 255, 255, 0.8),
+      0 0 4px rgba(255, 255, 255, 1) !important;
+    opacity: 0.9;
+  }
+}
+
+/* 프리셋 관리 스타일 */
+.preset-nav-active {
+  transition: all 0.3s ease;
+}
+
+.preset-nav-active:hover {
+  background-color: var(--starcraft-bg-secondary);
+  box-shadow: 0 0 4px rgba(0, 255, 0, 0.3);
+}
+
+.preset-nav-inactive {
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+
+.preset-indicator-active {
+  animation: preset-indicator-glow 2s ease-in-out infinite;
+}
+
+.preset-indicator-inactive {
+  opacity: 0.4;
+  transition: all 0.3s ease;
+}
+
+@keyframes preset-indicator-glow {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(0, 255, 0, 0.6);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 8px rgba(0, 255, 0, 0.9);
+    opacity: 0.8;
+  }
+}
+
+/* 베이스 진동 효과 - 게임 중 전용 */
+.starcraft-bass-vibration {
+  animation: bass-vibration 0.8s ease-in-out infinite;
+}
+
+@keyframes bass-vibration {
+  0%, 100% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.005);
+  }
+  50% {
+    transform: scale(1.01);
+  }
+  75% {
+    transform: scale(1.005);
+  }
+}
+
+/* 잔잔한 물결 효과 - 대기 중 전용 */
+.starcraft-gentle-wave {
+  animation: gentle-wave 4s ease-in-out infinite;
+}
+
+@keyframes gentle-wave {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.002);
+    opacity: 0.98;
+  }
+}
+
+/* 강한 물결 애니메이션 - 게임 중 */
+@keyframes ripple-wave-strong {
+  0% {
+    transform: translate(-50%, -50%) scale(0.7);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.4);
+    opacity: 0;
+  }
+}
+
+/* 잔잔한 물결 애니메이션 - 대기 중 */
+@keyframes ripple-wave-gentle {
+  0% {
+    transform: translate(-50%, -50%) scale(0.9);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.05);
+    opacity: 0.3;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0;
+  }
+}
+
+/* 향상된 글로우 효과 - 색상별 */
+@keyframes enhanced-glow-green {
+  0%, 100% {
+    box-shadow: 
+      0 0 8px rgba(0, 255, 0, 0.3), 
+      inset 0 0 20px rgba(0, 255, 0, 0.1),
+      0 0 20px rgba(0, 255, 0, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 0 16px rgba(0, 255, 0, 0.5), 
+      inset 0 0 30px rgba(0, 255, 0, 0.2),
+      0 0 35px rgba(0, 255, 0, 0.4);
+  }
+}
+
+@keyframes enhanced-glow-yellow {
+  0%, 100% {
+    box-shadow: 
+      0 0 8px rgba(255, 255, 0, 0.3), 
+      inset 0 0 20px rgba(255, 255, 0, 0.1),
+      0 0 20px rgba(255, 255, 0, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 0 12px rgba(255, 255, 0, 0.4), 
+      inset 0 0 25px rgba(255, 255, 0, 0.15),
+      0 0 30px rgba(255, 255, 0, 0.3);
+  }
+}
+
+@keyframes enhanced-glow-red {
+  0%, 100% {
+    box-shadow: 
+      0 0 8px rgba(255, 0, 0, 0.3), 
+      inset 0 0 20px rgba(255, 0, 0, 0.1),
+      0 0 20px rgba(255, 0, 0, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 0 12px rgba(255, 0, 0, 0.4), 
+      inset 0 0 25px rgba(255, 0, 0, 0.15),
+      0 0 30px rgba(255, 0, 0, 0.3);
+  }
+}
+
+.starcraft-glow-playing {
+  animation: enhanced-glow-green 2s ease-in-out infinite;
+}
+
+.starcraft-glow-waiting {
+  animation: enhanced-glow-yellow 4s ease-in-out infinite;
+}
+
+.starcraft-glow-error {
+  animation: enhanced-glow-red 3s ease-in-out infinite;
+}
+
+/* 뉴스 스타일 스크롤링 텍스트 */
+.scrolling-text-news {
+  animation: news-ticker-scroll 20s linear infinite;
+  /* 부모 컨테이너 기준으로 위치 설정 */
+  left: 0;
+  top: 0;
+  width: max-content; /* 텍스트 내용에 맞는 너비 */
+}
+
+@keyframes news-ticker-scroll {
+  0% {
+    /* 부모 컨테이너 오른쪽 끝에서 시작 */
+    left: 100%;
+  }
+  100% {
+    /* 텍스트가 완전히 왼쪽으로 사라질 때까지 */
+    left: -100%;
+  }
+}
+
+/* 프리셋 설정 버튼 스타일 */
+.preset-settings-button {
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    inset 0 1px 2px rgba(0, 255, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.preset-settings-button:hover {
+  box-shadow: 
+    0 4px 8px rgba(0, 255, 0, 0.2),
+    inset 0 1px 3px rgba(0, 255, 0, 0.2),
+    0 0 8px rgba(0, 255, 0, 0.3);
+  transform: translateY(-1px);
+}
+
+/* 깔끔한 프리셋 설정 버튼 스타일 */
+.preset-settings-button-clean {
+  background: transparent;
+  border: none;
+  transition: all 0.3s ease;
+  opacity: 0.7;
+}
+
+.preset-settings-button-clean:hover {
+  background-color: var(--starcraft-bg-secondary);
+  box-shadow: 
+    0 4px 8px rgba(0, 255, 0, 0.2),
+    inset 0 1px 3px rgba(0, 255, 0, 0.2),
+    0 0 8px rgba(0, 255, 0, 0.3);
+  transform: translateY(-1px);
+  opacity: 1;
+}
+
+/* 타이틀바 드래그 기능 */
+.draggable-titlebar {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+/* 타이틀바 내 버튼들은 드래그 비활성화 */
+.draggable-titlebar button {
+  -webkit-app-region: no-drag;
+}
+
+/* StarCraft Switch 컴포넌트 스타일 */
+.starcraft-switch {
+  transition: all 0.3s ease;
+  box-shadow: var(--switch-glow, none);
+  height: 25px !important; /* 25px에서 30px로 증가 */
+  width: 50px !important; /* 42px에서 50px로 증가 */
+}
+
+.starcraft-switch[data-state="checked"] {
+  background-color: var(--switch-bg-active) !important;
+  border-color: var(--switch-bg-active);
+  box-shadow: 
+    0 0 8px var(--switch-bg-active)40,
+    inset 0 0 8px var(--switch-bg-active)20;
+}
+
+.starcraft-switch[data-state="unchecked"] {
+  background-color: var(--switch-bg-inactive) !important;
+  border-color: var(--switch-bg-inactive);
+  box-shadow: 
+    0 0 4px var(--switch-bg-inactive)40,
+    inset 0 0 4px var(--switch-bg-inactive)20;
+}
+
+.starcraft-switch:hover {
+  transform: scale(1.05);
+}
+
+.starcraft-switch:focus-visible {
+  ring-color: var(--switch-bg-active);
+  box-shadow: 
+    0 0 8px var(--switch-bg-active)60,
+    0 0 0 3px var(--switch-bg-active)30;
+}
+
+/* Switch thumb 스타일 */
+.starcraft-switch [data-slot="switch-thumb"] {
+  background-color: var(--starcraft-bg-secondary) !important;
+  transition: all 0.3s ease;
+  width: 21px !important; /* 21px에서 26px로 증가 */
+  height: 21px !important;
+  box-shadow: 
+    0 0 4px rgba(0, 0, 0, 0.3),
+    inset 0 0 4px rgba(255, 255, 255, 0.1);
+}
+
+.starcraft-switch[data-state="unchecked"] [data-slot="switch-thumb"] {
+  background-color: var(--starcraft-inactive-secondary) !important;
+  transform: translateX(1px);
+  box-shadow: 
+    0 0 4px rgba(0, 0, 0, 0.3),
+    inset 0 0 4px rgba(85, 85, 85, 0.2);
+}
+
+.starcraft-switch[data-state="checked"] [data-slot="switch-thumb"] {
+  background-color: var(--starcraft-bg) !important;
+  transform: translateX(8px);
+  box-shadow: 
+    0 0 6px var(--switch-bg-active)60,
+    inset 0 0 6px rgba(255, 255, 255, 0.2);
+}
