@@ -40,7 +40,7 @@ namespace StarcUp.UI
                 window.Content = rootFrame;
             }
 
-            _ = rootFrame.Navigate(typeof(MainPage), e.Arguments);
+            _ = rootFrame.Navigate(typeof(ControlTestPage), e.Arguments);
             window.Activate();
         }
 

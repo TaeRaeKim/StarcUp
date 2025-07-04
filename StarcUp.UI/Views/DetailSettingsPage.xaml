@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Page
+    x:Class="StarcUp.UI.Views.DetailSettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:StarcUp.UI"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{StaticResource BackgroundPrimary}">
+    
+    <Page.Content>
+        <Grid>
+            <!-- 헤더 바 -->
+            <Border Height="60" VerticalAlignment="Top" Background="#FF54595F">
+                <Grid Margin="20,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="15">
+                        <Button x:Name="BackToMainButton" 
+                                Content="← 메인" 
+                                Background="#FF5865F2" 
+                                Foreground="White"
+                                BorderThickness="0"
+                                Padding="12,8"
+                                CornerRadius="5"
+                                Click="BackToMainButton_Click"/>
+                        <TextBlock Text="상세 설정" 
+                                   FontSize="20" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="White" 
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            
+            <!-- 메인 콘텐츠 -->
+            <ScrollViewer Margin="0,60,0,0">
+                <StackPanel Margin="40,30" Spacing="20">
+                    
+                    <!-- 환영 메시지 -->
+                    <StackPanel HorizontalAlignment="Center" Spacing="10" Margin="0,0,0,30">
+                        <TextBlock Text="⚙️ 상세 설정" 
+                                   FontSize="28" 
+                                   FontWeight="Bold" 
+                                   Foreground="{StaticResource TextPrimary}" 
+                                   HorizontalAlignment="Center"/>
+                        
+                        <TextBlock Text="각 기능을 개별적으로 활성화하거나 비활성화할 수 있습니다" 
+                                   FontSize="14" 
+                                   Foreground="{StaticResource TextSecondary}" 
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                    
+                    <!-- 기능 토글 섹션 -->
+                    <Border BorderBrush="#FF54595F" BorderThickness="1" CornerRadius="12" Padding="20" Background="#FF36393F">
+                        <StackPanel Spacing="15">
+                            <TextBlock Text="🎮 오버레이 기능" 
+                                       FontSize="18" 
+                                       FontWeight="SemiBold" 
+                                       Foreground="{StaticResource TextPrimary}"/>
+                            
+                            <!-- 일꾼 상태 토글 -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="👷 실시간 일꾼 상태" 
+                                               FontSize="16" 
+                                               FontWeight="Medium" 
+                                               Foreground="{StaticResource TextPrimary}"/>
+                                    <TextBlock Text="총 일꾼 수와 방치 일꾼 수를 실시간으로 표시합니다" 
+                                               FontSize="12" 
+                                               Foreground="{StaticResource TextSecondary}"/>
+                                </StackPanel>
+                                
+                                <ToggleSwitch x:Name="WorkerStatusToggle" 
+                                              Grid.Column="1" 
+                                              OnContent="ON" 
+                                              OffContent="OFF"
+                                              Toggled="WorkerStatusToggle_Toggled"/>
+                            </Grid>
+                            
+                            <!-- 업그레이드 진행 토글 -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="⚙️ 업그레이드 진행" 
+                                               FontSize="16" 
+                                               FontWeight="Medium" 
+                                               Foreground="{StaticResource TextPrimary}"/>
+                                    <TextBlock Text="진행 중인 업그레이드를 시간/진행률과 함께 표시합니다" 
+                                               FontSize="12" 
+                                               Foreground="{StaticResource TextSecondary}"/>
+                                </StackPanel>
+                                
+                                <ToggleSwitch x:Name="UpgradeProgressToggle" 
+                                              Grid.Column="1" 
+                                              OnContent="ON" 
+                                              OffContent="OFF"
+                                              Toggled="UpgradeProgressToggle_Toggled"/>
+                            </Grid>
+                            
+                            <!-- 유닛 카운트 토글 -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="📊 유닛 카운트" 
+                                               FontSize="16" 
+                                               FontWeight="Medium" 
+                                               Foreground="{StaticResource TextPrimary}"/>
+                                    <TextBlock Text="사용자 정의 유닛 그룹을 카테고리별로 표시합니다" 
+                                               FontSize="12" 
+                                               Foreground="{StaticResource TextSecondary}"/>
+                                </StackPanel>
+                                
+                                <ToggleSwitch x:Name="UnitCountToggle" 
+                                              Grid.Column="1" 
+                                              OnContent="ON" 
+                                              OffContent="OFF"
+                                              Toggled="UnitCountToggle_Toggled"/>
+                            </Grid>
+                            
+                            <!-- 건물 알림 토글 -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="🏗️ 건물 알림" 
+                                               FontSize="16" 
+                                               FontWeight="Medium" 
+                                               Foreground="{StaticResource TextPrimary}"/>
+                                    <TextBlock Text="방치된 건물을 감지하고 알림을 표시합니다" 
+                                               FontSize="12" 
+                                               Foreground="{StaticResource TextSecondary}"/>
+                                </StackPanel>
+                                
+                                <ToggleSwitch x:Name="BuildingAlertToggle" 
+                                              Grid.Column="1" 
+                                              OnContent="ON" 
+                                              OffContent="OFF"
+                                              Toggled="BuildingAlertToggle_Toggled"/>
+                            </Grid>
+                            
+                            <!-- 빌드오더 가이드 토글 -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="📋 빌드오더 가이드" 
+                                               FontSize="16" 
+                                               FontWeight="Medium" 
+                                               Foreground="{StaticResource TextPrimary}"/>
+                                    <TextBlock Text="노래방 스타일로 빌드오더를 안내합니다" 
+                                               FontSize="12" 
+                                               Foreground="{StaticResource TextSecondary}"/>
+                                </StackPanel>
+                                
+                                <ToggleSwitch x:Name="BuildOrderToggle" 
+                                              Grid.Column="1" 
+                                              OnContent="ON" 
+                                              OffContent="OFF"
+                                              Toggled="BuildOrderToggle_Toggled"/>
+                            </Grid>
+                            
+                            <!-- 인구수 경고 토글 -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="⚠️ 인구수 경고" 
+                                               FontSize="16" 
+                                               FontWeight="Medium" 
+                                               Foreground="{StaticResource TextPrimary}"/>
+                                    <TextBlock Text="스마트 인구수 관리 시스템으로 경고를 표시합니다" 
+                                               FontSize="12" 
+                                               Foreground="{StaticResource TextSecondary}"/>
+                                </StackPanel>
+                                
+                                <ToggleSwitch x:Name="PopulationWarningToggle" 
+                                              Grid.Column="1" 
+                                              OnContent="ON" 
+                                              OffContent="OFF"
+                                              Toggled="PopulationWarningToggle_Toggled"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- 하단 버튼들 -->
+                    <StackPanel Spacing="15" Margin="0,20,0,0">
+                        <Button x:Name="ControlTestButton" 
+                                Content="🔧 개발자 도구" 
+                                Background="{StaticResource ButtonPrimary}" 
+                                Foreground="{StaticResource TextPrimary}"
+                                BorderThickness="0"
+                                Padding="20,12"
+                                CornerRadius="8"
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                HorizontalAlignment="Center"
+                                Click="ControlTestButton_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Page.Content>
+</Page>

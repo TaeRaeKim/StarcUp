@@ -15,7 +15,7 @@
                 <Grid Margin="20,0">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="15">
                         <Button x:Name="BackToMainButton" 
-                                Content="← 홈으로" 
+                                Content="← 메인 프레임" 
                                 Background="#FF5865F2" 
                                 Foreground="White"
                                 BorderThickness="0"

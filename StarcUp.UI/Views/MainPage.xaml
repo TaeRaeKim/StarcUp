@@ -6,57 +6,402 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:StarcUp.UI"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
-    Background="{StaticResource BackgroundPrimary}">
+    xmlns:animations="using:CommunityToolkit.WinUI.Animations"
+    mc:Ignorable="d">
     
-    <Page.Content>
-        <Grid>
-            <!-- 메인 콘텐츠 -->
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="30">
+    <Page.Resources>
+        <!-- 스타크래프트 스타일 색상 정의 -->
+        <SolidColorBrush x:Key="StarcraftBg" Color="#0A0A0A"/>
+        <SolidColorBrush x:Key="StarcraftBgSecondary" Color="#1A1A1A"/>
+        <SolidColorBrush x:Key="StarcraftGreen" Color="#00FF00"/>
+        <SolidColorBrush x:Key="StarcraftYellow" Color="#FFFF00"/>
+        <SolidColorBrush x:Key="StarcraftRed" Color="#FF0000"/>
+        
+        <!-- 상태별 그라데이션 색상 브러시 -->
+        <SolidColorBrush x:Key="PlayingGreenBrush" Color="#00FF00"/>
+        <SolidColorBrush x:Key="WaitingYellowBrush" Color="#FFFF00"/>
+        <SolidColorBrush x:Key="ErrorRedBrush" Color="#FF0000"/>
+        <SolidColorBrush x:Key="StarcraftBorder" Color="#333333"/>
+        <SolidColorBrush x:Key="StarcraftInactivePrimary" Color="#555555"/>
+        <SolidColorBrush x:Key="StarcraftInactiveSecondary" Color="#404040"/>
+        <SolidColorBrush x:Key="StarcraftInactiveBorder" Color="#2A2A2A"/>
+        <SolidColorBrush x:Key="StarcraftInactiveText" Color="#666666"/>
+        
+        <!-- 메인 버튼 스타일 -->
+        <Style x:Key="MainPowerButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource StarcraftBg}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource StarcraftInactiveBorder}"/>
+            <Setter Property="BorderThickness" Value="3"/>
+            <Setter Property="CornerRadius" Value="168"/>
+            <Setter Property="Width" Value="336"/>
+            <Setter Property="Height" Value="336"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource StarcraftInactiveText}"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <CompositeTransform/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- 원형 버튼 스타일 -->
+        <Style x:Key="CircleButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        
+        <!-- CommunityToolkit.WinUI.Animations 네임스페이스 추가 필요 -->
+    </Page.Resources>
+    
+    <Grid Background="{StaticResource StarcraftBg}">
+        <!-- 메인 애플리케이션 컨테이너 -->
+        <Border x:Name="MainContainer"
+                Background="{StaticResource StarcraftBg}"
+                BorderBrush="{StaticResource StarcraftBorder}"
+                BorderThickness="0"
+                CornerRadius="0"
+                MaxWidth="600"
+                MinHeight="700"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Margin="20">
+            
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
                 
-                <!-- Hello World -->
-                <TextBlock Text="Hello, World!" 
-                           FontSize="48" 
-                           FontWeight="Bold" 
-                           Foreground="{StaticResource TextPrimary}" 
-                           HorizontalAlignment="Center"/>
+                <!-- 상단 타이틀 바 -->
+                <Border Grid.Row="0" 
+                        Background="{StaticResource StarcraftBgSecondary}"
+                        BorderBrush="{StaticResource StarcraftBorder}"
+                        BorderThickness="0,0,0,1"
+                        CornerRadius="0"
+                        Padding="12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="80"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- 왼쪽 빈 공간 -->
+                        <Grid Grid.Column="0"/>
+                        
+                        <!-- 중앙 프리셋 네비게이션 -->
+                        <StackPanel Grid.Column="1" 
+                                    Orientation="Horizontal" 
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Spacing="12">
+                            <Button x:Name="PrevPresetButton"
+                                    Style="{StaticResource CircleButtonStyle}"
+                                    Click="PrevPresetButton_Click"
+                                    Content="‹"
+                                    Foreground="{StaticResource StarcraftGreen}"
+                                    FontSize="16"
+                                    FontWeight="Bold"/>
+                            
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Ellipse x:Name="PresetIndicator1" 
+                                         Width="8" Height="8" 
+                                         Fill="{StaticResource StarcraftGreen}"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center"/>
+                                <Ellipse x:Name="PresetIndicator2" 
+                                         Width="8" Height="8" 
+                                         Fill="{StaticResource StarcraftInactiveBorder}"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center"/>
+                                <Ellipse x:Name="PresetIndicator3" 
+                                         Width="8" Height="8" 
+                                         Fill="{StaticResource StarcraftInactiveBorder}"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center"/>
+                            </StackPanel>
+                            
+                            <Button x:Name="NextPresetButton"
+                                    Style="{StaticResource CircleButtonStyle}"
+                                    Click="NextPresetButton_Click"
+                                    Content="›"
+                                    Foreground="{StaticResource StarcraftGreen}"
+                                    FontSize="16"
+                                    FontWeight="Bold"/>
+                        </StackPanel>
+                        
+                        <!-- 우측 창 컨트롤 버튼들 -->
+                        <StackPanel Grid.Column="2" 
+                                    Orientation="Horizontal" 
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Spacing="4">
+                            <Button Style="{StaticResource CircleButtonStyle}"
+                                    Width="16" Height="16"
+                                    Background="#FFFF00"
+                                    CornerRadius="8"/>
+                            <Button Style="{StaticResource CircleButtonStyle}"
+                                    Width="16" Height="16"
+                                    Background="#808080"
+                                    CornerRadius="8"/>
+                            <Button Style="{StaticResource CircleButtonStyle}"
+                                    Width="16" Height="16"
+                                    Background="#FF0000"
+                                    CornerRadius="8"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
                 
-                <TextBlock Text="StarcUp에 오신 것을 환영합니다" 
-                           FontSize="18" 
-                           Foreground="{StaticResource TextSecondary}" 
-                           HorizontalAlignment="Center"/>
+                <!-- 메인 컨텐츠 영역 -->
+                <Grid Grid.Row="1" Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- 프리셋 이름과 설정 버튼 -->
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="60"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <Grid Grid.Column="0"/>
+                        
+                        <TextBlock Grid.Column="1" 
+                                   x:Name="PresetNameText"
+                                   Text="공발질-8겟뽕"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource StarcraftGreen}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                        
+                        <Button Grid.Column="2" 
+                                x:Name="SettingsButton"
+                                Style="{StaticResource CircleButtonStyle}"
+                                Width="40" Height="40"
+                                Content="⚙"
+                                Foreground="{StaticResource StarcraftGreen}"
+                                FontSize="16"
+                                HorizontalAlignment="Right"
+                                Click="SettingsButton_Click"/>
+                    </Grid>
+                    
+                    <!-- 기능 상태 표시 그리드 -->
+                    <Grid Grid.Row="1" 
+                          HorizontalAlignment="Center"
+                          Margin="0,0,0,24">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        
+                        <!-- 첫 번째 행 -->
+                        <StackPanel Grid.Row="0" 
+                                    Orientation="Horizontal" 
+                                    Spacing="12"
+                                    HorizontalAlignment="Center">
+                            <Ellipse x:Name="FeatureDot1" Width="12" Height="12" Fill="White"/>
+                            <Ellipse x:Name="FeatureDot2" Width="12" Height="12" Fill="White"/>
+                            <Ellipse x:Name="FeatureDot3" Width="12" Height="12" Fill="{StaticResource StarcraftInactiveSecondary}"/>
+                            <Ellipse x:Name="FeatureDot4" Width="12" Height="12" Fill="White"/>
+                            <Ellipse x:Name="FeatureDot5" Width="12" Height="12" Fill="White"/>
+                        </StackPanel>
+                        
+                        <!-- 두 번째 행 -->
+                        <StackPanel Grid.Row="1" 
+                                    Orientation="Horizontal" 
+                                    Spacing="12"
+                                    HorizontalAlignment="Center"
+                                    Margin="0,12,0,0">
+                            <Ellipse x:Name="FeatureDot6" Width="12" Height="12" Fill="{StaticResource StarcraftInactiveSecondary}"/>
+                            <Ellipse x:Name="FeatureDot7" Width="12" Height="12" Fill="White"/>
+                            <Ellipse x:Name="FeatureDot8" Width="12" Height="12" Fill="{StaticResource StarcraftInactiveSecondary}"/>
+                            <Ellipse x:Name="FeatureDot9" Width="12" Height="12" Fill="White"/>
+                            <Ellipse x:Name="FeatureDot10" Width="12" Height="12" Fill="{StaticResource StarcraftInactiveSecondary}"/>
+                        </StackPanel>
+                    </Grid>
+                    
+                    <!-- 메인 버튼 -->
+                    <Grid Grid.Row="2" 
+                          HorizontalAlignment="Center" 
+                          VerticalAlignment="Center">
+                        
+                        <!-- CommunityToolkit 고급 리플 웨이브 효과 -->
+                        <Ellipse x:Name="RippleEllipse1"
+                                 Width="450" Height="450"
+                                 Stroke="{StaticResource StarcraftGreen}"
+                                 StrokeThickness="3"
+                                 Opacity="0"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center">
+                            <!-- 리플 1 연속 애니메이션 -->
+                            <animations:Implicit.Animations>
+                                <animations:OpacityAnimation Duration="0:0:1.8" />
+                                <animations:ScaleAnimation Duration="0:0:1.8" />
+                            </animations:Implicit.Animations>
+                        </Ellipse>
+                        
+                        <Ellipse x:Name="RippleEllipse2"
+                                 Width="550" Height="550"
+                                 Stroke="{StaticResource StarcraftGreen}"
+                                 StrokeThickness="2"
+                                 Opacity="0"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center">
+                            <!-- 리플 2 연속 애니메이션 (딜레이 있음) -->
+                            <animations:Implicit.Animations>
+                                <animations:OpacityAnimation Duration="0:0:2.2" />
+                                <animations:ScaleAnimation Duration="0:0:2.2" />
+                            </animations:Implicit.Animations>
+                        </Ellipse>
+                        
+                        <!-- 리플 3 추가 외부 웨이브 -->
+                        <Ellipse x:Name="RippleEllipse3"
+                                 Width="650" Height="650"
+                                 Stroke="{StaticResource StarcraftGreen}"
+                                 StrokeThickness="1"
+                                 Opacity="0"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center">
+                            <!-- 리플 3 연속 애니메이션 (최대 딜레이) -->
+                            <animations:Implicit.Animations>
+                                <animations:OpacityAnimation Duration="0:0:2.8" />
+                                <animations:ScaleAnimation Duration="0:0:2.8" />
+                            </animations:Implicit.Animations>
+                        </Ellipse>
+                        
+                        <!-- CommunityToolkit 고급 글로우 효과 -->
+                        <!-- Outer Glow 왕 -->
+                        <Ellipse x:Name="OuterGlowEllipse"
+                                 Width="450" Height="450"
+                                 Stroke="{StaticResource StarcraftGreen}"
+                                 StrokeThickness="32"
+                                 Opacity="0"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center">
+                            <!-- 외부 글로우 연속 애니메이션 -->
+                            <animations:Implicit.Animations>
+                                <animations:OpacityAnimation Duration="0:0:3" />
+                                <animations:ScaleAnimation Duration="0:0:4" />
+                            </animations:Implicit.Animations>
+                        </Ellipse>
+                        
+                        <!-- Middle Glow 왕 -->
+                        <Ellipse x:Name="MiddleGlowEllipse"
+                                 Width="400" Height="400"
+                                 Stroke="{StaticResource StarcraftGreen}"
+                                 StrokeThickness="20"
+                                 Opacity="0"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center">
+                            <!-- 중간 글로우 연속 애니메이션 -->
+                            <animations:Implicit.Animations>
+                                <animations:OpacityAnimation Duration="0:0:2.5" />
+                                <animations:RotationInDegreesAnimation Duration="0:0:8" />
+                            </animations:Implicit.Animations>
+                        </Ellipse>
+                        
+                        <!-- Inner Glow 왕 -->
+                        <Ellipse x:Name="InnerGlowEllipse"
+                                 Width="360" Height="360"
+                                 Stroke="{StaticResource StarcraftGreen}"
+                                 StrokeThickness="12"
+                                 Opacity="0"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center">
+                            <!-- 내부 글로우 연속 애니메이션 -->
+                            <animations:Implicit.Animations>
+                                <animations:OpacityAnimation Duration="0:0:2" />
+                                <animations:ScaleAnimation Duration="0:0:3" />
+                            </animations:Implicit.Animations>
+                        </Ellipse>
+                        
+                        <!-- 메인 버튼 (CommunityToolkit 애니메이션 적용) -->
+                        <Button x:Name="MainPowerButton"
+                                Style="{StaticResource MainPowerButtonStyle}"
+                                Click="MainPowerButton_Click"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                            
+                            <!-- Implicit Animations: 속성 변경 시 자동 애니메이션 -->
+                            <animations:Implicit.Animations>
+                                <animations:ScaleAnimation Duration="0:0:0.2" />
+                                <animations:OpacityAnimation Duration="0:0:0.3" />
+                            </animations:Implicit.Animations>
+                            
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock x:Name="PowerIconText" 
+                                           Text="⚡" 
+                                           FontSize="48" 
+                                           FontWeight="Bold" 
+                                           HorizontalAlignment="Center"
+                                           Foreground="{StaticResource StarcraftInactiveText}"
+                                           Margin="0,0,0,8" />
+                                <TextBlock x:Name="PowerStatusText" 
+                                           Text="모든 기능 비활성화됨" 
+                                           FontSize="12" 
+                                           HorizontalAlignment="Center"
+                                           Foreground="{StaticResource StarcraftInactiveText}"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           MaxWidth="200" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    
+                    <!-- OVERLAY ACTIVE 상태 표시 -->
+                    <Grid Grid.Row="3" 
+                          HorizontalAlignment="Center"
+                          Height="32"
+                          Margin="0,24,0,0">
+                        <TextBlock x:Name="OverlayStatusText"
+                                   Text="&gt; OVERLAY ACTIVE &lt;"
+                                   FontSize="14"
+                                   FontFamily="Consolas"
+                                   Foreground="{StaticResource StarcraftGreen}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Opacity="0"/>
+                    </Grid>
+                </Grid>
                 
-                <!-- 네비게이션 버튼 -->
-                <Button x:Name="ControlTestButton" 
-                        Content="🔧 개발자 도구" 
-                        Background="{StaticResource ButtonPrimary}" 
-                        Foreground="{StaticResource TextPrimary}"
-                        BorderThickness="0"
-                        Padding="20,12"
-                        CornerRadius="8"
-                        FontSize="16"
-                        FontWeight="SemiBold"
-                        Click="ControlTestButton_Click"/>
-                
-                <Button x:Name="OverlayButton" 
-                        Content="🎮 오버레이" 
-                        Background="{StaticResource ButtonSecondary}" 
-                        Foreground="{StaticResource TextSecondary}"
-                        BorderThickness="0"
-                        Padding="20,12"
-                        CornerRadius="8"
-                        FontSize="16"/>
-                
-                <Button x:Name="SettingsButton" 
-                        Content="⚙️ 설정" 
-                        Background="{StaticResource ButtonSecondary}" 
-                        Foreground="{StaticResource TextSecondary}"
-                        BorderThickness="0"
-                        Padding="20,12"
-                        CornerRadius="8"
-                        FontSize="16"/>
-
-            </StackPanel>
-        </Grid>
-    </Page.Content>
+                <!-- 하단 스크롤링 팁 영역 -->
+                <Border Grid.Row="2" 
+                        Background="{StaticResource StarcraftBgSecondary}"
+                        BorderBrush="{StaticResource StarcraftBorder}"
+                        BorderThickness="0,1,0,0"
+                        Height="32"
+                        Margin="0">
+                    <Grid>
+                        <ScrollViewer x:Name="TipScrollViewer"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Hidden"
+                                      HorizontalScrollMode="Enabled"
+                                      VerticalScrollMode="Disabled"
+                                      ZoomMode="Disabled">
+                            <TextBlock x:Name="ScrollingTipText"
+                                       Text="일꾼은 게임의 핵심! 항상 일꾼 생산을 우선하세요."
+                                       FontSize="14"
+                                       Foreground="{StaticResource StarcraftGreen}"
+                                       VerticalAlignment="Center"
+                                       Margin="20,0,0,0"
+                                       TextWrapping="NoWrap"/>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
 </Page>
