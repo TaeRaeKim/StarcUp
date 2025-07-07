@@ -9,6 +9,7 @@ using StarcUp.Business.Game;
 using StarcUp.Business.GameManager.Extensions;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Windows;
+using StarcUp.Infrastructure.Pipes;
 
 namespace StarcUp.DependencyInjection
 {    /// <summary>
@@ -74,6 +75,12 @@ namespace StarcUp.DependencyInjection
                     c.Resolve<IMemoryService>(),
                     c.Resolve<IUnitCountService>()));
 
+            // Pipe Communication Services
+            container.RegisterSingleton<ICommandHandler>(
+                c => new CommandHandler(c));
+            container.RegisterSingleton<IPipeService>(
+                c => new PipeService(c.Resolve<ICommandHandler>()));
+
             Console.WriteLine("✅ 서비스 등록 완료:");
             Console.WriteLine("   📖 MemoryReader - 통합된 메모리 읽기 서비스");
             Console.WriteLine("   🪟 WindowManager - 윈도우 관리 서비스");
@@ -87,6 +94,8 @@ namespace StarcUp.DependencyInjection
             Console.WriteLine("   🔢 UnitCountAdapter - 유닛 카운트 메모리 어댑터");
             Console.WriteLine("   📊 UnitCountService - 유닛 카운트 관리 서비스");
             Console.WriteLine("   🎯 GameManager - 게임 관리 서비스 (자동 유닛 데이터 로딩)");
+            Console.WriteLine("   🔗 PipeService - Anonymous Pipe 통신 서비스");
+            Console.WriteLine("   ⚡ CommandHandler - 명령 처리 핸들러");
         }
     }
 }
