@@ -36,26 +36,39 @@ namespace StarcUp.Infrastructure.Pipes
         }
 
         /// <summary>
-        /// Anonymous Pipe 클라이언트 시작
+        /// Pipe 클라이언트 시작 (Anonymous Pipes 또는 stdio)
         /// </summary>
-        /// <param name="pipeInHandle">부모로부터 받은 입력 핸들</param>
-        /// <param name="pipeOutHandle">부모로부터 받은 출력 핸들</param>
+        /// <param name="pipeInHandle">부모로부터 받은 입력 핸들 또는 "stdio"</param>
+        /// <param name="pipeOutHandle">부모로부터 받은 출력 핸들 또는 "stdio"</param>
         /// <param name="cancellationToken">취소 토큰</param>
         public async Task StartAsync(string pipeInHandle, string pipeOutHandle, CancellationToken cancellationToken = default)
         {
             try
             {
-                Console.WriteLine($"🔗 Anonymous Pipe 연결 시작...");
-                Console.WriteLine($"   📥 입력 핸들: {pipeInHandle}");
-                Console.WriteLine($"   📤 출력 핸들: {pipeOutHandle}");
+                bool useStdio = pipeInHandle == "stdio" && pipeOutHandle == "stdio";
+                
+                if (useStdio)
+                {
+                    Console.WriteLine($"🔗 stdio 통신 시작...");
+                    
+                    // stdio 스트림 사용
+                    _reader = new StreamReader(Console.OpenStandardInput(), Encoding.UTF8);
+                    _writer = new StreamWriter(Console.OpenStandardOutput(), Encoding.UTF8) { AutoFlush = true };
+                }
+                else
+                {
+                    Console.WriteLine($"🔗 Anonymous Pipe 연결 시작...");
+                    Console.WriteLine($"   📥 입력 핸들: {pipeInHandle}");
+                    Console.WriteLine($"   📤 출력 핸들: {pipeOutHandle}");
 
-                // Anonymous Pipe 클라이언트 생성
-                _pipeClientIn = new AnonymousPipeClientStream(PipeDirection.In, pipeInHandle);
-                _pipeClientOut = new AnonymousPipeClientStream(PipeDirection.Out, pipeOutHandle);
+                    // Anonymous Pipe 클라이언트 생성
+                    _pipeClientIn = new AnonymousPipeClientStream(PipeDirection.In, pipeInHandle);
+                    _pipeClientOut = new AnonymousPipeClientStream(PipeDirection.Out, pipeOutHandle);
 
-                // 스트림 리더/라이터 생성
-                _reader = new StreamReader(_pipeClientIn, Encoding.UTF8);
-                _writer = new StreamWriter(_pipeClientOut, Encoding.UTF8) { AutoFlush = true };
+                    // 스트림 리더/라이터 생성
+                    _reader = new StreamReader(_pipeClientIn, Encoding.UTF8);
+                    _writer = new StreamWriter(_pipeClientOut, Encoding.UTF8) { AutoFlush = true };
+                }
 
                 // 취소 토큰 소스 생성
                 _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -63,11 +76,11 @@ namespace StarcUp.Infrastructure.Pipes
                 // 리스닝 태스크 시작
                 _listeningTask = ListenForCommandsAsync(_cancellationTokenSource.Token);
 
-                Console.WriteLine("✅ Anonymous Pipe 연결 완료");
+                Console.WriteLine($"✅ {(useStdio ? "stdio" : "Anonymous Pipe")} 연결 완료");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Anonymous Pipe 연결 실패: {ex.Message}");
+                Console.WriteLine($"❌ Pipe 연결 실패: {ex.Message}");
                 throw;
             }
         }

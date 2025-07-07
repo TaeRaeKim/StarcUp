@@ -20,20 +20,34 @@ namespace StarcUp
 
             try
             {
-                // 명령줄 인자 확인 (Anonymous Pipe 핸들)
-                if (args.Length < 2)
+                // 명령줄 인자 확인
+                bool useStdio = args.Length >= 2 && args[0] == "stdio" && args[1] == "stdio";
+                
+                if (!useStdio && args.Length < 2)
                 {
-                    Console.WriteLine("❌ 사용법: StarcUp.Core.exe <pipeInHandle> <pipeOutHandle>");
+                    Console.WriteLine("❌ 사용법:");
+                    Console.WriteLine("   StarcUp.Core.exe <pipeInHandle> <pipeOutHandle>  - Anonymous Pipes 모드");
+                    Console.WriteLine("   StarcUp.Core.exe stdio stdio                    - stdio 모드");
                     Environment.Exit(1);
                     return;
                 }
 
-                var pipeInHandle = args[0];
-                var pipeOutHandle = args[1];
-
-                Console.WriteLine($"📡 부모 프로세스로부터 파이프 핸들 수신:");
-                Console.WriteLine($"   📥 입력: {pipeInHandle}");
-                Console.WriteLine($"   📤 출력: {pipeOutHandle}");
+                string pipeInHandle, pipeOutHandle;
+                
+                if (useStdio)
+                {
+                    Console.WriteLine("📡 stdio 모드로 실행");
+                    pipeInHandle = "stdio";
+                    pipeOutHandle = "stdio";
+                }
+                else
+                {
+                    pipeInHandle = args[0];
+                    pipeOutHandle = args[1];
+                    Console.WriteLine($"📡 부모 프로세스로부터 파이프 핸들 수신:");
+                    Console.WriteLine($"   📥 입력: {pipeInHandle}");
+                    Console.WriteLine($"   📤 출력: {pipeOutHandle}");
+                }
 
                 // 서비스 컨테이너 초기화
                 _container = new ServiceContainer();
