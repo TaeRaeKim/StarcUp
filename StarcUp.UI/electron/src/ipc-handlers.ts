@@ -66,7 +66,7 @@ export class IPCHandlers {
         await this.coreProcessManager.startCoreProcess()
         return { success: true }
       } catch (error) {
-        return { success: false, error: error.message }
+        return { success: false, error: String(error) }
       }
     })
 
@@ -76,7 +76,7 @@ export class IPCHandlers {
         await this.coreProcessManager.stopCoreProcess()
         return { success: true }
       } catch (error) {
-        return { success: false, error: error.message }
+        return { success: false, error: String(error) }
       }
     })
 
@@ -86,7 +86,7 @@ export class IPCHandlers {
         const response = await this.coreProcessManager.sendCommand('start-game-detect')
         return response
       } catch (error) {
-        return { success: false, error: error.message }
+        return { success: false, error: String(error) }
       }
     })
 
@@ -96,7 +96,7 @@ export class IPCHandlers {
         const response = await this.coreProcessManager.sendCommand('stop-game-detect')
         return response
       } catch (error) {
-        return { success: false, error: error.message }
+        return { success: false, error: String(error) }
       }
     })
 
@@ -106,7 +106,7 @@ export class IPCHandlers {
         const response = await this.coreProcessManager.sendCommand('get-game-status')
         return response
       } catch (error) {
-        return { success: false, error: error.message }
+        return { success: false, error: String(error) }
       }
     })
 
@@ -116,7 +116,7 @@ export class IPCHandlers {
         const response = await this.coreProcessManager.sendCommand(command, args)
         return response
       } catch (error) {
-        return { success: false, error: error.message }
+        return { success: false, error: String(error) }
       }
     })
   }

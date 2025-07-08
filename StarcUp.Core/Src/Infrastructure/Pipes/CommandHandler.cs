@@ -32,6 +32,7 @@ namespace StarcUp.Infrastructure.Pipes
 
                 var result = command.ToLower() switch
                 {
+                    "ping" => await HandlePingAsync(arguments),
                     "start-game-detect" => await HandleStartGameDetectAsync(arguments),
                     "stop-game-detect" => await HandleStopGameDetectAsync(arguments),
                     "get-game-status" => await HandleGetGameStatusAsync(arguments),
@@ -46,6 +47,17 @@ namespace StarcUp.Infrastructure.Pipes
                 Console.WriteLine($"❌ 명령 처리 실패: {command} -> {ex.Message}");
                 return $"ERROR:{ex.Message}";
             }
+        }
+
+        /// <summary>
+        /// Ping 명령 처리
+        /// </summary>
+        private async Task<string> HandlePingAsync(string[] arguments)
+        {
+            // 간단한 응답 반환 (추후 시스템 상태 체크 등을 추가할 수 있음)
+            await Task.CompletedTask; // async 메서드이므로 await 추가
+            Console.WriteLine("🏓 Ping 요청 처리 중...");
+            return "pong";
         }
 
         /// <summary>

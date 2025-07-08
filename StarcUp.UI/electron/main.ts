@@ -55,7 +55,7 @@ async function initializeApp(): Promise<void> {
     // 단축키 등록
     shortcutManager.registerShortcuts()
 
-    // StarcUp.Core 프로세스 시작
+    // StarcUp.Core 프로세스 시작 (Named Pipe 모드)
     console.log('🚀 StarcUp.Core 프로세스 초기화 중...')
     await coreProcessManager.startCoreProcess()
     console.log('✅ StarcUp.Core 프로세스 초기화 완료')

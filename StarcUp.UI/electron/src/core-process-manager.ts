@@ -2,6 +2,7 @@ import { spawn, ChildProcess } from 'child_process'
 import { app } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
+import { NamedPipeClient, NamedPipeResponse } from './named-pipe-client'
 
 export interface CoreProcessResponse {
   success: boolean
@@ -11,11 +12,15 @@ export interface CoreProcessResponse {
 
 export class CoreProcessManager {
   private coreProcess: ChildProcess | null = null
+  private namedPipeClient: NamedPipeClient | null = null
   private isConnected = false
-  private responseQueue: Array<(response: CoreProcessResponse) => void> = []
+  private pipeName = 'StarcUp.Core'
+  private healthCheckInterval: NodeJS.Timeout | null = null
+  private lastHealthCheck = Date.now()
+  private autoReconnect = true
 
   /**
-   * StarcUp.Core 프로세스 시작 및 stdio 통신 연결
+   * StarcUp.Core 프로세스 시작 및 Named Pipe 통신 연결
    */
   async startCoreProcess(): Promise<void> {
     if (this.coreProcess) {
@@ -24,7 +29,7 @@ export class CoreProcessManager {
     }
 
     try {
-      console.log('🚀 StarcUp.Core 프로세스 시작 중...')
+      console.log('🚀 StarcUp.Core 프로세스 시작 중 (Named Pipe 모드)...')
 
       // StarcUp.Core 실행 파일 경로 찾기
       const coreExePath = this.findCoreExecutable()
@@ -54,22 +59,37 @@ export class CoreProcessManager {
         }
       }
 
-      // StarcUp.Core 프로세스 실행 (stdio를 통한 통신)
-      this.coreProcess = spawn(coreExePath, ['stdio', 'stdio'], {
-        stdio: ['pipe', 'pipe', 'pipe'],
+      // Named Pipe 모드로 StarcUp.Core 실행
+      this.coreProcess = spawn(coreExePath, [this.pipeName], {
+        stdio: ['ignore', 'pipe', 'pipe'],
         detached: false,
         windowsHide: true,
-        cwd: coreWorkingDir  // 실행 파일 위치를 작업 디렉토리로 설정
+        cwd: coreWorkingDir
       })
 
-      // 응답 리스너 설정
-      this.setupResponseListener()
+      // Named Pipe 클라이언트 생성 및 연결
+      this.namedPipeClient = new NamedPipeClient({
+        pipeName: this.pipeName,
+        reconnectInterval: 3000,
+        maxReconnectAttempts: 5,
+        responseTimeout: 10000
+      })
+
+      // Named Pipe 이벤트 핸들러 설정
+      this.setupNamedPipeEventHandlers()
+
+      // 프로세스 시작 후 잠시 대기
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // Named Pipe 연결
+      await this.namedPipeClient.connect()
+
+      this.isConnected = true
+      this.startHealthCheck()
+      console.log('✅ StarcUp.Core 프로세스 연결 완료 (Named Pipe)')
 
       // 프로세스 이벤트 핸들러 설정
       this.setupProcessEventHandlers()
-
-      this.isConnected = true
-      console.log('✅ StarcUp.Core 프로세스 연결 완료')
 
     } catch (error) {
       console.error('❌ StarcUp.Core 프로세스 시작 실패:', error)
@@ -90,6 +110,16 @@ export class CoreProcessManager {
       console.log('🔌 StarcUp.Core 프로세스 종료 중...')
 
       this.isConnected = false
+      this.autoReconnect = false
+
+      // 헬스 체크 중지
+      this.stopHealthCheck()
+
+      // Named Pipe 클라이언트 종료
+      if (this.namedPipeClient) {
+        this.namedPipeClient.disconnect()
+        this.namedPipeClient = null
+      }
 
       // 프로세스 종료
       if (this.coreProcess) {
@@ -97,11 +127,6 @@ export class CoreProcessManager {
         this.coreProcess = null
       }
 
-      // 대기 중인 응답 정리
-      this.responseQueue.forEach(resolve => 
-        resolve({ success: false, error: 'Core 프로세스가 종료되었습니다.' })
-      )
-      this.responseQueue = []
 
       console.log('✅ StarcUp.Core 프로세스 종료 완료')
     } catch (error) {
@@ -113,37 +138,16 @@ export class CoreProcessManager {
    * 명령 전송
    */
   async sendCommand(command: string, args: string[] = []): Promise<CoreProcessResponse> {
-    if (!this.isConnected || !this.coreProcess || !this.coreProcess.stdin) {
-      return { success: false, error: 'Core 프로세스가 연결되지 않았습니다.' }
+    if (!this.isConnected || !this.namedPipeClient) {
+      return { success: false, error: 'Named Pipe 클라이언트가 연결되지 않았습니다.' }
     }
 
-    return new Promise((resolve) => {
-      const fullCommand = [command, ...args].join(' ')
-
-      // 응답 콜백 등록
-      this.responseQueue.push(resolve)
-
-      // 타임아웃 설정 (10초)
-      setTimeout(() => {
-        const index = this.responseQueue.indexOf(resolve)
-        if (index > -1) {
-          this.responseQueue.splice(index, 1)
-          resolve({ success: false, error: '명령 실행 시간 초과' })
-        }
-      }, 10000)
-
-      try {
-        // 명령 전송
-        this.coreProcess!.stdin!.write(fullCommand + '\n')
-        console.log(`📤 명령 전송: ${fullCommand}`)
-      } catch (error) {
-        const index = this.responseQueue.indexOf(resolve)
-        if (index > -1) {
-          this.responseQueue.splice(index, 1)
-        }
-        resolve({ success: false, error: `명령 전송 실패: ${error}` })
-      }
-    })
+    const response = await this.namedPipeClient.sendCommand(command, args)
+    return {
+      success: response.success,
+      data: response.data,
+      error: response.error
+    }
   }
 
   /**
@@ -176,71 +180,6 @@ export class CoreProcessManager {
   }
 
   /**
-   * 응답 리스너 설정
-   */
-  private setupResponseListener(): void {
-    if (!this.coreProcess || !this.coreProcess.stdout) return
-
-    let buffer = ''
-
-    this.coreProcess.stdout.on('data', (chunk: Buffer) => {
-      buffer += chunk.toString()
-      
-      // 줄 단위로 처리
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || '' // 마지막 불완전한 줄은 버퍼에 보관
-
-      for (const line of lines) {
-        if (line.trim()) {
-          this.handleResponse(line.trim())
-        }
-      }
-    })
-
-    this.coreProcess.stdout.on('error', (error) => {
-      console.error('❌ stdout 스트림 오류:', error)
-    })
-  }
-
-  /**
-   * 응답 처리
-   */
-  private handleResponse(response: string): void {
-    console.log(`📥 응답 수신: ${response}`)
-
-    try {
-      // 응답 파싱 (SUCCESS:data 또는 ERROR:message 형식)
-      const isSuccess = response.startsWith('SUCCESS:')
-      const isError = response.startsWith('ERROR:')
-      
-      let result: CoreProcessResponse
-      
-      if (isSuccess) {
-        const data = response.substring(8) // 'SUCCESS:' 제거
-        result = { success: true, data }
-      } else if (isError) {
-        const error = response.substring(6) // 'ERROR:' 제거
-        result = { success: false, error }
-      } else {
-        // 알 수 없는 응답 형식 - 원시 데이터로 처리
-        result = { success: true, data: response }
-      }
-
-      // 대기 중인 첫 번째 명령의 응답 해결
-      if (this.responseQueue.length > 0) {
-        const resolver = this.responseQueue.shift()
-        resolver!(result)
-      }
-    } catch (error) {
-      console.error('❌ 응답 처리 중 오류:', error)
-      if (this.responseQueue.length > 0) {
-        const resolver = this.responseQueue.shift()
-        resolver!({ success: false, error: `응답 처리 오류: ${error}` })
-      }
-    }
-  }
-
-  /**
    * 프로세스 이벤트 핸들러 설정
    */
   private setupProcessEventHandlers(): void {
@@ -255,16 +194,51 @@ export class CoreProcessManager {
       this.isConnected = false
       this.coreProcess = null
       
-      // 대기 중인 모든 응답 처리
-      this.responseQueue.forEach(resolve => 
-        resolve({ success: false, error: 'Core 프로세스가 예상치 못하게 종료되었습니다.' })
-      )
-      this.responseQueue = []
+      // 자동 재연결 시도
+      if (this.autoReconnect) {
+        this.attemptReconnect()
+      }
     })
 
     this.coreProcess.on('error', (error) => {
       console.error('❌ StarcUp.Core 프로세스 오류:', error)
       this.isConnected = false
+      
+      // 자동 재연결 시도
+      if (this.autoReconnect) {
+        this.attemptReconnect()
+      }
+    })
+  }
+
+  /**
+   * Named Pipe 이벤트 핸들러 설정
+   */
+  private setupNamedPipeEventHandlers(): void {
+    if (!this.namedPipeClient) return
+
+    this.namedPipeClient.on('connected', () => {
+      console.log('✅ Named Pipe 클라이언트 연결됨')
+    })
+
+    this.namedPipeClient.on('disconnected', () => {
+      console.log('🔌 Named Pipe 클라이언트 연결 해제됨')
+      this.isConnected = false
+      
+      // 자동 재연결 시도
+      if (this.autoReconnect) {
+        this.attemptReconnect()
+      }
+    })
+
+    this.namedPipeClient.on('error', (error) => {
+      console.error('❌ Named Pipe 클라이언트 오류:', error)
+      this.isConnected = false
+      
+      // 자동 재연결 시도
+      if (this.autoReconnect) {
+        this.attemptReconnect()
+      }
     })
   }
 
@@ -272,6 +246,105 @@ export class CoreProcessManager {
    * 연결 상태 확인
    */
   get connected(): boolean {
-    return this.isConnected && this.coreProcess !== null
+    return this.isConnected && this.namedPipeClient !== null && this.namedPipeClient.connected
+  }
+
+  /**
+   * 헬스 체크 시작
+   */
+  private startHealthCheck(): void {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval)
+    }
+
+    this.healthCheckInterval = setInterval(async () => {
+      try {
+        // 마지막 헬스 체크로부터 30초가 지났으면 핑 전송
+        if (Date.now() - this.lastHealthCheck > 30000) {
+          const response = await this.sendCommand('ping')
+          
+          if (response.success) {
+            this.lastHealthCheck = Date.now()
+            console.log('💓 StarcUp.Core 헬스 체크 성공')
+          } else {
+            console.warn('⚠️ StarcUp.Core 헬스 체크 실패')
+            if (this.autoReconnect) {
+              this.attemptReconnect()
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ 헬스 체크 중 오류:', error)
+        if (this.autoReconnect) {
+          this.attemptReconnect()
+        }
+      }
+    }, 30000) // 30초마다 헬스 체크
+  }
+
+  /**
+   * 헬스 체크 중지
+   */
+  private stopHealthCheck(): void {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval)
+      this.healthCheckInterval = null
+    }
+  }
+
+  /**
+   * 재연결 시도
+   */
+  private async attemptReconnect(): Promise<void> {
+    if (!this.autoReconnect || this.isConnected) {
+      return
+    }
+
+    console.log('🔄 StarcUp.Core 재연결 시도 중...')
+
+    try {
+      // 기존 연결 정리
+      if (this.namedPipeClient) {
+        this.namedPipeClient.disconnect()
+      }
+
+      // 프로세스가 종료되었는지 확인
+      if (this.coreProcess && this.coreProcess.killed) {
+        console.log('🚀 StarcUp.Core 프로세스 재시작 중...')
+        await this.startCoreProcess()
+      } else {
+        // Named Pipe 재연결 시도
+        this.namedPipeClient = new NamedPipeClient({
+          pipeName: this.pipeName,
+          reconnectInterval: 3000,
+          maxReconnectAttempts: 5,
+          responseTimeout: 10000
+        })
+
+        this.setupNamedPipeEventHandlers()
+        await this.namedPipeClient.connect()
+        
+        this.isConnected = true
+        this.startHealthCheck()
+        console.log('✅ StarcUp.Core 재연결 성공')
+      }
+    } catch (error) {
+      console.error('❌ StarcUp.Core 재연결 실패:', error)
+      
+      // 5초 후 다시 시도
+      setTimeout(() => {
+        if (this.autoReconnect) {
+          this.attemptReconnect()
+        }
+      }, 5000)
+    }
+  }
+
+  /**
+   * 자동 재연결 활성화/비활성화
+   */
+  setAutoReconnect(enabled: boolean): void {
+    this.autoReconnect = enabled
+    console.log(`🔄 자동 재연결: ${enabled ? '활성화' : '비활성화'}`)
   }
 }
