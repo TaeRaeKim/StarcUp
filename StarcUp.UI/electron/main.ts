@@ -40,6 +40,11 @@ app.whenReady().then(() => {
 
 async function initializeApp(): Promise<void> {
   try {
+    // 환경 감지 (개발 모드 vs 프로덕션 모드)
+    const isDevelopment = process.env.NODE_ENV === 'development' || !app.isPackaged
+    
+    console.log(`🏗️ 애플리케이션 모드: ${isDevelopment ? '개발' : '프로덕션'}`)
+
     // 모듈 초기화
     windowManager = new WindowManager()
     coreProcessManager = new CoreProcessManager()
@@ -55,10 +60,15 @@ async function initializeApp(): Promise<void> {
     // 단축키 등록
     shortcutManager.registerShortcuts()
 
-    // StarcUp.Core 프로세스 시작 (Named Pipe 모드)
-    console.log('🚀 StarcUp.Core 프로세스 초기화 중...')
-    await coreProcessManager.startCoreProcess()
-    console.log('✅ StarcUp.Core 프로세스 초기화 완료')
+    // StarcUp.Core 연결/시작
+    if (isDevelopment) {
+      console.log('🔧 개발 모드: 기존 StarcUp.Core 프로세스에 연결 시도...')
+    } else {
+      console.log('🚀 프로덕션 모드: StarcUp.Core 프로세스 시작...')
+    }
+    
+    await coreProcessManager.startCoreProcess(isDevelopment)
+    console.log('✅ StarcUp.Core 초기화 완료')
 
   } catch (error) {
     console.error('❌ 애플리케이션 초기화 실패:', error)

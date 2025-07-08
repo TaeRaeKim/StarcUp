@@ -69,8 +69,6 @@ export class NamedPipeClient extends EventEmitter {
             this.emit('error', error)
             reject(error)
           }
-          
-          this.startReconnect()
         })
 
         this.socket.on('close', () => {
@@ -78,7 +76,8 @@ export class NamedPipeClient extends EventEmitter {
           this.isConnected = false
           this.emit('disconnected')
           
-          if (!this.isReconnecting) {
+          // 재연결이 비활성화되어 있으면 재연결 시도하지 않음
+          if (!this.isReconnecting && this.maxReconnectAttempts > 0) {
             this.startReconnect()
           }
         })
