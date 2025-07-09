@@ -241,10 +241,11 @@ export class CoreProcessManager {
   private handleDisconnection(): void {
     if (this.connectionState === ConnectionState.DISCONNECTED || 
         this.connectionState === ConnectionState.RECONNECTING) {
+      console.log(`⚠️ 연결 해제 무시 (상태: ${this.connectionState}, 카운터: ${this.reconnectAttempts})`)
       return // 이미 해제 처리됨 또는 재연결 중
     }
 
-    console.log('🔌 연결 해제 감지')
+    console.log(`🔌 연결 해제 감지 (카운터: ${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
     this.connectionState = ConnectionState.DISCONNECTED
     this.stopHealthCheck()
 
@@ -258,14 +259,29 @@ export class CoreProcessManager {
    */
   private scheduleReconnect(): void {
     if (this.connectionState === ConnectionState.RECONNECTING) {
+      console.log(`⏳ 재연결이 이미 예약됨 (현재: ${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
       return // 이미 재연결 예약됨
     }
 
+    // 기존 재연결 타이머 정리
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+      console.log('🧹 기존 재연결 타이머 정리됨')
+    }
+
+    console.log(`🔄 재연결 스케줄링 시작 (현재 카운터: ${this.reconnectAttempts})`)
     this.reconnectAttempts++
     
     if (this.reconnectAttempts > this.maxReconnectAttempts) {
       console.error(`❌ 최대 재연결 시도 횟수 초과 (${this.maxReconnectAttempts}회)`)
       this.connectionState = ConnectionState.FAILED
+      
+      if (this.isDevelopment) {
+        console.error('🔧 개발 모드: StarcUp.Core 프로세스가 실행되지 않았거나 Named Pipe가 사용 중일 수 있습니다.')
+        console.error('   - StarcUp.Core를 수동으로 실행해보세요.')
+        console.error('   - 다른 StarcUp.UI 인스턴스가 실행 중인지 확인해보세요.')
+      }
       return
     }
 
@@ -295,6 +311,12 @@ export class CoreProcessManager {
   private async performReconnect(): Promise<void> {
     console.log('🔄 재연결 시도 중...')
     
+    // 재연결 타이머 정리 (중복 방지)
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+    
     // 기존 연결 정리
     if (this.namedPipeClient) {
       this.namedPipeClient.disconnect()
@@ -311,11 +333,21 @@ export class CoreProcessManager {
     
     await this.connectToPipe()
     
+    // 연결 안정화를 위해 잠시 대기
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
     this.connectionState = ConnectionState.CONNECTED
     this.reconnectAttempts = 0
+    
+    // 모든 재연결 타이머 정리
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+    
     this.startHealthCheck()
     
-    console.log('✅ 재연결 성공')
+    console.log(`✅ 재연결 성공 (카운터 초기화: ${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
   }
 
   /**
