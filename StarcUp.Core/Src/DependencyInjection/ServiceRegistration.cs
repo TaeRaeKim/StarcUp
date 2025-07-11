@@ -36,8 +36,7 @@ namespace StarcUp.DependencyInjection
 
             // Game Detection Services
             container.RegisterSingleton<IGameDetector>(
-                c => new GameDetector(
-                    c.Resolve<IWindowManager>()));
+                c => new GameDetector());
 
             // InGameStateMonitor
             container.RegisterSingleton<IInGameDetector>(

@@ -11,10 +11,6 @@ namespace StarcUp.Business.GameDetection
         public int ProcessId { get; set; }
         public nint WindowHandle { get; set; }
         public string ProcessName { get; set; }
-        public Rectangle WindowBounds { get; set; }
-        public bool IsFullscreen { get; set; }
-        public bool IsMinimized { get; set; }
-        public bool IsActive { get; set; }
         public DateTime DetectedAt { get; set; }
 
         public GameInfo()

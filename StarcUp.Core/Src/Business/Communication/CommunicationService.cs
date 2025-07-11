@@ -178,32 +178,24 @@ namespace StarcUp.Business.Communication
         }
 
         private void OnCommandRequestReceived(object sender, CommandRequestEventArgs e)
-        {
-            Console.WriteLine($"🎯 명령 요청 처리: {e.Command} (RequestId: {e.RequestId})");
-            
+        {            
             try
             {
                 switch (e.Command)
                 {
                     case NamedPipeProtocol.Commands.StartGameDetect:
-                        Console.WriteLine("🚀 게임 감지 시작 요청 처리");
                         _gameDetector.StartDetection();
-                        Console.WriteLine("✅ 게임 감지 시작됨");
                         break;
                         
                     case NamedPipeProtocol.Commands.StopGameDetect:
-                        Console.WriteLine("🛑 게임 감지 중지 요청 처리");
                         _gameDetector.StopDetection();
-                        Console.WriteLine("✅ 게임 감지 중지됨");
                         break;
                         
-                    case NamedPipeProtocol.Commands.GetGameStatus:
-                        Console.WriteLine("📊 게임 상태 조회 요청 처리");
-                        var gameStatus = _gameDetector.IsGameRunning ? "GAME_RUNNING" : "NOT_RUNNING";
-                        Console.WriteLine($"📊 현재 게임 상태: {gameStatus}");
-                        // 필요하면 상태를 UI로 알림 전송
-                        NotifyGameStatus(new { status = gameStatus });
-                        break;
+                    // case NamedPipeProtocol.Commands.GetGameStatus:
+                    //     var gameStatus = _gameDetector.IsGameRunning ? "GAME_RUNNING" : "NOT_RUNNING";
+                    //     // 필요하면 상태를 UI로 알림 전송
+                    //     NotifyGameStatus(new { status = gameStatus });
+                    //     break;
                         
                     default:
                         Console.WriteLine($"⚠️ 알 수 없는 명령: {e.Command}");
@@ -217,9 +209,7 @@ namespace StarcUp.Business.Communication
         }
 
         private void OnGameFound(object sender, GameEventArgs e)
-        {
-            Console.WriteLine($"🎮 게임 발견 이벤트: {e.GameInfo.ProcessName} (PID: {e.GameInfo.ProcessId})");
-            
+        {            
             try
             {
                 var eventData = new
@@ -230,22 +220,11 @@ namespace StarcUp.Business.Communication
                         processId = e.GameInfo.ProcessId,
                         processName = e.GameInfo.ProcessName,
                         windowHandle = e.GameInfo.WindowHandle.ToString(),
-                        detectedAt = e.GameInfo.DetectedAt,
-                        isActive = e.GameInfo.IsActive,
-                        isFullscreen = e.GameInfo.IsFullscreen,
-                        isMinimized = e.GameInfo.IsMinimized,
-                        windowBounds = new
-                        {
-                            x = e.GameInfo.WindowBounds.X,
-                            y = e.GameInfo.WindowBounds.Y,
-                            width = e.GameInfo.WindowBounds.Width,
-                            height = e.GameInfo.WindowBounds.Height
-                        }
+                        detectedAt = e.GameInfo.DetectedAt
                     }
                 };
 
                 _pipeClient.SendEvent("game-found", eventData);
-                Console.WriteLine("📡 게임 발견 이벤트를 UI에 전송했습니다");
             }
             catch (Exception ex)
             {
