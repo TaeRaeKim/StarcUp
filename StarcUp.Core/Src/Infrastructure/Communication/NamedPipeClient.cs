@@ -137,7 +137,13 @@ namespace StarcUp.Core.Src.Infrastructure.Communication
 
             try
             {
-                var jsonMessage = JsonSerializer.Serialize(request);
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    Converters = { new JsonStringEnumConverter() }
+                };
+                
+                var jsonMessage = JsonSerializer.Serialize(request, options);
                 Console.WriteLine($"📤 [SendCommandAsync] 새 프로토콜로 명령 전송: {command} (ID: {request.Id})");
                 
                 lock (_lockObject)
@@ -431,9 +437,15 @@ namespace StarcUp.Core.Src.Infrastructure.Communication
         {
             try
             {
-                var responseJson = JsonSerializer.Serialize(response);
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    Converters = { new JsonStringEnumConverter() }
+                };
+                
+                var responseJson = JsonSerializer.Serialize(response, options);
                 await _writer.WriteLineAsync(responseJson);
-                Console.WriteLine($"📤 [SendResponseAsync] 응답 전송 완료 - ID: {response.RequestId}");
+                Console.WriteLine($"📤 [SendResponseAsync] 응답 전송 완료 - RequestID: {response.RequestId}");
             }
             catch (Exception ex)
             {
