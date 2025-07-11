@@ -4,12 +4,11 @@ using System.IO;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using static StarcUp.Core.Src.Infrastructure.Communication.NamedPipeProtocol;
+using StarcUp.Common.Events;
 
-namespace StarcUp.Core.Src.Infrastructure.Communication
+namespace StarcUp.Infrastructure.Communication
 {
     /// <summary>
     /// Named Pipes 클라이언트 구현
@@ -17,13 +16,21 @@ namespace StarcUp.Core.Src.Infrastructure.Communication
     /// </summary>
     public class NamedPipeClient : INamedPipeClient
     {
+        private static readonly JsonSerializerOptions LogOptions = new()
+        {
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
+        private static readonly JsonSerializerOptions SerializeOptions = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
         private NamedPipeClientStream _pipeClient;
         private StreamReader _reader;
         private StreamWriter _writer;
         private CancellationTokenSource _cancellationTokenSource;
         private Task _readTask;
-        private Task _reconnectTask;
-        
         private readonly ConcurrentDictionary<string, TaskCompletionSource<NamedPipeResponse>> _pendingCommands;
         private readonly object _lockObject = new object();
         
@@ -41,7 +48,7 @@ namespace StarcUp.Core.Src.Infrastructure.Communication
         public bool IsReconnecting => _isReconnecting;
 
         public event EventHandler<bool> ConnectionStateChanged;
-        public event EventHandler<string> MessageReceived;
+        public event EventHandler<CommandRequestEventArgs> CommandRequestReceived;
 
         public NamedPipeClient()
         {
@@ -131,21 +138,15 @@ namespace StarcUp.Core.Src.Infrastructure.Communication
 
             // 새로운 프로토콜을 사용하여 RequestMessage 생성
             var payload = args != null && args.Length > 0 ? new { args } : null;
-            var request = new RequestMessage(command, payload);
+            var request = new NamedPipeProtocol.RequestMessage(command, payload);
 
             var tcs = new TaskCompletionSource<NamedPipeResponse>();
             _pendingCommands.TryAdd(request.Id, tcs);
 
             try
             {
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    Converters = { new JsonStringEnumConverter() }
-                };
-                
-                var jsonMessage = JsonSerializer.Serialize(request, options);
-                Console.WriteLine($"📤 [SendCommandAsync] 새 프로토콜로 명령 전송: {command} (ID: {request.Id})");
+                var jsonMessage = JsonSerializer.Serialize(request, SerializeOptions);
+                Console.WriteLine($"📤 Request: {{ type: \"{NamedPipeProtocol.MessageType.Request}\", command: \"{command}\", id: \"{request.Id}\", timestamp: {request.Timestamp} }}");
                 
                 lock (_lockObject)
                 {
@@ -180,7 +181,7 @@ namespace StarcUp.Core.Src.Infrastructure.Communication
             }
         }
 
-        public async Task<bool> SendEventAsync(string eventType, object data = null)
+        public bool SendEvent(string eventType, object data = null)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(NamedPipeClient));
@@ -190,15 +191,8 @@ namespace StarcUp.Core.Src.Infrastructure.Communication
 
             try
             {
-                var eventMessage = new
-                {
-                    type = "event",
-                    eventType = eventType,
-                    data = data,
-                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                };
-
-                var jsonMessage = JsonSerializer.Serialize(eventMessage);
+                var eventMessage = new NamedPipeProtocol.EventMessage(eventType, data);
+                var jsonMessage = JsonSerializer.Serialize(eventMessage, SerializeOptions);
                 Console.WriteLine($"📡 이벤트 전송: {eventType}");
                 
                 lock (_lockObject)
@@ -247,33 +241,26 @@ namespace StarcUp.Core.Src.Infrastructure.Communication
 
         private async Task ReadLoop()
         {
-            Console.WriteLine($"📖 [ReadLoop] 메시지 읽기 루프 시작 - 연결상태: {_isConnected}");
-            
             try
             {
                 while (!_cancellationTokenSource.Token.IsCancellationRequested && _isConnected)
                 {
-                    Console.WriteLine($"📖 [ReadLoop] 메시지 대기 중...");
                     var message = await _reader.ReadLineAsync();
                     
                     if (message == null)
                     {
-                        Console.WriteLine($"📖 [ReadLoop] 메시지가 null - 연결 종료됨");
                         break;
                     }
 
-                    Console.WriteLine($"📖 [ReadLoop] 메시지 수신: {message}");
                     await ProcessIncomingMessage(message);
                 }
             }
             catch (Exception ex) when (!_cancellationTokenSource.Token.IsCancellationRequested)
             {
-                Console.WriteLine($"❌ [ReadLoop] 메시지 읽기 오류: {ex.Message}");
-                Console.WriteLine($"❌ [ReadLoop] 스택 트레이스: {ex.StackTrace}");
+                Console.WriteLine($"❌ 메시지 읽기 오류: {ex.Message}");
             }
             finally
             {
-                Console.WriteLine($"📖 [ReadLoop] 읽기 루프 종료 - 연결상태: {_isConnected}");
                 if (_isConnected)
                 {
                     await HandleDisconnection();
@@ -283,49 +270,45 @@ namespace StarcUp.Core.Src.Infrastructure.Communication
 
         private async Task ProcessIncomingMessage(string message)
         {
-            Console.WriteLine($"🔄 [ProcessIncomingMessage] 메시지 처리 시작: {message}");
-            
             try
             {
                 var jsonDocument = JsonDocument.Parse(message);
                 var root = jsonDocument.RootElement;
-                
-                Console.WriteLine($"🔄 [ProcessIncomingMessage] JSON 파싱 완료");
 
                 // 메시지 타입 확인
                 if (!root.TryGetProperty("type", out var typeElement))
                 {
-                    Console.WriteLine($"⚠️ [ProcessIncomingMessage] 메시지 타입이 없음 - 무시");
+                    Console.WriteLine($"⚠️ 메시지 타입이 없음 - 무시");
                     return;
                 }
 
-                var messageType = typeElement.GetString();
-                Console.WriteLine($"🔄 [ProcessIncomingMessage] 메시지 타입: {messageType}");
+                var messageTypeValue = typeElement.GetInt32();
+                var messageType = (NamedPipeProtocol.MessageType)messageTypeValue;
 
                 switch (messageType)
                 {
-                    case "Request":
+                    case NamedPipeProtocol.MessageType.Request:
                         await HandleIncomingRequest(root);
                         break;
-                    case "Response":
-                        await HandleIncomingResponse(root);
+                    case NamedPipeProtocol.MessageType.Response:
+                        HandleIncomingResponse(root);
                         break;
-                    case "Event":
-                        await HandleIncomingEvent(root);
+                    case NamedPipeProtocol.MessageType.Event:
+                        HandleIncomingEvent(root);
                         break;
                     default:
-                        Console.WriteLine($"⚠️ [ProcessIncomingMessage] 알 수 없는 메시지 타입: {messageType}");
+                        Console.WriteLine($"⚠️ 알 수 없는 메시지 타입: {messageType} ({messageTypeValue})");
                         break;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [ProcessIncomingMessage] 메시지 처리 오류: {ex.Message}");
+                Console.WriteLine($"❌ 메시지 처리 오류: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// UI로부터 온 요청 처리
+        /// UI로부터 온 요청 처리 - 순수한 메시지 전달만 담당
         /// </summary>
         private async Task HandleIncomingRequest(JsonElement root)
         {
@@ -334,96 +317,91 @@ namespace StarcUp.Core.Src.Infrastructure.Communication
                 var requestId = root.GetProperty("id").GetString();
                 var command = root.GetProperty("command").GetString();
                 
-                Console.WriteLine($"📨 [HandleIncomingRequest] 요청 처리 - ID: {requestId}, 명령: {command}");
-
-                ResponseMessage response;
+                Console.WriteLine($"📨 Request: {{ type: \"{NamedPipeProtocol.MessageType.Request}\", command: \"{command}\", id: \"{requestId}\" }}");
                 
-                switch (command)
+                // 페이로드 추출 (있는 경우)
+                object payload = null;
+                if (root.TryGetProperty("payload", out var payloadElement))
                 {
-                    case Commands.Ping:
-                        response = new ResponseMessage(requestId, true, new { message = "pong", status = "Core 정상" });
-                        Console.WriteLine($"🏓 [HandleIncomingRequest] Ping 요청 처리 완료");
-                        break;
-                        
-                    case Commands.StartGameDetect:
-                        response = new ResponseMessage(requestId, true, new { message = "게임 감지 시작됨" });
-                        Console.WriteLine($"🎮 [HandleIncomingRequest] 게임 감지 시작 요청 처리 완료");
-                        // TODO: 실제 게임 감지 로직 구현
-                        break;
-                        
-                    case Commands.StopGameDetect:
-                        response = new ResponseMessage(requestId, true, new { message = "게임 감지 중지됨" });
-                        Console.WriteLine($"🛑 [HandleIncomingRequest] 게임 감지 중지 요청 처리 완료");
-                        // TODO: 실제 게임 감지 중지 로직 구현
-                        break;
-                        
-                    case Commands.GetGameStatus:
-                        response = new ResponseMessage(requestId, true, new { status = "NOT_RUNNING" });
-                        Console.WriteLine($"📊 [HandleIncomingRequest] 게임 상태 조회 요청 처리 완료");
-                        break;
-                        
-                    default:
-                        response = new ResponseMessage(requestId, false, null, $"알 수 없는 명령: {command}");
-                        Console.WriteLine($"❌ [HandleIncomingRequest] 알 수 없는 명령: {command}");
-                        break;
+                    payload = payloadElement.GetRawText();
                 }
-
+                
+                // CommandRequestReceived 이벤트 발생 - Business 계층에서 처리하도록 위임
+                var eventArgs = new CommandRequestEventArgs(requestId, command, payload);
+                CommandRequestReceived?.Invoke(this, eventArgs);
+                
+                // Infrastructure 계층에서는 요청 접수 확인만 응답
+                var response = new NamedPipeProtocol.ResponseMessage(requestId, true, new { message = $"명령 '{command}' 요청이 접수되었습니다" });
                 await SendResponseAsync(response);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [HandleIncomingRequest] 요청 처리 오류: {ex.Message}");
+                Console.WriteLine($"❌ 요청 처리 오류: {ex.Message}");
+                
+                // 오류 발생 시 에러 응답 전송
+                try
+                {
+                    var requestId = root.TryGetProperty("id", out var idElement) ? idElement.GetString() : "unknown";
+                    var errorResponse = new NamedPipeProtocol.ResponseMessage(requestId, false, null, $"요청 처리 중 오류 발생: {ex.Message}");
+                    await SendResponseAsync(errorResponse);
+                }
+                catch
+                {
+                    Console.WriteLine("❌ 에러 응답 전송 실패");
+                }
             }
         }
 
         /// <summary>
         /// UI로부터 온 응답 처리
         /// </summary>
-        private async Task HandleIncomingResponse(JsonElement root)
+        private void HandleIncomingResponse(JsonElement root)
         {
             try
             {
                 var requestId = root.GetProperty("requestId").GetString();
-                Console.WriteLine($"📥 [HandleIncomingResponse] 응답 처리 - RequestID: {requestId}");
-                Console.WriteLine($"📥 [HandleIncomingResponse] 대기중인 명령 수: {_pendingCommands.Count}");
+                var success = root.TryGetProperty("success", out var successElement) ? successElement.GetBoolean() : false;
+                var dataText = root.TryGetProperty("data", out var dataElement) ? dataElement.GetRawText() : "null";
+                
+                var responseId = root.TryGetProperty("id", out var idElement) ? idElement.GetString() : "unknown";
+                var timestamp = root.TryGetProperty("timestamp", out var timestampElement) ? timestampElement.GetInt64() : 0;
+                Console.WriteLine($"📥 Response: {{ type: \"{NamedPipeProtocol.MessageType.Response}\", id: \"{responseId}\", requestId: \"{requestId}\", success: {success.ToString().ToLower()}, timestamp: {timestamp}, data: {dataText} }}");
                 
                 if (_pendingCommands.TryRemove(requestId, out var tcs))
                 {
                     var response = new NamedPipeResponse
                     {
                         Id = requestId,
-                        Success = root.TryGetProperty("success", out var successElement) ? successElement.GetBoolean() : false,
-                        Data = root.TryGetProperty("data", out var dataElement) ? dataElement.GetRawText() : null,
+                        Success = success,
+                        Data = dataText,
                         Error = root.TryGetProperty("error", out var errorElement) ? errorElement.GetString() : null,
-                        Timestamp = root.TryGetProperty("timestamp", out var timestampElement) ? timestampElement.GetInt64() : 0
+                        Timestamp = timestamp
                     };
 
-                    Console.WriteLine($"✅ [HandleIncomingResponse] 응답 처리 완료 - RequestID: {requestId}, 성공: {response.Success}");
                     tcs.SetResult(response);
                 }
                 else
                 {
-                    Console.WriteLine($"⚠️ [HandleIncomingResponse] 대기중인 명령을 찾을 수 없음 - RequestID: {requestId}");
+                    Console.WriteLine($"⚠️ 대기중인 명령을 찾을 수 없음 - RequestID: {requestId}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [HandleIncomingResponse] 응답 처리 오류: {ex.Message}");
+                Console.WriteLine($"❌ 응답 처리 오류: {ex.Message}");
             }
         }
 
         /// <summary>
         /// UI로부터 온 이벤트 처리
         /// </summary>
-        private async Task HandleIncomingEvent(JsonElement root)
+        private void HandleIncomingEvent(JsonElement root)
         {
             try
             {
                 var eventName = root.GetProperty("event").GetString();
                 Console.WriteLine($"📢 [HandleIncomingEvent] 이벤트 처리: {eventName}");
                 
-                // 이벤트를 다른 컴포넌트에 전달
-                MessageReceived?.Invoke(this, JsonSerializer.Serialize(root));
+                // Event 메시지는 현재 특별한 처리 없이 로그만 출력
             }
             catch (Exception ex)
             {
@@ -434,23 +412,20 @@ namespace StarcUp.Core.Src.Infrastructure.Communication
         /// <summary>
         /// 응답 메시지 전송
         /// </summary>
-        private async Task SendResponseAsync(ResponseMessage response)
+        private async Task SendResponseAsync(NamedPipeProtocol.ResponseMessage response)
         {
             try
             {
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    Converters = { new JsonStringEnumConverter() }
-                };
+                // 직렬화 전에 로그 출력 (한글이 정상적으로 보임)
+                var dataText = response.Data != null ? JsonSerializer.Serialize(response.Data, LogOptions) : "null";
+                Console.WriteLine($"📤 Response: {{ type: \"{NamedPipeProtocol.MessageType.Response}\", id: \"{response.Id}\", requestId: \"{response.RequestId}\", success: {response.Success.ToString().ToLower()}, timestamp: {response.Timestamp}, data: {dataText} }}");
                 
-                var responseJson = JsonSerializer.Serialize(response, options);
+                var responseJson = JsonSerializer.Serialize(response, SerializeOptions);
                 await _writer.WriteLineAsync(responseJson);
-                Console.WriteLine($"📤 [SendResponseAsync] 응답 전송 완료 - RequestID: {response.RequestId}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [SendResponseAsync] 응답 전송 실패: {ex.Message}");
+                Console.WriteLine($"❌ 응답 전송 실패: {ex.Message}");
             }
         }
 
@@ -569,7 +544,7 @@ namespace StarcUp.Core.Src.Infrastructure.Communication
             CleanupConnectionAsync().Wait();
             
             ConnectionStateChanged = null;
-            MessageReceived = null;
+            CommandRequestReceived = null;
         }
     }
 }

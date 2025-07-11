@@ -9,7 +9,8 @@ using StarcUp.Business.Game;
 using StarcUp.Business.GameManager.Extensions;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Windows;
-using StarcUp.Core.Src.Infrastructure.Communication;
+using StarcUp.Infrastructure.Communication;
+using StarcUp.Business.Communication;
 
 namespace StarcUp.DependencyInjection
 {    /// <summary>
@@ -69,7 +70,8 @@ namespace StarcUp.DependencyInjection
                 c => new NamedPipeClient());
             container.RegisterSingleton<ICommunicationService>(
                 c => new CommunicationService(
-                    c.Resolve<INamedPipeClient>()));
+                    c.Resolve<INamedPipeClient>(),
+                    c.Resolve<IGameDetector>()));
 
             PlayerExtensions.SetUnitCountService(container.Resolve<IUnitCountService>());
             PlayerExtensions.SetUnitService(container.Resolve<IUnitService>());

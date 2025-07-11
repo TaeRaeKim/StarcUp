@@ -1,7 +1,7 @@
 using System;
 using System.Text.Json.Serialization;
 
-namespace StarcUp.Core.Src.Infrastructure.Communication
+namespace StarcUp.Infrastructure.Communication
 {
     /// <summary>
     /// Named Pipes 서버 응답 데이터 구조

@@ -1,5 +1,6 @@
 using StarcUp.DependencyInjection;
-using StarcUp.Core.Src.Infrastructure.Communication;
+using StarcUp.Infrastructure.Communication;
+using StarcUp.Business.Communication;
 
 namespace StarcUp
 {
@@ -40,7 +41,7 @@ namespace StarcUp
                 _cancellationTokenSource = new CancellationTokenSource();
                 
                 // 백그라운드에서 키 입력 대기
-                Task.Run(() => WaitForExitCommand(_cancellationTokenSource.Token));
+                _ = Task.Run(() => WaitForExitCommand(_cancellationTokenSource.Token));
                 
                 Task.Delay(Timeout.Infinite, _cancellationTokenSource.Token).Wait();
 

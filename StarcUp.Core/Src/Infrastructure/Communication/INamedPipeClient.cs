@@ -1,7 +1,8 @@
 using System;
 using System.Threading.Tasks;
+using StarcUp.Common.Events;
 
-namespace StarcUp.Core.Src.Infrastructure.Communication
+namespace StarcUp.Infrastructure.Communication
 {
     /// <summary>
     /// Named Pipes 클라이언트 인터페이스
@@ -46,7 +47,7 @@ namespace StarcUp.Core.Src.Infrastructure.Communication
         /// <param name="eventType">이벤트 타입</param>
         /// <param name="data">이벤트 데이터</param>
         /// <returns>전송 성공 여부</returns>
-        Task<bool> SendEventAsync(string eventType, object data = null);
+        bool SendEvent(string eventType, object data = null);
 
         /// <summary>
         /// 자동 재연결 시작
@@ -72,8 +73,8 @@ namespace StarcUp.Core.Src.Infrastructure.Communication
         event EventHandler<bool> ConnectionStateChanged;
 
         /// <summary>
-        /// 서버로부터 메시지 수신 이벤트
+        /// 명령 요청 수신 이벤트 (UI로부터 온 명령을 Business 계층으로 전달)
         /// </summary>
-        event EventHandler<string> MessageReceived;
+        event EventHandler<CommandRequestEventArgs> CommandRequestReceived;
     }
 }

@@ -3,9 +3,9 @@
  */
 
 export enum MessageType {
-  Request = 'Request',
-  Response = 'Response', 
-  Event = 'Event'
+  Request = 0,
+  Response = 1, 
+  Event = 2
 }
 
 /**
@@ -107,18 +107,18 @@ export class NamedPipeProtocol {
   }
 
   /**
-   * 메시지 타입 확인 헬퍼
+   * 메시지 타입 확인 헬퍼 (숫자/문자열 모두 지원)
    */
   static isRequest(message: any): message is RequestMessage {
-    return message.type === MessageType.Request && typeof message.command === 'string'
+    return (message.type === MessageType.Request || message.type === 0) && typeof message.command === 'string'
   }
 
   static isResponse(message: any): message is ResponseMessage {
-    return message.type === MessageType.Response && typeof message.requestId === 'string'
+    return (message.type === MessageType.Response || message.type === 1) && typeof message.requestId === 'string'
   }
 
   static isEvent(message: any): message is EventMessage {
-    return message.type === MessageType.Event && typeof message.event === 'string'
+    return (message.type === MessageType.Event || message.type === 2) && typeof message.event === 'string'
   }
 }
 

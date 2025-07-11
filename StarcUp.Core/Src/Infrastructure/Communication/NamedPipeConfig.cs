@@ -1,6 +1,6 @@
 using System;
 
-namespace StarcUp.Core.Src.Infrastructure.Communication
+namespace StarcUp.Infrastructure.Communication
 {
     /// <summary>
     /// Named Pipe 설정 관리 클래스

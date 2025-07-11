@@ -1,7 +1,7 @@
 using System;
 using System.Text.Json;
 
-namespace StarcUp.Core.Src.Infrastructure.Communication
+namespace StarcUp.Infrastructure.Communication
 {
     /// <summary>
     /// Named Pipe 통신 프로토콜 정의
