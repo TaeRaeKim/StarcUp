@@ -10,6 +10,7 @@ export class NamedPipeService implements INamedPipeService {
   private isConnected: boolean = false
   private isReconnecting: boolean = false
   private pendingCommands: Map<string, { resolve: (value: ICoreResponse) => void; reject: (reason?: any) => void; timeout: NodeJS.Timeout }> = new Map()
+  private eventHandlers: Map<string, (data: any) => void> = new Map()
   
   constructor(pipeName: string = 'StarcUp') {
     this.pipeName = pipeName
@@ -176,7 +177,7 @@ export class NamedPipeService implements INamedPipeService {
         // StarcUp.Core에서 보내는 이벤트나 알림인 경우
         else if (message.type === 'event') {
           console.log('📨 StarcUp.Core 이벤트 수신:', message)
-          // 향후 이벤트 처리 로직 추가
+          this.handleCoreEvent(message)
         }
         // 기타 메시지
         else {
@@ -279,5 +280,33 @@ export class NamedPipeService implements INamedPipeService {
   async stopConnection(): Promise<void> {
     this.disconnect()
     console.log('✅ Named Pipe 서버가 정상적으로 종료되었습니다')
+  }
+
+  // 이벤트 핸들러 등록
+  onEvent(eventType: string, handler: (data: any) => void): void {
+    this.eventHandlers.set(eventType, handler)
+  }
+
+  // 이벤트 핸들러 제거
+  offEvent(eventType: string): void {
+    this.eventHandlers.delete(eventType)
+  }
+
+  // Core 이벤트 처리
+  private handleCoreEvent(message: any): void {
+    const { event, data } = message
+    
+    if (event) {
+      const handler = this.eventHandlers.get(event)
+      if (handler) {
+        try {
+          handler(data)
+        } catch (error) {
+          console.error(`❌ 이벤트 핸들러 실행 실패 (${event}):`, error)
+        }
+      } else {
+        console.log(`⚠️ 등록되지 않은 이벤트: ${event}`)
+      }
+    }
   }
 }

@@ -59,6 +59,19 @@ async function initializeApp(): Promise<void> {
       }
       
       await coreService.startConnection(isDevelopment)
+      
+      // 게임 상태 변경 이벤트를 렌더러로 전달
+      coreService.onGameStatusChanged((status: string) => {
+        console.log('📡 게임 상태 변경을 렌더러로 전달:', status)
+        
+        // 모든 웹 컨텐츠에 게임 상태 변경 이벤트 전송
+        BrowserWindow.getAllWindows().forEach(window => {
+          if (window && !window.isDestroyed()) {
+            window.webContents.send('game-status-changed', { status })
+          }
+        })
+      })
+      
       console.log('✅ StarcUp.Core 초기화 완료')
     } catch (error) {
       console.error('❌ Core 프로세스 연결 실패:', error)

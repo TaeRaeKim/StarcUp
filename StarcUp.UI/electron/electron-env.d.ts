@@ -7,6 +7,13 @@ declare namespace NodeJS {
   }
 }
 
+// Core API response type
+interface ICoreResponse {
+  success: boolean
+  data?: any
+  error?: string
+}
+
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
   ipcRenderer?: {
@@ -23,5 +30,11 @@ interface Window {
     toggleOverlay: () => Promise<void>
     showOverlay: () => Promise<void>
     hideOverlay: () => Promise<void>
+  }
+  coreAPI?: {
+    startDetection: () => Promise<ICoreResponse>
+    stopDetection: () => Promise<ICoreResponse>
+    getGameStatus: () => Promise<ICoreResponse>
+    onGameStatusChanged: (callback: (data: { status: string }) => void) => (() => void)
   }
 }

@@ -6,12 +6,14 @@ import { CommandRegistry } from './CommandRegistry'
 export class CoreCommunicationService implements ICoreCommunicationService {
   private namedPipeService: INamedPipeService
   private commandRegistry: ICommandRegistry
+  private gameStatusChangedCallback: ((status: string) => void) | null = null
   
   constructor(namedPipeService?: INamedPipeService) {
     this.namedPipeService = namedPipeService || new NamedPipeService()
     this.commandRegistry = new CommandRegistry()
     
     this.setupDefaultCommands()
+    this.setupEventHandlers()
   }
   
   // 게임 감지 관련
@@ -108,6 +110,45 @@ export class CoreCommunicationService implements ICoreCommunicationService {
     })
     
     console.log('✅ 기본 Core 명령어 등록 완료')
+  }
+
+  // 이벤트 핸들러 설정
+  private setupEventHandlers(): void {
+    // 게임 상태 변경 이벤트 핸들러
+    this.namedPipeService.onEvent('game-status-changed', (data: any) => {
+      console.log('🎮 게임 상태 변경:', data)
+      if (this.gameStatusChangedCallback) {
+        this.gameStatusChangedCallback(data.status)
+      }
+    })
+
+    // 게임 감지 이벤트 핸들러
+    this.namedPipeService.onEvent('game-detected', (data: any) => {
+      console.log('🔍 게임 감지됨:', data)
+      if (this.gameStatusChangedCallback) {
+        this.gameStatusChangedCallback('playing')
+      }
+    })
+
+    // 게임 종료 이벤트 핸들러
+    this.namedPipeService.onEvent('game-ended', (data: any) => {
+      console.log('🔚 게임 종료됨:', data)
+      if (this.gameStatusChangedCallback) {
+        this.gameStatusChangedCallback('waiting')
+      }
+    })
+
+    console.log('✅ Core 이벤트 핸들러 설정 완료')
+  }
+
+  // 게임 상태 변경 콜백 등록
+  onGameStatusChanged(callback: (status: string) => void): void {
+    this.gameStatusChangedCallback = callback
+  }
+
+  // 게임 상태 변경 콜백 제거
+  offGameStatusChanged(): void {
+    this.gameStatusChangedCallback = null
   }
   
 }

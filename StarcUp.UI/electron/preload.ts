@@ -33,3 +33,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showOverlay: () => ipcRenderer.invoke('window:show-overlay'),
   hideOverlay: () => ipcRenderer.invoke('window:hide-overlay'),
 })
+
+// --------- Expose Core API to the Renderer process ---------
+contextBridge.exposeInMainWorld('coreAPI', {
+  startDetection: () => ipcRenderer.invoke('core:start-detection'),
+  stopDetection: () => ipcRenderer.invoke('core:stop-detection'),
+  getGameStatus: () => ipcRenderer.invoke('core:get-game-status'),
+  
+  // 게임 상태 변경 이벤트 리스너
+  onGameStatusChanged: (callback: (data: { status: string }) => void) => {
+    const listener = (_event: any, data: { status: string }) => callback(data)
+    ipcRenderer.on('game-status-changed', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('game-status-changed', listener)
+  }
+})
