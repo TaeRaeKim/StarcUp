@@ -1,15 +1,11 @@
 using StarcUp.DependencyInjection;
-using StarcUp.Infrastructure.Pipes;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using StarcUp.Core.Src.Infrastructure.Communication;
 
 namespace StarcUp
 {
     public static class Program
     {
         private static ServiceContainer _container;
-        private static INamedPipeService _namedPipeService;
         private static CancellationTokenSource _cancellationTokenSource;
         
         [STAThread]
@@ -20,42 +16,47 @@ namespace StarcUp
 
             try
             {
+                // 환경 정보 출력
+                NamedPipeConfig.PrintEnvironmentInfo();
+                Console.WriteLine();
+
                 // 명령줄 인자 확인 - Named Pipe 모드만 지원
-                var pipeName = args.Length > 0 ? args[0] : "StarcUp.Core";
-                Console.WriteLine($"📡 Named Pipe 모드로 실행: {pipeName}");
+                var pipeName = args.Length > 0 ? args[0] : null;
+                if (!string.IsNullOrEmpty(pipeName))
+                {
+                    Console.WriteLine($"📡 사용자 지정 파이프 이름: {pipeName}");
+                }
 
                 // 서비스 컨테이너 초기화
                 _container = new ServiceContainer();
                 RegisterServices();
 
-                // 취소 토큰 소스 생성
+                // 통신 서비스 시작
+                var communicationService = _container.Resolve<ICommunicationService>();
+                await communicationService.StartAsync(pipeName);
+
+                // 애플리케이션 대기
+                Console.WriteLine("🚀 StarcUp.Core 시작 완료. 'q' 입력 시 종료");
                 _cancellationTokenSource = new CancellationTokenSource();
+                
+                // 백그라운드에서 키 입력 대기
+                Task.Run(() => WaitForExitCommand(_cancellationTokenSource.Token));
+                
+                Task.Delay(Timeout.Infinite, _cancellationTokenSource.Token).Wait();
 
-                // Named Pipe 서비스 초기화 및 시작
-                _namedPipeService = _container.Resolve<INamedPipeService>();
-                await _namedPipeService.StartAsync(pipeName, _cancellationTokenSource.Token);
-
-                Console.WriteLine("🚀 StarcUp.Core 준비 완료! 명령 대기 중...");
-                Console.WriteLine("종료하려면 Ctrl+C를 누르거나 부모 프로세스에서 종료 신호를 보내세요.");
-
-                // 종료 신호 대기
-                Console.CancelKeyPress += (sender, e) => {
-                    e.Cancel = true;
-                    _cancellationTokenSource.Cancel();
-                };
-
-                // 무한 대기 (명령 처리)
-                await WaitForShutdownAsync(_cancellationTokenSource.Token);
-
+            }
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine("📱 종료 신호 수신");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ 애플리케이션 시작 실패: {ex.Message}");
-                Environment.Exit(1);
             }
             finally
             {
-                await Cleanup();
+                Cleanup();
+                Environment.Exit(1);
             }
         }
 
@@ -65,44 +66,29 @@ namespace StarcUp
             ServiceRegistration.RegisterServices(_container);
         }
 
-        /// <summary>
-        /// 종료 신호 대기
-        /// </summary>
-        private static async Task WaitForShutdownAsync(CancellationToken cancellationToken)
+        private static void WaitForExitCommand(CancellationToken cancellationToken)
         {
-            try
+            while (!cancellationToken.IsCancellationRequested)
             {
-                // 취소 토큰이 신호될 때까지 대기
-                await Task.Delay(Timeout.Infinite, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                Console.WriteLine("🔌 종료 신호 수신됨");
+                var key = Console.ReadKey(true);
+                if (key.KeyChar == 'q' || key.KeyChar == 'Q')
+                {
+                    Console.WriteLine("🛑 종료 명령 수신");
+                    _cancellationTokenSource?.Cancel();
+                    break;
+                }
             }
         }
 
         /// <summary>
         /// 리소스 정리
         /// </summary>
-        private static async Task Cleanup()
+        private static void Cleanup()
         {
             try
             {
                 Console.WriteLine("🧹 애플리케이션 종료 중...");
-                
-                // Named Pipe 서비스 정리
-                if (_namedPipeService != null)
-                {
-                    await _namedPipeService.StopAsync();
-                    _namedPipeService.Dispose();
-                }
-                
-                // 취소 토큰 소스 정리
-                _cancellationTokenSource?.Dispose();
-                
-                // 서비스 컨테이너 정리
                 _container?.Dispose();
-                
                 Console.WriteLine("✅ 정리 완료");
             }
             catch (Exception ex)

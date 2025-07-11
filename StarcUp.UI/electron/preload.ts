@@ -25,11 +25,11 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
 
 // --------- Expose window controls to the Renderer process ---------
 contextBridge.exposeInMainWorld('electronAPI', {
-  minimizeWindow: () => ipcRenderer.send('minimize-window'),
-  maximizeWindow: () => ipcRenderer.send('maximize-window'),
-  closeWindow: () => ipcRenderer.send('close-window'),
-  dragWindow: () => ipcRenderer.send('drag-window'),
-  toggleOverlay: () => ipcRenderer.send('toggle-overlay'),
-  showOverlay: () => ipcRenderer.send('show-overlay'),
-  hideOverlay: () => ipcRenderer.send('hide-overlay'),
+  minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
+  maximizeWindow: () => ipcRenderer.invoke('window:maximize'),
+  closeWindow: () => ipcRenderer.invoke('window:close'),
+  dragWindow: () => ipcRenderer.invoke('window:drag'),
+  toggleOverlay: () => ipcRenderer.invoke('window:toggle-overlay'),
+  showOverlay: () => ipcRenderer.invoke('window:show-overlay'),
+  hideOverlay: () => ipcRenderer.invoke('window:hide-overlay'),
 })

@@ -9,7 +9,7 @@ using StarcUp.Business.Game;
 using StarcUp.Business.GameManager.Extensions;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Windows;
-using StarcUp.Infrastructure.Pipes;
+using StarcUp.Core.Src.Infrastructure.Communication;
 
 namespace StarcUp.DependencyInjection
 {    /// <summary>
@@ -64,6 +64,12 @@ namespace StarcUp.DependencyInjection
                 c => new UnitCountService(
                     c.Resolve<IUnitCountAdapter>()));
 
+            // Communication Services
+            container.RegisterSingleton<INamedPipeClient>(
+                c => new NamedPipeClient());
+            container.RegisterSingleton<ICommunicationService>(
+                c => new CommunicationService(
+                    c.Resolve<INamedPipeClient>()));
 
             PlayerExtensions.SetUnitCountService(container.Resolve<IUnitCountService>());
             PlayerExtensions.SetUnitService(container.Resolve<IUnitService>());
@@ -74,12 +80,6 @@ namespace StarcUp.DependencyInjection
                     c.Resolve<IUnitService>(),
                     c.Resolve<IMemoryService>(),
                     c.Resolve<IUnitCountService>()));
-
-            // Named Pipe Communication Service
-            container.RegisterSingleton<ICommandHandler>(
-                c => new CommandHandler(c));
-            container.RegisterSingleton<INamedPipeService>(
-                c => new NamedPipeService(c.Resolve<ICommandHandler>()));
 
             Console.WriteLine("✅ 서비스 등록 완료:");
             Console.WriteLine("   📖 MemoryReader - 통합된 메모리 읽기 서비스");
@@ -93,9 +93,9 @@ namespace StarcUp.DependencyInjection
             Console.WriteLine("   🏗️ UnitOffsetRepository - 유닛 오프셋 설정 저장소");
             Console.WriteLine("   🔢 UnitCountAdapter - 유닛 카운트 메모리 어댑터");
             Console.WriteLine("   📊 UnitCountService - 유닛 카운트 관리 서비스");
+            Console.WriteLine("   🔗 NamedPipeClient - Named Pipe 통신 클라이언트");
+            Console.WriteLine("   📡 CommunicationService - UI 통신 관리 서비스");
             Console.WriteLine("   🎯 GameManager - 게임 관리 서비스 (자동 유닛 데이터 로딩)");
-            Console.WriteLine("   🔗 NamedPipeService - Named Pipe 통신 서비스");
-            Console.WriteLine("   ⚡ CommandHandler - 명령 처리 핸들러");
         }
     }
 }
