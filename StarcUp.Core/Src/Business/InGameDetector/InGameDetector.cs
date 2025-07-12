@@ -1,5 +1,6 @@
 using StarcUp.Business.GameDetection;
 using StarcUp.Business.MemoryService;
+using StarcUp.Business.Units.Runtime.Repositories;
 using StarcUp.Common.Constants;
 using StarcUp.Common.Events;
 using System;
@@ -9,6 +10,7 @@ namespace StarcUp.Business.InGameDetector
     public class InGameDetector : IInGameDetector
     {
         private readonly IMemoryService _memoryService;
+        private readonly UnitOffsetRepository _offsetRepository;
         private bool _isMonitoring;
         private System.Timers.Timer _monitorTimer;
 
@@ -19,9 +21,10 @@ namespace StarcUp.Business.InGameDetector
 
         public bool IsInGame { get; private set; }
 
-        public InGameDetector(IMemoryService memoryService)
+        public InGameDetector(IMemoryService memoryService, UnitOffsetRepository offsetRepository)
         {
             _memoryService = memoryService ?? throw new ArgumentNullException(nameof(memoryService));
+            _offsetRepository = offsetRepository ?? throw new ArgumentNullException(nameof(offsetRepository));
             _memoryService.ProcessConnect += OnProcessConnect;
             _memoryService.ProcessDisconnect += OnProcessDisconnect;
         }
@@ -106,9 +109,18 @@ namespace StarcUp.Business.InGameDetector
             {
                 var finalAddress = GetIsAddress(); ;
 
-                bool isInGame = _memoryService.ReadBool(finalAddress);
+                nint inGamePointer = _memoryService.ReadPointer(finalAddress);
 
-                return isInGame;
+                nint baseAddress = _memoryService.ReadPointer(_memoryService.GetThreadStackAddress(0) - _offsetRepository.GetBaseOffset());
+                
+                nint mapFileNameAddress = baseAddress + _offsetRepository.GetMapNameOffset();
+                string mapFileName =_memoryService.IsValidAddress(mapFileNameAddress)
+                    ? _memoryService.ReadString(baseAddress + _offsetRepository.GetMapNameOffset(), 256)
+                    : string.Empty;
+
+                bool isInGame = mapFileName.ToLower().EndsWith(".scx") || mapFileName.ToLower().EndsWith(".scm");
+
+                return (inGamePointer != 0) && isInGame;
             }
             catch (Exception ex)
             {
@@ -127,88 +139,18 @@ namespace StarcUp.Business.InGameDetector
 
             Console.WriteLine("[InGameDetector] InGame 주소 계산 중...");
 
-            // 1. TEB[0] 주소 가져오기 (첫 번째 스레드 = 메인 스레드)
-            var tebList = _memoryService.GetTebAddresses();
-            if (tebList.Count == 0)
+            nint BaseAddress = _memoryService.GetStarCraftModule()?.BaseAddress ?? 0;
+            if (BaseAddress == 0)
             {
-                Console.WriteLine("TEB 주소를 가져올 수 없습니다.");
+                Console.WriteLine("StarCraft 모듈을 찾을 수 없습니다.");
                 return 0;
             }
+            nint finalAddress = BaseAddress + 0x10A1878;
 
-            // 2. TEB[0] 주소 직접 사용 (TEB + 0x30 값이 TEB 자체 주소이므로)
-            nint tebBaseAddress = tebList[0].TebAddress;
-            Console.WriteLine($"  - TEB[0]: 0x{tebBaseAddress:X}");
-
-            // 3. B 값 계산
-            nint bValue = CalculateBValue();
-            if (bValue == 0)
-            {
-                Console.WriteLine("B 값을 계산할 수 없습니다.");
-                return 0;
-            }
-            Console.WriteLine($"  - B값: 0x{bValue:X}");
-
-            // 4. 최종 주소 계산: [[TEB + 0x828] + [B] + 0xD8] + 0xB4
-            nint step1 = _memoryService.ReadPointer(tebBaseAddress + 0x828);
-            if (step1 == 0)
-            {
-                Console.WriteLine("Step1 포인터 읽기 실패");
-                return 0;
-            }
-
-            nint step2 = _memoryService.ReadPointer(step1 + bValue + 0xD8);
-            if (step2 == 0)
-            {
-                Console.WriteLine("Step2 포인터 읽기 실패");
-                return 0;
-            }
-
-            nint finalAddress = step2 + 0xB4;
-            Console.WriteLine($"  - 최종주소: 0x{finalAddress:X}");
-
-            // 5. 주소 캐싱
             _cachedInGameAddress = finalAddress;
             _isAddressCached = true;
 
             return finalAddress;
-        }
-
-        private nint CalculateBValue()
-        {
-            try
-            {
-                var _starcraftModule = _memoryService.GetStarCraftModule();
-                var _user32Module = _memoryService.GetUser32Module();
-
-                if (_starcraftModule == null || _user32Module == null)
-                {
-                    Console.WriteLine("모듈 정보가 없습니다.");
-                    return 0;
-                }
-
-                nint rcx = _starcraftModule.BaseAddress + 0x10B1838;
-
-                ushort cx = (ushort)_memoryService.ReadShort(rcx);
-                nint edx = cx;
-
-                nint user32Factor = _user32Module.BaseAddress + 0xD52B0;
-                int factorValue = _memoryService.ReadInt(user32Factor);
-                edx = edx * factorValue;
-
-                nint user32Offset = _user32Module.BaseAddress + 0xD52A8;
-                nint offsetValue = _memoryService.ReadPointer(user32Offset);
-                nint bAddress = edx + offsetValue;
-                nint bValue = _memoryService.ReadPointer(bAddress);
-
-                Console.WriteLine($"B 계산: rcx=0x{rcx:X}, cx=0x{cx:X}, factor={factorValue}, offset={offsetValue}, B=0x{bAddress:X}");
-
-                return bValue;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"B 값 계산 실패: {ex.Message}");
-                return 0;
-            }
         }
 
         private void OnProcessConnect(object sender, ProcessEventArgs e)
@@ -223,6 +165,8 @@ namespace StarcUp.Business.InGameDetector
             Console.WriteLine("InGameMonitoring: 프로세스 연결 해제됨");
             _isAddressCached = false; // 캐시 무효화
             _cachedInGameAddress = 0;
+            var eventArgs = new InGameEventArgs(false);
+            InGameStateChanged?.Invoke(this, eventArgs);
             StopMonitoring();
         }
 

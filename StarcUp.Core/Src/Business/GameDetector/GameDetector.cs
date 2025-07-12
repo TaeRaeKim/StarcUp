@@ -31,10 +31,6 @@ namespace StarcUp.Business.GameDetection
 
         public event EventHandler<GameEventArgs> HandleFound;
         public event EventHandler<GameEventArgs> HandleLost;
-        public event EventHandler<GameEventArgs> HandleChanged;
-        public event EventHandler<GameEventArgs> WindowMove;
-        public event EventHandler<GameEventArgs> WindowFocusIn;
-        public event EventHandler<GameEventArgs> WindowFocusOut;
 
         #endregion
 
@@ -54,7 +50,6 @@ namespace StarcUp.Business.GameDetection
                 return;
 
             Console.WriteLine("[GameDetector] 🚀 스타크래프트 감지 시작");
-
             try
             {
                 StartPollingMode();
@@ -181,33 +176,27 @@ namespace StarcUp.Business.GameDetection
         {
             lock (_lockObject)
             {
-                Console.WriteLine($"[GameDetector] 🎮 게임 프로세스 발견: {processName} (PID: {process.Id})");
-                CreateGameInfo(process, processName);
-            }
-        }
-
-        private void CreateGameInfo(Process process, string processName)
-        {
-            try
-            {
-                _currentGame = new GameInfo(process.Id, process.MainWindowHandle, processName)
+                Console.WriteLine($"[GameDetector] 🎮 게임 프로세스 발견: {processName} (PID: {process.Id})");   
+                try
                 {
-                    DetectedAt = DateTime.Now,
-                };
+                    _currentGame = new GameInfo(process.Id, processName)
+                    {
+                        DetectedAt = DateTime.Now,
+                    };
 
-                StopPollingMode();
-                StartEventMode(process);
+                    StopPollingMode();
+                    RegistProcessExitedEvent(process);
 
-                var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.HANDLE_FOUND);
-                HandleFound?.Invoke(this, eventArgs);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[GameDetector] 게임 정보 생성 실패: {ex.Message}");
+                    var eventArgs = new GameEventArgs(_currentGame, GameConstants.EventTypes.HANDLE_FOUND);
+                    HandleFound?.Invoke(this, eventArgs);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[GameDetector] 게임 정보 생성 실패: {ex.Message}");
+                }
             }
         }
-
-        private void StartEventMode(Process process)
+        private void RegistProcessExitedEvent(Process process)
         {
             try
             {
@@ -217,7 +206,7 @@ namespace StarcUp.Business.GameDetection
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GameDetector] ❌ 이벤트 모드 시작 실패: {ex.Message}");
+                Console.WriteLine($"[GameDetector] ❌ RegistProcessExitedEvent 실패: {ex.Message}");
             }
         }
 

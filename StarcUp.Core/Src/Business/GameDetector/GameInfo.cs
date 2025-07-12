@@ -9,7 +9,6 @@ namespace StarcUp.Business.GameDetection
     public class GameInfo
     {
         public int ProcessId { get; set; }
-        public nint WindowHandle { get; set; }
         public string ProcessName { get; set; }
         public DateTime DetectedAt { get; set; }
 
@@ -18,16 +17,15 @@ namespace StarcUp.Business.GameDetection
             DetectedAt = DateTime.Now;
         }
 
-        public GameInfo(int processId, nint windowHandle, string processName) : this()
+        public GameInfo(int processId, string processName) : this()
         {
             ProcessId = processId;
-            WindowHandle = windowHandle;
             ProcessName = processName;
         }
 
         public override string ToString()
         {
-            return $"Game: {ProcessName} (PID: {ProcessId}, Handle: 0x{WindowHandle.ToInt64():X})";
+            return $"Game: {ProcessName} (PID: {ProcessId}, Detected At: {DetectedAt})";
         }
     }
 }

@@ -90,6 +90,12 @@ namespace StarcUp.Business.Units.Runtime.Repositories
             return config.BaseOffset;
         }
 
+        public int GetMapNameOffset()
+        {
+            var config = LoadConfig();
+            return config.MapNameOffset;
+        }
+
         public int GetBufferSize()
         {
             var config = LoadConfig();

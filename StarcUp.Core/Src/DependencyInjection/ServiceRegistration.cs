@@ -29,19 +29,25 @@ namespace StarcUp.DependencyInjection
             container.RegisterSingleton<IWindowManager>(
                 c => new WindowManager());
 
-            // Business Services
-            container.RegisterSingleton<IMemoryService>(
-                c => new MemoryService(
-                    c.Resolve<IMemoryReader>()));
+            // Offset Repository
+            container.RegisterSingleton(
+                c => new UnitOffsetRepository("Data"));
 
             // Game Detection Services
             container.RegisterSingleton<IGameDetector>(
                 c => new GameDetector());
 
+            // Business Services
+            container.RegisterSingleton<IMemoryService>(
+                c => new MemoryService(
+                    c.Resolve<IGameDetector>(),
+                    c.Resolve<IMemoryReader>()));
+
             // InGameStateMonitor
             container.RegisterSingleton<IInGameDetector>(
                 c => new InGameDetector(
-                    c.Resolve<IMemoryService>()));
+                    c.Resolve<IMemoryService>(),
+                    c.Resolve<UnitOffsetRepository>()));
 
             // Unit Services
             container.RegisterSingleton<IUnitInfoRepository>(
@@ -54,8 +60,6 @@ namespace StarcUp.DependencyInjection
                     c.Resolve<IUnitMemoryAdapter>()));
 
             // Unit Count Services
-            container.RegisterSingleton<UnitOffsetRepository>(
-                c => new UnitOffsetRepository("Data"));
             container.RegisterSingleton<IUnitCountAdapter>(
                 c => new UnitCountAdapter(
                     c.Resolve<IMemoryService>(),
@@ -70,7 +74,8 @@ namespace StarcUp.DependencyInjection
             container.RegisterSingleton<ICommunicationService>(
                 c => new CommunicationService(
                     c.Resolve<INamedPipeClient>(),
-                    c.Resolve<IGameDetector>()));
+                    c.Resolve<IGameDetector>(),
+                    c.Resolve<IInGameDetector>()));
 
             PlayerExtensions.SetUnitCountService(container.Resolve<IUnitCountService>());
             PlayerExtensions.SetUnitService(container.Resolve<IUnitService>());

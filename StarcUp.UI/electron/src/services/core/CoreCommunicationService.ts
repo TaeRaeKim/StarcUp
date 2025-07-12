@@ -114,27 +114,32 @@ export class CoreCommunicationService implements ICoreCommunicationService {
 
   // 이벤트 핸들러 설정
   private setupEventHandlers(): void {
-    // 게임 상태 변경 이벤트 핸들러
-    this.namedPipeService.onEvent('game-status-changed', (data: any) => {
-      console.log('🎮 게임 상태 변경:', data)
-      if (this.gameStatusChangedCallback) {
-        this.gameStatusChangedCallback(data.status)
-      }
-    })
-
-    // 게임 감지 이벤트 핸들러
+    // 게임 프로세스 감지 이벤트 핸들러
     this.namedPipeService.onEvent('game-detected', (data: any) => {
-      console.log('🔍 게임 감지됨:', data)
-      if (this.gameStatusChangedCallback) {
-        this.gameStatusChangedCallback('playing')
-      }
-    })
-
-    // 게임 종료 이벤트 핸들러
-    this.namedPipeService.onEvent('game-ended', (data: any) => {
-      console.log('🔚 게임 종료됨:', data)
+      console.log('🔍 게임 프로세스 감지됨:', data)
       if (this.gameStatusChangedCallback) {
         this.gameStatusChangedCallback('waiting')
+      }
+    })
+
+    // 게임 프로세스 종료 이벤트 핸들러
+    this.namedPipeService.onEvent('game-ended', (data: any) => {
+      console.log('🔚 게임 프로세스 종료됨:', data)
+      if (this.gameStatusChangedCallback) {
+        this.gameStatusChangedCallback('error')
+      }
+    })
+
+    // 인게임 상태 이벤트 핸들러
+    this.namedPipeService.onEvent('in-game-status', (data: any) => {
+      console.log('🎮 인게임 상태 변경됨:', data)
+      if (this.gameStatusChangedCallback) {
+        if(data?.inGameInfo?.isInGame) {
+          this.gameStatusChangedCallback('playing')
+        }
+        else {
+          this.gameStatusChangedCallback('waiting')
+        }
       }
     })
 

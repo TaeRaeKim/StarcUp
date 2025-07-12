@@ -193,7 +193,10 @@ namespace StarcUp.Infrastructure.Communication
             {
                 var eventMessage = new NamedPipeProtocol.EventMessage(eventType, data);
                 var jsonMessage = JsonSerializer.Serialize(eventMessage, SerializeOptions);
-                Console.WriteLine($"📡 이벤트 전송: {eventType}");
+                
+                // 데이터를 직렬화하여 로그에 표시
+                var dataText = data != null ? JsonSerializer.Serialize(data, LogOptions) : "null";
+                Console.WriteLine($"📡 Event: {{ type: \"{NamedPipeProtocol.MessageType.Event}\", event: \"{eventType}\", id: \"{eventMessage.Id}\", timestamp: {eventMessage.Timestamp}, data: {dataText} }}");
                 
                 lock (_lockObject)
                 {

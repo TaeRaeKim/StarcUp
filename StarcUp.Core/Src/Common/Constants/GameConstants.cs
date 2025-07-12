@@ -31,12 +31,6 @@ namespace StarcUp.Common.Constants
         {
             public const string HANDLE_FOUND = "HandleFound";
             public const string HANDLE_LOST = "HandleLost";
-            public const string HANDLE_CHANGED = "HandleChanged";
-            public const string WINDOW_MOVE = "WindowMove";
-            public const string WINDOW_FOCUSIN = "WindowFocusIn";
-            public const string WINDOW_FOCUSOUT = "WindowFocusOut";
-
-            public const string POINTER_VALUE_CHANGED = "PointerValueChanged";
         }
     }
 }

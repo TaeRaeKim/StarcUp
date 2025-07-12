@@ -33,6 +33,7 @@ namespace StarcUp.Business.Units.Runtime.Models
     {
         public int BaseOffset { get; set; }
         public int ProductionOffset { get; set; }
+        public int MapNameOffset { get; set; }
         public string Comment { get; set; } = string.Empty;
         public BufferInfoDto BufferInfo { get; set; } = new();
         public RacesDto Races { get; set; } = new();

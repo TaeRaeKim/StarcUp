@@ -10,6 +10,10 @@ export interface INamedPipeService {
   // 연결 관리 메서드
   startConnection(isDevelopment?: boolean): Promise<void>
   stopConnection(): Promise<void>
+  
+  // 이벤트 핸들러 관리
+  onEvent(eventType: string, handler: (data: any) => void): void
+  offEvent(eventType: string): void
 }
 
 export interface ICommandRegistry {
@@ -37,4 +41,8 @@ export interface ICoreCommunicationService {
   // 연결 관리
   startConnection(isDevelopment?: boolean): Promise<void>
   stopConnection(): Promise<void>
+  
+  // 게임 상태 변경 콜백
+  onGameStatusChanged(callback: (status: string) => void): void
+  offGameStatusChanged(): void
 }

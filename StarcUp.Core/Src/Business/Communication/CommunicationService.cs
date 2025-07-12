@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using StarcUp.Infrastructure.Communication;
 using StarcUp.Common.Events;
 using StarcUp.Business.GameDetection;
+using StarcUp.Business.InGameDetector;
 
 namespace StarcUp.Business.Communication
 {
@@ -13,16 +14,18 @@ namespace StarcUp.Business.Communication
     {
         private readonly INamedPipeClient _pipeClient;
         private readonly IGameDetector _gameDetector;
+        private readonly IInGameDetector _inGameDetector;
         private bool _disposed = false;
 
         public bool IsConnected => _pipeClient.IsConnected;
 
         public event EventHandler<bool> ConnectionStateChanged;
 
-        public CommunicationService(INamedPipeClient pipeClient, IGameDetector gameDetector)
+        public CommunicationService(INamedPipeClient pipeClient, IGameDetector gameDetector, IInGameDetector inGameDetector)
         {
             _pipeClient = pipeClient ?? throw new ArgumentNullException(nameof(pipeClient));
             _gameDetector = gameDetector ?? throw new ArgumentNullException(nameof(gameDetector));
+            _inGameDetector = inGameDetector ?? throw new ArgumentNullException(nameof(inGameDetector));
         }
 
         public async Task<bool> StartAsync(string pipeName = "StarcUp.Dev")
@@ -47,8 +50,12 @@ namespace StarcUp.Business.Communication
                 _pipeClient.CommandRequestReceived += OnCommandRequestReceived;
 
                 // 게임 감지 이벤트 구독
-                _gameDetector.HandleFound += OnGameFound;
-                _gameDetector.HandleLost += OnGameLost;
+                _gameDetector.HandleFound += OnGameDetected;
+                _gameDetector.HandleLost += OnGameEnded;
+
+                // 인 게임 감지 이벤트 구독
+                _inGameDetector.InGameStateChanged += OnInGameStatus;
+
 
                 // 자동 재연결 시작 (3초 간격, 최대 10회 재시도)
                 _pipeClient.StartAutoReconnect(pipeName, 3000, 10);
@@ -104,8 +111,8 @@ namespace StarcUp.Business.Communication
                 // 이벤트 구독 해제
                 _pipeClient.ConnectionStateChanged -= OnConnectionStateChanged;
                 _pipeClient.CommandRequestReceived -= OnCommandRequestReceived;
-                _gameDetector.HandleFound -= OnGameFound;
-                _gameDetector.HandleLost -= OnGameLost;
+                _gameDetector.HandleFound -= OnGameDetected;
+                _gameDetector.HandleLost -= OnGameEnded;
 
                 Console.WriteLine("✅ 통신 서비스 중지 완료");
             }
@@ -113,68 +120,6 @@ namespace StarcUp.Business.Communication
             {
                 Console.WriteLine($"❌ 통신 서비스 중지 오류: {ex.Message}");
             }
-        }
-
-        public void NotifyGameStatus(object gameStatus)
-        {
-            if (_disposed || !_pipeClient.IsConnected)
-                return;
-
-            try
-            {
-                _pipeClient.SendEvent("game-status-changed", gameStatus);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ 게임 상태 알림 전송 실패: {ex.Message}");
-            }
-        }
-
-        public void NotifyUnitData(object unitData)
-        {
-            if (_disposed || !_pipeClient.IsConnected)
-                return;
-
-            try
-            {
-                _pipeClient.SendEvent("unit-data-changed", unitData);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ 유닛 데이터 알림 전송 실패: {ex.Message}");
-            }
-        }
-
-        private async void OnConnectionStateChanged(object sender, bool isConnected)
-        {
-            if (isConnected)
-            {
-                Console.WriteLine("✅ StarcUp.UI 서버에 연결되었습니다");
-                
-                // 연결 상태 변경 시 ping 전송 (재연결이든 첫 연결이든 통일)
-                try
-                {
-                    var pingResponse = await _pipeClient.SendCommandAsync("ping", new[] { "core-ready" });
-                    if (pingResponse.Success)
-                    {
-                        Console.WriteLine($"📡 서버 연결 확인 완료");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"📡 서버 연결 확인 실패: {pingResponse.Error}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"❌ 핑 전송 실패: {ex.Message}");
-                }
-            }
-            else
-            {
-                Console.WriteLine("❌ StarcUp.UI 서버와의 연결이 끊어졌습니다");
-            }
-
-            ConnectionStateChanged?.Invoke(this, isConnected);
         }
 
         private void OnCommandRequestReceived(object sender, CommandRequestEventArgs e)
@@ -190,13 +135,6 @@ namespace StarcUp.Business.Communication
                     case NamedPipeProtocol.Commands.StopGameDetect:
                         _gameDetector.StopDetection();
                         break;
-                        
-                    // case NamedPipeProtocol.Commands.GetGameStatus:
-                    //     var gameStatus = _gameDetector.IsGameRunning ? "GAME_RUNNING" : "NOT_RUNNING";
-                    //     // 필요하면 상태를 UI로 알림 전송
-                    //     NotifyGameStatus(new { status = gameStatus });
-                    //     break;
-                        
                     default:
                         Console.WriteLine($"⚠️ 알 수 없는 명령: {e.Command}");
                         break;
@@ -207,59 +145,91 @@ namespace StarcUp.Business.Communication
                 Console.WriteLine($"❌ 명령 처리 중 오류 발생: {e.Command} - {ex.Message}");
             }
         }
-
-        private void OnGameFound(object sender, GameEventArgs e)
-        {            
+        private void OnInGameStatus(object sender, InGameEventArgs e){
             try
             {
                 var eventData = new
                 {
-                    eventType = "game-found",
+                    eventType = "in-game-status",
+                    inGameInfo = new
+                    {
+                        isInGame = e.IsInGame,
+                        timestamp = e.Timestamp.ToString("HH:mm:ss.fff")
+                    }
+                };
+                _pipeClient.SendEvent(eventData.eventType, eventData);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 게임 중 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+        private void OnGameDetected(object sender, GameEventArgs e)
+        {
+            try
+            {
+                var eventData = new
+                {
+                    eventType = "game-detected",
                     gameInfo = new
                     {
                         processId = e.GameInfo.ProcessId,
                         processName = e.GameInfo.ProcessName,
-                        windowHandle = e.GameInfo.WindowHandle.ToString(),
                         detectedAt = e.GameInfo.DetectedAt
                     }
                 };
 
-                _pipeClient.SendEvent("game-found", eventData);
+                _pipeClient.SendEvent(eventData.eventType, eventData);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ 게임 발견 이벤트 전송 실패: {ex.Message}");
             }
         }
-
-        private void OnGameLost(object sender, GameEventArgs e)
+        private void OnGameEnded(object sender, GameEventArgs e)
         {
-            Console.WriteLine($"🛑 게임 종료 이벤트: {e.GameInfo.ProcessName} (PID: {e.GameInfo.ProcessId})");
-            
             try
             {
                 var eventData = new
                 {
-                    eventType = "game-lost",
+                    eventType = "game-ended",
                     gameInfo = new
                     {
                         processId = e.GameInfo.ProcessId,
                         processName = e.GameInfo.ProcessName,
-                        windowHandle = e.GameInfo.WindowHandle.ToString(),
                         detectedAt = e.GameInfo.DetectedAt,
                         lostAt = DateTime.Now
                     }
                 };
 
-                _pipeClient.SendEvent("game-lost", eventData);
-                Console.WriteLine("📡 게임 종료 이벤트를 UI에 전송했습니다");
+                _pipeClient.SendEvent(eventData.eventType, eventData);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ 게임 종료 이벤트 전송 실패: {ex.Message}");
             }
         }
+        private async void OnConnectionStateChanged(object sender, bool isConnected)
+        {
+            if (isConnected)
+            {
+                Console.WriteLine("✅ StarcUp.UI 서버에 연결되었습니다");
+                try
+                {
+                    var pingResponse = await _pipeClient.SendCommandAsync("ping", new[] { "core-ready" });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ 핑 전송 실패: {ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("❌ StarcUp.UI 서버와의 연결이 끊어졌습니다");
+            }
 
+            ConnectionStateChanged?.Invoke(this, isConnected);
+        }
         public void Dispose()
         {
             if (_disposed)
