@@ -2,6 +2,32 @@
 @import "tw-animate-css";
 @custom-variant dark (&:is(.dark *));
 
+/* 버튼 회전 애니메이션 */
+.cog-rotation {
+  transition: transform 0.3s ease;
+}
+
+.cog-rotation:hover {
+  transform: rotate(90deg);
+}
+
+/* 설정 버튼용 회전 */
+.feature-settings-btn:hover .cog-icon {
+  transform: rotate(90deg);
+}
+
+/* Input number 스피너 제거 */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
 :root {
   --font-size: 14px;
   --background: oklch(1 0 0);

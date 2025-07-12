@@ -17,7 +17,11 @@ export default defineConfig({
   },
   plugins: [
     tailwindcss(),
-    react(),
+    react({
+      babel: {
+        plugins: [['styled-jsx/babel', {}]]
+      }
+    }),
     electron({
       main: {
         // Shortcut of `build.lib.entry`.
