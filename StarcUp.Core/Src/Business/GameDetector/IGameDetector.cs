@@ -10,10 +10,6 @@ namespace StarcUp.Business.GameDetection
     {
         event EventHandler<GameEventArgs> HandleFound;
         event EventHandler<GameEventArgs> HandleLost;
-        event EventHandler<GameEventArgs> HandleChanged;
-        event EventHandler<GameEventArgs> WindowMove;
-        event EventHandler<GameEventArgs> WindowFocusIn;
-        event EventHandler<GameEventArgs> WindowFocusOut;
 
         bool IsGameRunning { get; }
         GameInfo CurrentGame { get; }

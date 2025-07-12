@@ -113,11 +113,11 @@ namespace StarcUp.Business.Game
             _unitCountTimer.Stop();
             
             // UnitCountService 정지
-            _unitCountService.Stop();
+            _unitCountService?.Stop();
             Console.WriteLine("GameManager: UnitCountService 정지 완료");
             
             // 유닛 서비스 캐시 무효화
-            _unitService.InvalidateAddressCache();
+            _unitService?.InvalidateAddressCache();
             
             Console.WriteLine("GameManager: 게임 종료 완료");
         }
@@ -278,8 +278,6 @@ namespace StarcUp.Business.Game
             if (_disposed)
                 return;
                 
-            GameExit();
-            
             _unitDataTimer?.Stop();
             _unitDataTimer?.Dispose();
             

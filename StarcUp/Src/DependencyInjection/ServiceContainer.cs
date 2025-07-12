@@ -104,6 +104,7 @@ namespace StarcUp.DependencyInjection
                     catch (Exception ex)
                     {
                         Console.WriteLine($"서비스 정리 중 오류: {ex.Message}");
+
                     }
                 }
             }

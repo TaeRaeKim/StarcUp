@@ -1,3 +1,4 @@
+using StarcUp.Business.GameDetection;
 using StarcUp.Common.Events;
 using StarcUp.Infrastructure.Memory;
 using System;
@@ -14,6 +15,7 @@ namespace StarcUp.Business.MemoryService
         public event EventHandler<ProcessEventArgs> ProcessConnect;
         public event EventHandler<ProcessEventArgs> ProcessDisconnect;
 
+        private readonly IGameDetector _gameDetector;
         private readonly IMemoryReader _memoryReader;
         private readonly object _lockObject = new object();
         private bool _isDisposed;
@@ -26,11 +28,17 @@ namespace StarcUp.Business.MemoryService
         public bool IsConnected => _memoryReader?.IsConnected ?? false;
         public int ConnectedProcessId => _memoryReader?.ConnectedProcessId ?? 0;
 
-        public MemoryService(IMemoryReader memoryReader)
+        public MemoryService(IGameDetector gameDetector, IMemoryReader memoryReader)
         {
+            _gameDetector = gameDetector ?? throw new ArgumentNullException(nameof(gameDetector));
             _memoryReader = memoryReader ?? throw new ArgumentNullException(nameof(memoryReader));
-        }
 
+            _gameDetector.HandleFound += (object sender, GameEventArgs e) => ConnectToProcess(e.GameInfo.ProcessId);
+            _gameDetector.HandleLost += (object sender, GameEventArgs e) => Disconnect();
+
+            Console.WriteLine("[MemoryService] 초기화 완료");
+            RefreshAllCache();
+        }
         public bool ConnectToProcess(int processId)
         {
             if (_isDisposed)
@@ -1249,7 +1257,6 @@ namespace StarcUp.Business.MemoryService
                 return -1;
             }
         }
-
         public void Dispose()
         {
             if (_isDisposed) return;

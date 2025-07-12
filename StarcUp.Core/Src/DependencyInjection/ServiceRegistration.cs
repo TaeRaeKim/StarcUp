@@ -9,6 +9,8 @@ using StarcUp.Business.Game;
 using StarcUp.Business.GameManager.Extensions;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Windows;
+using StarcUp.Infrastructure.Communication;
+using StarcUp.Business.Communication;
 
 namespace StarcUp.DependencyInjection
 {    /// <summary>
@@ -27,20 +29,25 @@ namespace StarcUp.DependencyInjection
             container.RegisterSingleton<IWindowManager>(
                 c => new WindowManager());
 
-            // Business Services
-            container.RegisterSingleton<IMemoryService>(
-                c => new MemoryService(
-                    c.Resolve<IMemoryReader>()));
+            // Offset Repository
+            container.RegisterSingleton(
+                c => new UnitOffsetRepository("Data"));
 
             // Game Detection Services
             container.RegisterSingleton<IGameDetector>(
-                c => new GameDetector(
-                    c.Resolve<IWindowManager>()));
+                c => new GameDetector());
+
+            // Business Services
+            container.RegisterSingleton<IMemoryService>(
+                c => new MemoryService(
+                    c.Resolve<IGameDetector>(),
+                    c.Resolve<IMemoryReader>()));
 
             // InGameStateMonitor
             container.RegisterSingleton<IInGameDetector>(
                 c => new InGameDetector(
-                    c.Resolve<IMemoryService>()));
+                    c.Resolve<IMemoryService>(),
+                    c.Resolve<UnitOffsetRepository>()));
 
             // Unit Services
             container.RegisterSingleton<IUnitInfoRepository>(
@@ -53,8 +60,6 @@ namespace StarcUp.DependencyInjection
                     c.Resolve<IUnitMemoryAdapter>()));
 
             // Unit Count Services
-            container.RegisterSingleton<UnitOffsetRepository>(
-                c => new UnitOffsetRepository("Data"));
             container.RegisterSingleton<IUnitCountAdapter>(
                 c => new UnitCountAdapter(
                     c.Resolve<IMemoryService>(),
@@ -63,6 +68,14 @@ namespace StarcUp.DependencyInjection
                 c => new UnitCountService(
                     c.Resolve<IUnitCountAdapter>()));
 
+            // Communication Services
+            container.RegisterSingleton<INamedPipeClient>(
+                c => new NamedPipeClient());
+            container.RegisterSingleton<ICommunicationService>(
+                c => new CommunicationService(
+                    c.Resolve<INamedPipeClient>(),
+                    c.Resolve<IGameDetector>(),
+                    c.Resolve<IInGameDetector>()));
 
             PlayerExtensions.SetUnitCountService(container.Resolve<IUnitCountService>());
             PlayerExtensions.SetUnitService(container.Resolve<IUnitService>());
@@ -86,6 +99,8 @@ namespace StarcUp.DependencyInjection
             Console.WriteLine("   🏗️ UnitOffsetRepository - 유닛 오프셋 설정 저장소");
             Console.WriteLine("   🔢 UnitCountAdapter - 유닛 카운트 메모리 어댑터");
             Console.WriteLine("   📊 UnitCountService - 유닛 카운트 관리 서비스");
+            Console.WriteLine("   🔗 NamedPipeClient - Named Pipe 통신 클라이언트");
+            Console.WriteLine("   📡 CommunicationService - UI 통신 관리 서비스");
             Console.WriteLine("   🎯 GameManager - 게임 관리 서비스 (자동 유닛 데이터 로딩)");
         }
     }

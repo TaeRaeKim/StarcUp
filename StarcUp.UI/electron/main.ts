@@ -1,236 +1,96 @@
-import { app, BrowserWindow, ipcMain, globalShortcut } from 'electron'
-import { createRequire } from 'node:module'
-import { fileURLToPath } from 'node:url'
-import path from 'node:path'
+import { app, BrowserWindow } from 'electron'
+import { serviceContainer } from './src/services/ServiceContainer'
+import { IWindowManager, IShortcutManager } from './src/services/window/interfaces'
+import { ICoreCommunicationService } from './src/services/core/interfaces'
 
-const require = createRequire(import.meta.url)
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-// The built directory structure
-//
-// ├─┬─┬ dist
-// │ │ └── index.html
-// │ │
-// │ ├─┬ dist-electron
-// │ │ ├── main.js
-// │ │ └── preload.mjs
-// │
-process.env.APP_ROOT = path.join(__dirname, '..')
-
-// 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
-export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
-export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
-export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
-
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
-
-let win: BrowserWindow | null
-let overlayWin: BrowserWindow | null
-
-function createWindow() {
-  win = new BrowserWindow({
-    width: 500,        // 컨텐츠에 맞춘 최적화된 크기
-    height: 750,       // 높이 증가
-    minWidth: 500,     // 최소 크기 고정
-    minHeight: 750,    // 최소 크기 고정
-    maxWidth: 500,     // 최대 크기 고정 (리사이징 방지)
-    maxHeight: 750,    // 최대 크기 고정 (리사이징 방지)
-    resizable: false,  // 창 크기 조절 비활성화
-    frame: false,      // 기본 타이틀바 제거
-    titleBarStyle: 'hidden', // 타이틀바 완전 숨김
-    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-  })
-
-  // 오버레이 창 생성
-  createOverlayWindow()
-
-  // Test active push message to Renderer-process.
-  win.webContents.on('did-finish-load', () => {
-    win?.webContents.send('main-process-message', (new Date).toLocaleString())
-  })
-
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL)
-    // 개발 환경에서 개발자도구 자동 열기
-    win.webContents.openDevTools()
-  } else {
-    // win.loadFile('dist/index.html')
-    win.loadFile(path.join(RENDERER_DIST, 'index.html'))
-  }
-}
-
-function createOverlayWindow() {
-  overlayWin = new BrowserWindow({
-    width: 400,
-    height: 200,
-    frame: false,              // 프레임 없음
-    transparent: true,         // 투명 창
-    alwaysOnTop: true,         // 항상 최상위
-    skipTaskbar: true,         // 작업표시줄에 표시 안함
-    resizable: false,          // 크기 조절 불가
-    focusable: false,          // 포커스 불가 (클릭 통과)
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-  })
-
-  // 클릭 통과 설정
-  overlayWin.setIgnoreMouseEvents(true)
-  
-  // 화면 중앙에 배치
-  overlayWin.center()
-
-  // 오버레이용 HTML 페이지 로드
-  const overlayHtml = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Overlay</title>
-      <style>
-        body {
-          margin: 0;
-          padding: 0;
-          background: transparent;
-          font-family: Arial, sans-serif;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-          overflow: hidden;
-        }
-        .overlay-content {
-          background: rgba(0, 0, 0, 0.8);
-          color: white;
-          padding: 20px;
-          border-radius: 10px;
-          text-align: center;
-          font-size: 24px;
-          font-weight: bold;
-          text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-          border: 2px solid #00ff00;
-          box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
-        }
-      </style>
-    </head>
-    <body>
-      <div class="overlay-content">
-        Hello World!
-      </div>
-    </body>
-    </html>
-  `
-  
-  overlayWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(overlayHtml)}`)
-  
-  // 초기에는 오버레이 창을 숨김
-  overlayWin.hide()
-}
-
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
+// 애플리케이션 종료 처리
+app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
+    await serviceContainer.dispose()
     app.quit()
-    win = null
-    overlayWin = null
   }
 })
 
 app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
+  // macOS에서 dock 아이콘 클릭 시 윈도우 재생성
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow()
+    initializeApp()
   }
 })
 
-app.whenReady().then(() => {
-  createWindow()
-  setupIPC()
-  
-  // 개발자도구 토글 단축키 등록 (F12 또는 Ctrl+Shift+I)
-  globalShortcut.register('F12', () => {
-    if (win) {
-      win.webContents.toggleDevTools()
-    }
-  })
-  
-  globalShortcut.register('CommandOrControl+Shift+I', () => {
-    if (win) {
-      win.webContents.toggleDevTools()
-    }
-  })
-
-  // 오버레이 토글 단축키 (F1)
-  globalShortcut.register('F1', () => {
-    if (overlayWin) {
-      if (overlayWin.isVisible()) {
-        overlayWin.hide()
-      } else {
-        overlayWin.show()
-      }
-    }
-  })
+app.on('before-quit', async () => {
+  // 애플리케이션 종료 전 서비스 정리
+  await serviceContainer.dispose()
 })
 
-// IPC 핸들러 설정
-function setupIPC() {
-  ipcMain.on('minimize-window', () => {
-    if (win) {
-      win.minimize()
-    }
-  })
+app.whenReady().then(() => {
+  initializeApp()
+})
 
-  ipcMain.on('maximize-window', () => {
-    if (win) {
-      if (win.isMaximized()) {
-        win.unmaximize()
+async function initializeApp(): Promise<void> {
+  try {
+    // 환경 감지
+    const isDevelopment = process.env.NODE_ENV === 'development' || !app.isPackaged
+    console.log(`🏗️ 애플리케이션 모드: ${isDevelopment ? '개발' : '프로덕션'}`)
+
+    // 서비스 컨테이너 초기화
+    serviceContainer.initialize()
+
+    // 서비스 해결
+    const windowManager = serviceContainer.resolve<IWindowManager>('windowManager')
+    const shortcutManager = serviceContainer.resolve<IShortcutManager>('shortcutManager')
+    const coreService = serviceContainer.resolve<ICoreCommunicationService>('coreCommunicationService')
+    
+    // IPC 핸들러는 ServiceContainer.initialize()에서 자동으로 등록됨
+
+    // 윈도우 생성
+    windowManager.createMainWindow()
+    windowManager.createOverlayWindow()
+
+    // 단축키 등록
+    shortcutManager.registerShortcuts()
+
+    // Core 프로세스 연결 시도
+    try {
+      if (isDevelopment) {
+        console.log('🔧 개발 모드: 기존 StarcUp.Core 프로세스에 연결 시도...')
       } else {
-        win.maximize()
+        console.log('🚀 프로덕션 모드: StarcUp.Core 프로세스 시작...')
       }
+      
+      await coreService.startConnection(isDevelopment)
+      
+      // 게임 상태 변경 이벤트를 렌더러로 전달
+      coreService.onGameStatusChanged((status: string) => {
+        console.log('📡 게임 상태 변경을 렌더러로 전달:', status)
+        
+        // 모든 웹 컨텐츠에 게임 상태 변경 이벤트 전송
+        BrowserWindow.getAllWindows().forEach(window => {
+          if (window && !window.isDestroyed()) {
+            window.webContents.send('game-status-changed', { status })
+          }
+        })
+      })
+      
+      console.log('✅ StarcUp.Core 초기화 완료')
+    } catch (error) {
+      console.error('❌ Core 프로세스 연결 실패:', error)
+      // Core 연결 실패는 치명적이지 않으므로 계속 진행
     }
-  })
 
-  ipcMain.on('close-window', () => {
-    if (win) {
-      win.close()
-    }
-  })
+    console.log('🎉 애플리케이션 초기화 완료')
 
-  ipcMain.on('drag-window', () => {
-    // 드래그는 CSS의 -webkit-app-region: drag; 로 처리됨
-    // 이 핸들러는 필요시 추가 드래그 로직을 위해 보관
-  })
+  } catch (error) {
+    console.error('❌ 애플리케이션 초기화 실패:', error)
+    
+    // 초기화 실패 시 정리
+    await serviceContainer.dispose()
+    app.quit()
+  }
+}
 
-  // 오버레이 관련 IPC 핸들러
-  ipcMain.on('toggle-overlay', () => {
-    if (overlayWin) {
-      if (overlayWin.isVisible()) {
-        overlayWin.hide()
-      } else {
-        overlayWin.show()
-      }
-    }
-  })
-
-  ipcMain.on('show-overlay', () => {
-    if (overlayWin) {
-      overlayWin.show()
-    }
-  })
-
-  ipcMain.on('hide-overlay', () => {
-    if (overlayWin) {
-      overlayWin.hide()
-    }
-  })
+// 개발 모드에서 핫 리로드 지원
+if (process.env.NODE_ENV === 'development') {
+  // 개발 모드 전용 기능들
+  console.log('🔧 개발 모드 활성화')
 }

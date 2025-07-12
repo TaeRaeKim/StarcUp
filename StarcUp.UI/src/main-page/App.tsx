@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { ScrollingText } from "./components/ScrollingText";
-import { FeatureStatusGrid } from "./components/FeatureStatusGrid";
-import { Switch } from "./components/ui/switch";
+import { ScrollingText } from "../components/ScrollingText";
+import { FeatureStatusGrid } from "../components/FeatureStatusGrid";
+import { Switch } from "../components/ui/switch";
 import { SlidersHorizontal, Power, WifiOff, Clock, Zap, ChevronLeft, ChevronRight } from "lucide-react";
 
 const starcraftTips = [
@@ -72,31 +72,87 @@ const presets = [
 
 export default function App() {
   const [isActive, setIsActive] = useState(false);
-  const [gameStatus, setGameStatus] = useState<GameStatus>('playing');
+  const [gameStatus, setGameStatus] = useState<GameStatus>('error');
   const [currentPresetIndex, setCurrentPresetIndex] = useState(0);
 
-  // 3초마다 게임 상태 순환
+  // 게임 상태 이벤트 리스너
   useEffect(() => {
-    const statusCycle: GameStatus[] = ['playing', 'waiting', 'error'];
-    let currentIndex = 0;
+    if (!window.coreAPI?.onGameStatusChanged) {
+      console.log('⚠️ coreAPI가 준비되지 않았습니다');
+      return;
+    }
 
-    const interval = setInterval(() => {
-      currentIndex = (currentIndex + 1) % statusCycle.length;
-      setGameStatus(statusCycle[currentIndex]);
-    }, 3000);
+    console.log('🎮 게임 상태 이벤트 리스너 등록');
+    
+    const unsubscribe = window.coreAPI.onGameStatusChanged((data) => {
+      console.log('📡 게임 상태 변경 수신:', data.status);
+      
+      // Core 상태를 UI 상태로 매핑
+      switch (data.status) {
+        case 'playing':
+          setGameStatus('playing');
+          break;
+        case 'waiting':
+          setGameStatus('waiting');
+          break;
+        default:
+          setGameStatus('error');
+          break;
+      }
+    });
 
-    return () => clearInterval(interval);
+    // 컴포넌트 언마운트 시 이벤트 리스너 정리
+    return () => {
+      console.log('🧹 게임 상태 이벤트 리스너 정리');
+      unsubscribe();
+    };
   }, []);
 
-  const toggleOverlay = () => {
+  const toggleOverlay = async () => {
     const newState = !isActive;
-    setIsActive(newState);
     
-    // Electron 오버레이 창 제어
     if (newState) {
+      // 즉시 활성화 상태로 변경
+      setIsActive(true);
+      setGameStatus('error'); // 게임 감지 안됨 상태 (초기 상태)
       window.electronAPI?.showOverlay();
+      
+      // 백그라운드에서 Core 게임 감지 시작
+      try {
+        const response = await window.coreAPI?.startDetection();
+        if (response?.success) {
+          console.log('Core 게임 감지 시작됨:', response.data);
+        } else {
+          console.error('Core 게임 감지 시작 실패:', response?.error);
+          // 실패 시 버튼 비활성화
+          setIsActive(false);
+          setGameStatus('error');
+          window.electronAPI?.hideOverlay();
+        }
+      } catch (error) {
+        console.error('Core 통신 실패:', error);
+        // 통신 실패 시 버튼 비활성화
+        setIsActive(false);
+        setGameStatus('error');
+        window.electronAPI?.hideOverlay();
+      }
     } else {
+      // 즉시 비활성화 상태로 변경
+      setIsActive(false);
+      setGameStatus('error'); // 게임 감지 안됨 상태
       window.electronAPI?.hideOverlay();
+      
+      // 백그라운드에서 Core 게임 감지 중지
+      try {
+        const response = await window.coreAPI?.stopDetection();
+        if (response?.success) {
+          console.log('Core 게임 감지 중지됨:', response.data);
+        } else {
+          console.error('Core 게임 감지 중지 실패:', response?.error);
+        }
+      } catch (error) {
+        console.error('Core 통신 실패:', error);
+      }
     }
   };
 

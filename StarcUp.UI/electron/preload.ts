@@ -25,11 +25,27 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
 
 // --------- Expose window controls to the Renderer process ---------
 contextBridge.exposeInMainWorld('electronAPI', {
-  minimizeWindow: () => ipcRenderer.send('minimize-window'),
-  maximizeWindow: () => ipcRenderer.send('maximize-window'),
-  closeWindow: () => ipcRenderer.send('close-window'),
-  dragWindow: () => ipcRenderer.send('drag-window'),
-  toggleOverlay: () => ipcRenderer.send('toggle-overlay'),
-  showOverlay: () => ipcRenderer.send('show-overlay'),
-  hideOverlay: () => ipcRenderer.send('hide-overlay'),
+  minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
+  maximizeWindow: () => ipcRenderer.invoke('window:maximize'),
+  closeWindow: () => ipcRenderer.invoke('window:close'),
+  dragWindow: () => ipcRenderer.invoke('window:drag'),
+  toggleOverlay: () => ipcRenderer.invoke('window:toggle-overlay'),
+  showOverlay: () => ipcRenderer.invoke('window:show-overlay'),
+  hideOverlay: () => ipcRenderer.invoke('window:hide-overlay'),
+})
+
+// --------- Expose Core API to the Renderer process ---------
+contextBridge.exposeInMainWorld('coreAPI', {
+  startDetection: () => ipcRenderer.invoke('core:start-detection'),
+  stopDetection: () => ipcRenderer.invoke('core:stop-detection'),
+  getGameStatus: () => ipcRenderer.invoke('core:get-game-status'),
+  
+  // 게임 상태 변경 이벤트 리스너
+  onGameStatusChanged: (callback: (data: { status: string }) => void) => {
+    const listener = (_event: any, data: { status: string }) => callback(data)
+    ipcRenderer.on('game-status-changed', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('game-status-changed', listener)
+  }
 })
