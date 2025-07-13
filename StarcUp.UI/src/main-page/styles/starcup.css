@@ -141,6 +141,11 @@
   transition: all 0.3s ease;
 }
 
+.feature-dot-disabled {
+  opacity: 0.2;
+  transition: all 0.3s ease;
+}
+
 @keyframes feature-glow {
   0%, 100% {
     box-shadow: 

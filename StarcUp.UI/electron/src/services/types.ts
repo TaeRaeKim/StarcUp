@@ -107,6 +107,7 @@ export interface IIPCChannels {
   'window:toggle-overlay': { request: void; response: void }
   'window:show-overlay': { request: void; response: void }
   'window:hide-overlay': { request: void; response: void }
+  'window:resize': { request: { width: number; height: number }; response: void }
   'window:get-window-bounds': { request: void; response: { main: Electron.Rectangle | null; overlay: Electron.Rectangle | null } }
   'window:set-overlay-position': { request: { x: number; y: number }; response: void }
   'window:set-overlay-size': { request: { width: number; height: number }; response: void }

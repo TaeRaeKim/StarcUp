@@ -24,17 +24,18 @@ interface PresetSettingsModalProps {
   onOpenUnitSettings?: () => void;
   onOpenUpgradeSettings?: () => void;
   onOpenBuildOrderSettings?: () => void;
+  onOpenDevelopmentProgress?: (featureName: string, featureType: 'buildorder' | 'upgrade' | 'population' | 'unit') => void;
 }
 
 // 기능 이름 및 설명 매핑
 const FEATURE_CONFIG = [
   {
-    name: "인구 수",
-    description: "인구 수 출력, 부족 경고, 건물 기반 계산 등 인구 관리 도구"
-  },
-  {
     name: "일꾼",
     description: "일꾼 수 출력, 생산/사망 감지, 유휴 일꾼 체크 등 일꾼 관리 도구"
+  },
+  {
+    name: "인구 수",
+    description: "인구 수 출력, 부족 경고, 건물 기반 계산 등 인구 관리 도구"
   },
   {
     name: "유닛",
@@ -84,7 +85,8 @@ export function PresetSettingsModal({
   onOpenWorkerSettings,
   onOpenUnitSettings,
   onOpenUpgradeSettings,
-  onOpenBuildOrderSettings
+  onOpenBuildOrderSettings,
+  onOpenDevelopmentProgress
 }: PresetSettingsModalProps) {
   const [editedName, setEditedName] = useState(currentPreset.name);
   const [editedDescription, setEditedDescription] = useState(currentPreset.description);
@@ -114,8 +116,8 @@ export function PresetSettingsModal({
   }, [editedName, editedDescription, editedFeatures, selectedRace, currentPreset]);
 
   const handleFeatureToggle = (index: number) => {
-    // 빌드오더(인덱스 4)는 비활성화 - 클릭 불가
-    if (index === 4) {
+    // 인구수(1), 유닛(2), 업그레이드(3), 빌드오더(4)는 비활성화 - 클릭 불가 (일꾼은 0번으로 이동)
+    if (index === 1 || index === 2 || index === 3 || index === 4) {
       return;
     }
     
@@ -127,22 +129,28 @@ export function PresetSettingsModal({
   const handleFeatureSettings = (index: number) => {
     const featureName = FEATURE_CONFIG[index].name;
     
-    // 빌드오더는 미개발 기능이므로 설정창은 열되 기능 안내만 표시
-    if (featureName === "빌드 오더" && onOpenBuildOrderSettings) {
-      onOpenBuildOrderSettings();
-      return;
-    }
-    
-    if (featureName === "인구 수" && onOpenPopulationSettings) {
-      onOpenPopulationSettings();
-    } else if (featureName === "일꾼" && onOpenWorkerSettings) {
+    // 일꾼 기능만 실제 상세 설정창으로 연결
+    if (featureName === "일꾼" && onOpenWorkerSettings) {
       onOpenWorkerSettings();
-    } else if (featureName === "유닛" && onOpenUnitSettings) {
-      onOpenUnitSettings();
-    } else if (featureName === "업그레이드" && onOpenUpgradeSettings) {
-      onOpenUpgradeSettings();
     } else {
-      console.log(`${featureName} 상세 설정 열기`);
+      // 나머지 모든 기능들은 개발 중 페이지로 이동
+      if (onOpenDevelopmentProgress) {
+        let featureType: 'buildorder' | 'upgrade' | 'population' | 'unit';
+        
+        if (featureName === "인구 수") {
+          featureType = 'population';
+        } else if (featureName === "유닛") {
+          featureType = 'unit';
+        } else if (featureName === "업그레이드") {
+          featureType = 'upgrade';
+        } else if (featureName === "빌드 오더") {
+          featureType = 'buildorder';
+        } else {
+          featureType = 'buildorder'; // 기본값
+        }
+        
+        onOpenDevelopmentProgress(featureName, featureType);
+      }
     }
   };
 
@@ -179,21 +187,19 @@ export function PresetSettingsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* 배경 오버레이 */}
+    <div className="preset-settings-page w-full h-screen overflow-hidden border-2 shadow-2xl"
+      style={{
+        backgroundColor: 'var(--starcraft-bg)',
+        background: 'linear-gradient(135deg, var(--starcraft-bg) 0%, rgba(0, 20, 0, 0.95) 100%)',
+        borderColor: 'var(--starcraft-green)',
+        boxShadow: '0 0 20px rgba(0, 255, 0, 0.3), inset 0 0 20px rgba(0, 255, 0, 0.1)'
+      }}
+    >
+      {/* 전체 화면 컨테이너 */}
       <div 
-        className="absolute inset-0 backdrop-blur-sm cursor-pointer"
-        style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
-        onClick={handleClose}
-      />
-      
-      {/* 모달 컨테이너 */}
-      <div 
-        className="preset-settings-modal relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-lg border-2 shadow-2xl"
+        className="preset-settings-modal relative w-full h-full flex flex-col"
         style={{
-          backgroundColor: 'var(--starcraft-bg)',
-          borderColor: 'var(--starcraft-green)',
-          boxShadow: '0 0 20px rgba(0, 255, 0, 0.3), inset 0 0 20px rgba(0, 255, 0, 0.1)'
+          backgroundColor: 'var(--starcraft-bg)'
         }}
       >
         {/* 헤더 */}
@@ -246,11 +252,11 @@ export function PresetSettingsModal({
           </div>
         </div>
 
-        {/* 스크롤 가능한 컨텐츠 */}
-        <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
+        {/* 스크롤 가능한 컨텐츠 영역 */}
+        <div className="flex-1 overflow-y-auto starcraft-scrollbar">
           <div className="p-6 space-y-6">
-            {/* 기본 정보 섹션 */}
-            <div className="space-y-4">
+          {/* 기본 정보 섹션 */}
+          <div className="space-y-4">
               <h3 
                 className="font-medium tracking-wide border-b pb-2"
                 style={{ 
@@ -273,12 +279,19 @@ export function PresetSettingsModal({
                     type="text"
                     value={editedName}
                     onChange={(e) => setEditedName(e.target.value)}
-                    className="w-full p-3 rounded-sm border transition-all duration-300 focus:outline-none focus:ring-2"
+                    className="w-full p-3 rounded-sm border transition-all duration-300 focus:outline-none"
                     style={{
                       backgroundColor: 'var(--starcraft-bg-secondary)',
                       borderColor: 'var(--starcraft-border)',
-                      color: 'var(--starcraft-green)'
-                    } as React.CSSProperties}
+                      color: 'var(--starcraft-green)',
+                      outlineColor: 'var(--starcraft-green)'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.boxShadow = '0 0 0 2px var(--starcraft-green)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.boxShadow = 'none';
+                    }}
                     placeholder="프리셋 이름을 입력하세요"
                   />
                 </div>
@@ -294,12 +307,19 @@ export function PresetSettingsModal({
                     value={editedDescription}
                     onChange={(e) => setEditedDescription(e.target.value)}
                     rows={2}
-                    className="w-full p-3 rounded-sm border transition-all duration-300 focus:outline-none focus:ring-2 resize-none"
+                    className="w-full p-3 rounded-sm border transition-all duration-300 focus:outline-none resize-none"
                     style={{
                       backgroundColor: 'var(--starcraft-bg-secondary)',
                       borderColor: 'var(--starcraft-border)',
-                      color: 'var(--starcraft-green)'
-                    } as React.CSSProperties}
+                      color: 'var(--starcraft-green)',
+                      outlineColor: 'var(--starcraft-green)'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.boxShadow = '0 0 0 2px var(--starcraft-green)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.boxShadow = 'none';
+                    }}
                     placeholder="프리셋에 대한 설명을 입력하세요"
                   />
                 </div>
@@ -412,8 +432,12 @@ export function PresetSettingsModal({
 
               <div className="grid grid-cols-1 gap-3">
                 {FEATURE_CONFIG.map((feature, index) => {
+                  const isWorker = index === 0; // 일꾼은 인덱스 0 (맨위로 이동)
+                  const isPopulation = index === 1; // 인구수는 인덱스 1
+                  const isUnit = index === 2; // 유닛은 인덱스 2
+                  const isUpgrade = index === 3; // 업그레이드는 인덱스 3
                   const isBuildOrder = index === 4; // 빌드오더는 인덱스 4
-                  const isDisabled = isBuildOrder; // 빌드오더만 비활성화
+                  const isDisabled = isPopulation || isUnit || isUpgrade || isBuildOrder; // 일꾼만 활성화
                   
                   return (
                   <div
@@ -528,7 +552,7 @@ export function PresetSettingsModal({
           </div>
         </div>
 
-        {/* 푸터 버튼들 */}
+        {/* 고정 푸터 */}
         <div 
           className="flex items-center justify-between p-4 border-t"
           style={{ 

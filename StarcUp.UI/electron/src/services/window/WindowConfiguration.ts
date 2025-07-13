@@ -3,14 +3,15 @@ import { IWindowConfiguration } from '../types'
 // 윈도우 설정 상수
 export const WINDOW_CONFIG: IWindowConfiguration = {
   main: {
-    width: 500,
-    height: 750,
-    minWidth: 500,
-    minHeight: 750,
-    maxWidth: 500,
-    maxHeight: 750,
-    resizable: false,
+    width: 540,
+    height: 790,
+    minWidth: 400,
+    minHeight: 300,
+    maxWidth: 2000,
+    maxHeight: 2000,
+    resizable: true,
     frame: false,
+    transparent: true,
     titleBarStyle: 'hidden' as const,
     show: false, // ready-to-show 이벤트를 위해 false로 설정
     webPreferences: {
@@ -38,6 +39,7 @@ export const WINDOW_CONFIG: IWindowConfiguration = {
 // 개발 도구 설정
 export const DEV_TOOLS_CONFIG = {
   shortcuts: ['CommandOrControl+Shift+I'],
+  overlayShortcuts: ['CommandOrControl+Shift+O'],
   autoOpenInDev: true,
 }
 
