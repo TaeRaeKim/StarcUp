@@ -30,5 +30,9 @@ export * from './window/WindowConfiguration'
 export * from './window/WindowManager'
 export * from './window/ShortcutManager'
 
+// Foreground 윈도우 서비스
+export * from './foreground/interfaces'
+export * from './foreground/ForegroundWindowService'
+
 // IPC 채널 핸들러
 export * from './ipc/ChannelHandlers'

@@ -118,21 +118,7 @@ export default function App() {
     };
   }, []);
 
-  // InGame 상태에 따른 자동 overlay 토글
-  useEffect(() => {
-    // 게임 감지가 활성화된 상태에서만 자동 토글 동작
-    if (!isActive) return;
-
-    if (gameStatus === 'playing') {
-      // InGame 상태일 때 overlay 보이기
-      console.log('🎮 InGame 감지 - overlay 표시');
-      window.electronAPI?.showOverlay();
-    } else if (gameStatus === 'waiting' || gameStatus === 'error') {
-      // InGame이 아닐 때 overlay 숨기기
-      console.log('🚪 OutGame 감지 - overlay 숨김');
-      window.electronAPI?.hideOverlay();
-    }
-  }, [gameStatus, isActive]);
+  // 자동 overlay 관리는 이제 메인 프로세스에서 처리됩니다
 
   const toggleOverlay = async () => {
     const newState = !isActive;
@@ -147,28 +133,23 @@ export default function App() {
         const response = await window.coreAPI?.startDetection();
         if (response?.success) {
           console.log('Core 게임 감지 시작됨:', response.data);
-          // 게임 감지 시작 성공 시 초기 상태에서는 overlay 숨김
-          // (InGame 상태가 되면 자동으로 표시됨)
-          window.electronAPI?.hideOverlay();
+          // 자동 overlay 관리가 메인 프로세스에서 처리됩니다
         } else {
           console.error('Core 게임 감지 시작 실패:', response?.error);
           // 실패 시 버튼 비활성화
           setIsActive(false);
           setGameStatus('error');
-          window.electronAPI?.hideOverlay();
         }
       } catch (error) {
         console.error('Core 통신 실패:', error);
         // 통신 실패 시 버튼 비활성화
         setIsActive(false);
         setGameStatus('error');
-        window.electronAPI?.hideOverlay();
       }
     } else {
       // 비활성화 상태로 변경
       setIsActive(false);
       setGameStatus('error'); // 게임 감지 안됨 상태
-      window.electronAPI?.hideOverlay();
       
       // 백그라운드에서 Core 게임 감지 중지
       try {

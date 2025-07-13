@@ -48,5 +48,14 @@ contextBridge.exposeInMainWorld('coreAPI', {
     
     // 리스너 정리 함수 반환
     return () => ipcRenderer.off('game-status-changed', listener)
+  },
+
+  // foreground 상태 변경 이벤트 리스너
+  onForegroundChanged: (callback: (data: { isStarcraftInForeground: boolean }) => void) => {
+    const listener = (_event: any, data: { isStarcraftInForeground: boolean }) => callback(data)
+    ipcRenderer.on('foreground-changed', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('foreground-changed', listener)
   }
 })

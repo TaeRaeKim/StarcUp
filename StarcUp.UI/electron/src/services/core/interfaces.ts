@@ -45,4 +45,10 @@ export interface ICoreCommunicationService {
   // 게임 상태 변경 콜백
   onGameStatusChanged(callback: (status: string) => void): void
   offGameStatusChanged(): void
+  
+  // 게임 감지/종료 콜백
+  onGameDetected(callback: (gameInfo: any) => void): void
+  offGameDetected(): void
+  onGameEnded(callback: () => void): void
+  offGameEnded(): void
 }
