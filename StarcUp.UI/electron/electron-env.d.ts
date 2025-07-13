@@ -30,6 +30,7 @@ interface Window {
     toggleOverlay: () => Promise<void>
     showOverlay: () => Promise<void>
     hideOverlay: () => Promise<void>
+    resizeWindow: (width: number, height: number) => Promise<void>
   }
   coreAPI?: {
     startDetection: () => Promise<ICoreResponse>

@@ -133,6 +133,14 @@ export class ChannelHandlers {
       this.windowManager.hideOverlay()
     })
 
+    this.ipcService.registerHandler('window:resize', async (data) => {
+      if (data && typeof data.width === 'number' && typeof data.height === 'number') {
+        this.windowManager.resizeMain(data.width, data.height)
+      } else {
+        console.error('❌ window:resize - 잘못된 인자:', data)
+      }
+    })
+
     this.ipcService.registerHandler('window:get-window-bounds', async () => ({
       main: this.windowManager.getMainWindowBounds(),
       overlay: this.windowManager.getOverlayWindowBounds()

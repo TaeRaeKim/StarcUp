@@ -1,72 +1,62 @@
 import { useState, useEffect } from "react";
-import { ScrollingText } from "../components/ScrollingText";
-import { FeatureStatusGrid } from "../components/FeatureStatusGrid";
-import { Switch } from "../components/ui/switch";
-import { SlidersHorizontal, Power, WifiOff, Clock, Zap, ChevronLeft, ChevronRight } from "lucide-react";
-
-const starcraftTips = [
-  "일꾼은 게임의 핵심! 항상 일꾼 생산을 우선하세요.",
-  "미네랄과 가스의 비율을 2:1로 유지하는 것이 효율적입니다.",
-  "정찰은 승리의 열쇠! 상대의 전략을 파악하세요.",
-  "컨트롤 그룹(1~9)을 활용해 유닛을 빠르게 선택하세요.",
-  "건물 배치는 방어와 효율성을 모두 고려해야 합니다.",
-  "업그레이드는 유닛 수량보다 우선할 때가 많습니다.",
-  "멀티 확장 타이밍이 경기의 흐름을 좌우합니다.",
-  "상성을 고려한 유닛 조합이 승부의 관건입니다.",
-  "자원 관리: 미네랄과 가스를 남기지 마세요!",
-  "게임 센스: 상대의 패턴을 읽고 대응하세요."
-];
+import { MainInterface } from "@/components/MainInterface";
+import { PresetSettingsModal } from "@/components/PresetSettingsModal";
+import { PopulationDetailSettings } from "@/components/PopulationDetailSettings";
+import { WorkerDetailSettings } from "@/components/WorkerDetailSettings";
+import { UnitDetailSettings } from "@/components/UnitDetailSettings";
+import { UpgradeDetailSettings } from "@/components/UpgradeDetailSettings";
+import { BuildOrderDetailSettings } from "@/components/BuildOrderDetailSettings";
+import { DevelopmentModal } from "@/components/DevelopmentModal";
 
 // 게임 상태 타입 정의
 type GameStatus = 'playing' | 'waiting' | 'error';
 
-// 게임 상태별 정보 객체
-const gameStatusInfo = {
-  playing: {
-    text: '게임 중',
-    activeText: 'Active',
-    color: 'var(--starcraft-green)',
-    activeClass: 'starcraft-active-playing starcraft-glow-playing starcraft-bass-vibration',
-    statusText: '&gt; OVERLAY ACTIVE &lt;',
-    icon: Zap
-  },
-  waiting: {
-    text: '대기 중',
-    activeText: 'In-game waiting',
-    color: 'var(--starcraft-yellow)',
-    activeClass: 'starcraft-active-waiting starcraft-glow-waiting starcraft-gentle-wave',
-    statusText: '&gt; OVERLAY ACTIVE &lt;',
-    icon: Clock
-  },
-  error: {
-    text: '게임 감지 안됨',
-    activeText: 'Game not detected',
-    color: 'var(--starcraft-red)',
-    activeClass: 'starcraft-active-error starcraft-glow-error',
-    statusText: '&gt; OVERLAY ACTIVE &lt;',
-    icon: WifiOff
-  }
-};
+// 현재 뷰 타입 정의
+type CurrentView = 'main' | 'preset-settings' | 'population-settings' | 'worker-settings' | 'unit-settings' | 'upgrade-settings' | 'build-order-settings' | 'development-progress';
 
-// 프리셋 데이터
-const presets = [
+// 뷰별 윈도우 크기 정의 (실제 윈도우는 40px씩 더 크고, DOM은 기존 크기로 중앙 배치)
+const VIEW_WINDOW_SIZES = {
+  'main': { width: 540, height: 790 },  // 500x750 + 40px 여유
+  'preset-settings': { width: 740, height: 840 },      // 700x800 + 40px 여유
+  'population-settings': { width: 840, height: 840 },  // 800x800 + 40px 여유
+  'worker-settings': { width: 740, height: 840 },      // 700x800 + 40px 여유
+  'unit-settings': { width: 740, height: 840 },        // 700x800 + 40px 여유
+  'upgrade-settings': { width: 740, height: 840 },     // 700x800 + 40px 여유
+  'build-order-settings': { width: 740, height: 840 }, // 700x800 + 40px 여유
+  'development-progress': { width: 740, height: 840 }  // 700x800 + 40px 여유
+} as const;
+
+// 프리셋 타입 정의
+interface Preset {
+  id: string;
+  name: string;
+  description: string;
+  featureStates: boolean[];
+  selectedRace: 'protoss' | 'terran' | 'zerg';
+}
+
+// 프리셋 데이터 (상태로 관리하여 수정 가능하게 함)
+const initialPresets: Preset[] = [
   {
     id: "preset1",
     name: "공발질-8겟뽕",
     description: "공중 발업 질럿 러쉬 + 8마리 겟뽕",
-    featureStates: [true, true, false, true, true, false, true, false, true, false]
+    featureStates: [true, false, false, false, false], // 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
+    selectedRace: 'protoss'
   },
   {
     id: "preset2", 
     name: "커공발-운영",
     description: "커세어 + 공중 발업 운영 빌드",
-    featureStates: [true, false, true, true, false, true, false, true, false, true]
+    featureStates: [true, false, false, false, false], // 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
+    selectedRace: 'terran'
   },
   {
     id: "preset3",
     name: "패닼아비터",
     description: "패스트 다크템플러 + 아비터 전략",
-    featureStates: [false, true, true, false, true, true, false, true, false, true]
+    featureStates: [true, false, false, false, false], // 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
+    selectedRace: 'protoss'
   }
 ];
 
@@ -74,6 +64,26 @@ export default function App() {
   const [isActive, setIsActive] = useState(false);
   const [gameStatus, setGameStatus] = useState<GameStatus>('error');
   const [currentPresetIndex, setCurrentPresetIndex] = useState(0);
+  const [presets, setPresets] = useState(initialPresets);
+  
+  // 현재 뷰 상태 관리 (모달 대신 페이지 전환 방식)
+  const [currentView, setCurrentView] = useState<CurrentView>('main');
+
+  // 현재 편집 중인 종족 상태 (실시간 동기화용)
+  const [currentEditingRace, setCurrentEditingRace] = useState<'protoss' | 'terran' | 'zerg' | null>(null);
+
+  // 개발 중 기능 상태
+  const [developmentFeatureName, setDevelopmentFeatureName] = useState('');
+  const [developmentFeatureType, setDevelopmentFeatureType] = useState<'buildorder' | 'upgrade' | 'population' | 'unit'>('buildorder');
+
+  // 윈도우 크기 변경 함수
+  const changeWindowSize = (view: CurrentView) => {
+    const size = VIEW_WINDOW_SIZES[view];
+    if (window.electronAPI?.resizeWindow) {
+      window.electronAPI.resizeWindow(size.width, size.height);
+      console.log(`윈도우 크기 변경: ${view} → ${size.width}x${size.height}`);
+    }
+  };
 
   // 게임 상태 이벤트 리스너
   useEffect(() => {
@@ -156,221 +166,184 @@ export default function App() {
     }
   };
 
-  const handlePresetChange = (preset: any) => {
-    // FeatureStatusGrid에서 프리셋 변경을 처리하므로 여기서는 비워둠
-  };
-
-  const handlePresetIndexChange = (index: number) => {
-    setCurrentPresetIndex(index);
-  };
-
-  // 프리셋 네비게이션 핸들러
-  const handlePrevPreset = () => {
-    const newIndex = currentPresetIndex === 0 ? presets.length - 1 : currentPresetIndex - 1;
-    setCurrentPresetIndex(newIndex);
-  };
-
-  const handleNextPreset = () => {
-    const newIndex = currentPresetIndex === presets.length - 1 ? 0 : currentPresetIndex + 1;
-    setCurrentPresetIndex(newIndex);
-  };
-
-  const currentStatusInfo = gameStatusInfo[gameStatus];
-  const IconComponent = currentStatusInfo.icon;
   const currentPreset = presets[currentPresetIndex];
 
-  return (
-    <div className="h-screen w-screen flex overflow-hidden" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
-      {/* 메인 애플리케이션 컨테이너 - 전체 화면 채우기 */}
-      <div 
-        className="h-full w-full flex flex-col justify-between relative"
-        style={{ backgroundColor: 'var(--starcraft-bg)' }}
-      >
-        {/* 상단 타이틀 바 - 프리셋 네비게이션이 중앙에 위치 */}
-        <div 
-          className="flex items-center justify-between p-3 draggable-titlebar"
-          style={{ 
-            backgroundColor: 'var(--starcraft-bg-secondary)', 
-            borderBottom: '1px solid var(--starcraft-border)' 
-          }}
-        >
-          {/* 왼쪽 빈 공간 */}
-          <div className="w-16"></div>
-          
-          {/* 중앙 프리셋 네비게이션 */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handlePrevPreset}
-              className="p-2 rounded-full transition-all duration-300 hover:bg-[color:var(--starcraft-bg-secondary)] preset-nav-active"
-            >
-              <ChevronLeft 
-                className="w-4 h-4" 
-                style={{ color: 'var(--starcraft-green)' }} 
-              />
-            </button>
+  // 프리셋 관련 핸들러
+  const handlePresetIndexChange = (index: number) => {
+    setCurrentPresetIndex(index);
+    // 프리셋 변경 시 편집 중인 종족 상태 초기화
+    setCurrentEditingRace(null);
+  };
 
-            <div className="flex gap-1">
-              {presets.map((_, index) => (
-                <div
-                  key={index}
-                  className={`
-                    w-2 h-2 rounded-full transition-all duration-300
-                    ${index === currentPresetIndex 
-                      ? 'preset-indicator-active' 
-                      : 'preset-indicator-inactive'
-                    }
-                  `}
-                  style={{
-                    backgroundColor: index === currentPresetIndex 
-                      ? 'var(--starcraft-green)'
-                      : 'var(--starcraft-inactive-border)'
-                  }}
-                />
-              ))}
-            </div>
+  const handleSavePreset = (updatedPreset: {
+    id: string;
+    name: string;
+    description: string;
+    featureStates: boolean[];
+    selectedRace?: 'protoss' | 'terran' | 'zerg';
+  }) => {
+    console.log('프리셋 저장 완료:', updatedPreset.name, '종족:', updatedPreset.selectedRace);
+    setPresets(prev => prev.map(preset => 
+      preset.id === updatedPreset.id ? { ...preset, ...updatedPreset } : preset
+    ));
+    // 저장 후 편집 중인 종족 상태 초기화
+    setCurrentEditingRace(null);
+  };
 
-            <button
-              onClick={handleNextPreset}
-              className="p-2 rounded-full transition-all duration-300 hover:bg-[color:var(--starcraft-bg-secondary)] preset-nav-active"
-            >
-              <ChevronRight 
-                className="w-4 h-4" 
-                style={{ color: 'var(--starcraft-green)' }} 
-              />
-            </button>
-          </div>
+  // 뷰 전환 핸들러
+  const handleOpenPresetSettings = () => {
+    // 프리셋 설정을 열 때 현재 프리셋의 종족으로 편집 상태 초기화
+    setCurrentEditingRace(currentPreset.selectedRace || 'protoss');
+    setCurrentView('preset-settings');
+    changeWindowSize('preset-settings');
+  };
 
-          {/* 우측 창 컨트롤 버튼들 */}
-          <div className="flex gap-1">
-            <button 
-              className="w-4 h-4 bg-yellow-500 rounded-full hover:bg-yellow-400 transition-colors"
-              onClick={() => window.electronAPI?.minimizeWindow()}
-            ></button>
-            <button 
-              className="w-4 h-4 bg-gray-500 rounded-full hover:bg-gray-400 transition-colors"
-              onClick={() => window.electronAPI?.maximizeWindow()}
-            ></button>
-            <button 
-              className="w-4 h-4 bg-red-500 rounded-full hover:bg-red-400 transition-colors"
-              onClick={() => window.electronAPI?.closeWindow()}
-            ></button>
-          </div>
-        </div>
+  const handleBackToMain = () => {
+    // 메인으로 돌아갈 때 편집 중인 종족 상태 초기화
+    setCurrentEditingRace(null);
+    setCurrentView('main');
+    changeWindowSize('main');
+  };
 
-        {/* 메인 컨텐츠 영역 */}
-        <div className="flex-1 flex flex-col items-center justify-between px-6 py-4 relative">
-          {/* 프리셋 이름과 설정 버튼이 함께 있는 상단 영역 */}
-          <div className="w-full flex items-center justify-between mb-3">
-            {/* 왼쪽 빈 공간 (균형을 위해) */}
-            <div className="w-12"></div>
-            
-            {/* 중앙 프리셋 이름 - 개선된 스타일 */}
-            <div className="flex-1 text-center">
-              <h2 
-                className="font-semibold tracking-wide transition-all duration-300" 
-                style={{ 
-                  color: 'var(--starcraft-green)',
-                  textShadow: '0 0 8px rgba(0, 255, 0, 0.5)'
-                }}
-              >
-                {currentPreset.name}
-              </h2>
-            </div>
-            
-            {/* 우측 설정 버튼 - 개선된 디자인 */}
-            <div className="w-12 flex justify-end pr-2">
-              <button 
-                className="p-3 rounded-sm transition-all duration-300 preset-settings-button-clean"
-                onMouseDown={(e) => e.currentTarget.blur()}
-              >
-                <SlidersHorizontal 
-                  className="w-5 h-5" 
-                  style={{ color: 'var(--starcraft-green)' }} 
-                />
-              </button>
-            </div>
-          </div>
+  const handleBackToPresetSettings = () => {
+    // 프리셋 설정으로 돌아가기 (종족 상태는 유지)
+    setCurrentView('preset-settings');
+    changeWindowSize('preset-settings');
+  };
 
-          {/* 기능 상태 표시 그리드 - 프리셋 이름 바로 아래로 이동 */}
-          <div className="mb-4">
-            <FeatureStatusGrid 
-              isOverlayActive={isActive}
-              gameStatus={gameStatus}
-              onPresetChange={handlePresetChange}
-              currentPresetIndex={currentPresetIndex}
-              onPresetIndexChange={handlePresetIndexChange}
-            />
-          </div>
-          
-          {/* 메인 버튼 - 적절한 간격으로 조정 */}
-          <div className="relative flex items-center justify-center my-8 overflow-visible">
-            <button
-              onClick={toggleOverlay}
-              className={`
-                w-84 h-84 rounded-full border-3 flex flex-col items-center justify-center
-                transition-all duration-500 transform active:scale-95 overflow-visible
-                ${isActive 
-                  ? currentStatusInfo.activeClass
-                  : 'starcraft-inactive'
-                }
-              `}
-            >
-              <div 
-                className="mb-1 transition-colors duration-500 relative z-10"
-                style={{ 
-                  color: isActive ? currentStatusInfo.color : 'var(--starcraft-inactive-primary)' 
-                }}
-              >
-                {isActive ? (
-                  <IconComponent size={48} />
-                ) : (
-                  <Power size={48} />
-                )}
-              </div>
-              <div 
-                className="text-base text-center px-2 relative z-10 mt-2 transition-colors duration-500"
-                style={{ 
-                  color: isActive ? 'var(--starcraft-inactive-text)' : 'var(--starcraft-inactive-text)' 
-                }}
-              >
-                {isActive ? currentStatusInfo.activeText : '모든 기능 비활성화됨'}
-              </div>
-            </button>
-          </div>
+  // 종족 실시간 변경 핸들러
+  const handleRaceChange = (race: 'protoss' | 'terran' | 'zerg') => {
+    console.log('실시간 종족 변경:', race);
+    setCurrentEditingRace(race);
+  };
 
-          {/* OVERLAY 상태 표시 - Switch 컴포넌트만 사용 */}
-          <div className="w-full text-center py-4 h-8 flex items-center justify-center mb-8">
-            <Switch
-              checked={isActive}
-              onCheckedChange={toggleOverlay}
-              className="starcraft-switch"
-              style={{
-                '--switch-bg-active': currentStatusInfo.color,
-                '--switch-bg-inactive': 'var(--starcraft-inactive-border)',
-                '--switch-glow': isActive ? `0 0 8px ${currentStatusInfo.color}40` : 'none'
-              } as React.CSSProperties}
-            />
-          </div>
-        </div>
+  // 설정 페이지 전환 핸들러들
+  const handleOpenPopulationSettings = () => {
+    setCurrentView('population-settings');
+    changeWindowSize('population-settings');
+  };
 
-        {/* 하단 영역 - 뉴스 스타일 스크롤링 팁만 - 하단에 완전히 붙이기 */}
-        <div className="w-full">
-          <ScrollingText 
-            tips={starcraftTips}
-            className="w-full"
+  const handleOpenWorkerSettings = () => {
+    setCurrentView('worker-settings');
+    changeWindowSize('worker-settings');
+  };
+
+  const handleOpenUnitSettings = () => {
+    setCurrentView('unit-settings');
+    changeWindowSize('unit-settings');
+  };
+
+  const handleOpenUpgradeSettings = () => {
+    setCurrentView('upgrade-settings');
+    changeWindowSize('upgrade-settings');
+  };
+
+  const handleOpenBuildOrderSettings = () => {
+    setCurrentView('build-order-settings');
+    changeWindowSize('build-order-settings');
+  };
+
+  const handleOpenDevelopmentProgress = (featureName: string, featureType: 'buildorder' | 'upgrade' | 'population' | 'unit') => {
+    setDevelopmentFeatureName(featureName);
+    setDevelopmentFeatureType(featureType);
+    setCurrentView('development-progress');
+    changeWindowSize('development-progress');
+  };
+
+  // 현재 뷰에 따라 렌더링할 컴포넌트 결정
+  const renderCurrentView = () => {
+    switch (currentView) {
+      case 'main':
+        return (
+          <MainInterface
+            presets={presets}
+            currentPresetIndex={currentPresetIndex}
+            onPresetIndexChange={handlePresetIndexChange}
+            onOpenPresetSettings={handleOpenPresetSettings}
+            isActive={isActive}
+            gameStatus={gameStatus}
+            onToggleOverlay={toggleOverlay}
           />
-        </div>
+        );
 
-        {/* 차분한 오버레이 활성화 효과 */}
-        {isActive && (
-          <div className="absolute inset-0 pointer-events-none">
-            <div 
-              className="absolute inset-0 opacity-2"
-              style={{ backgroundColor: currentStatusInfo.color }}
-            ></div>
-          </div>
-        )}
-      </div>
+      case 'preset-settings':
+        return (
+          <PresetSettingsModal
+            isOpen={true}
+            onClose={handleBackToMain}
+            currentPreset={currentPreset}
+            onSave={handleSavePreset}
+            onRaceChange={handleRaceChange}
+            onOpenPopulationSettings={handleOpenPopulationSettings}
+            onOpenWorkerSettings={handleOpenWorkerSettings}
+            onOpenUnitSettings={handleOpenUnitSettings}
+            onOpenUpgradeSettings={handleOpenUpgradeSettings}
+            onOpenBuildOrderSettings={handleOpenBuildOrderSettings}
+            onOpenDevelopmentProgress={handleOpenDevelopmentProgress}
+          />
+        );
+
+      case 'population-settings':
+        return (
+          <PopulationDetailSettings
+            isOpen={true}
+            onClose={handleBackToPresetSettings}
+            initialRace={currentEditingRace || currentPreset.selectedRace}
+          />
+        );
+
+      case 'worker-settings':
+        return (
+          <WorkerDetailSettings
+            isOpen={true}
+            onClose={handleBackToPresetSettings}
+          />
+        );
+
+      case 'unit-settings':
+        return (
+          <UnitDetailSettings
+            isOpen={true}
+            onClose={handleBackToPresetSettings}
+            initialRace={currentEditingRace || currentPreset.selectedRace}
+          />
+        );
+
+      case 'upgrade-settings':
+        return (
+          <UpgradeDetailSettings
+            isOpen={true}
+            onClose={handleBackToPresetSettings}
+            initialRace={currentEditingRace || currentPreset.selectedRace}
+          />
+        );
+
+      case 'build-order-settings':
+        return (
+          <BuildOrderDetailSettings
+            isOpen={true}
+            onClose={handleBackToPresetSettings}
+          />
+        );
+
+      case 'development-progress':
+        return (
+          <DevelopmentModal
+            isOpen={true}
+            onClose={handleBackToPresetSettings}
+            featureName={developmentFeatureName}
+            featureType={developmentFeatureType}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className={`app-container window-centered-container ${currentView}`}>
+      {renderCurrentView()}
     </div>
   );
 }

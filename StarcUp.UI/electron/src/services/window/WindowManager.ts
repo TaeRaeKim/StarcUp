@@ -129,6 +129,14 @@ export class WindowManager implements IWindowManager {
     }
   }
   
+  resizeMain(width: number, height: number): void {
+    if (this.mainWindow) {
+      this.mainWindow.setSize(width, height)
+      this.mainWindow.center() // 크기 변경 후 중앙에 배치
+      console.log(`메인 윈도우 크기 변경: ${width}x${height}`)
+    }
+  }
+  
   // 오버레이 제어
   toggleOverlay(): void {
     if (this.overlayWindow) {

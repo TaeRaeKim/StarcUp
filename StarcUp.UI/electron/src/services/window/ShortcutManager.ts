@@ -17,15 +17,27 @@ export class ShortcutManager implements IShortcutManager {
   }
 
   private registerDevToolsShortcuts(): void {
-    // 개발자도구 토글 단축키 등록
+    // 메인 윈도우 개발자도구 토글 단축키 등록
     DEV_TOOLS_CONFIG.shortcuts.forEach(shortcut => {
       const callback = () => this.windowManager.toggleDevTools()
       
       if (globalShortcut.register(shortcut, callback)) {
         this.registeredShortcuts.set(shortcut, callback)
-        console.log(`⌨️ 개발자도구 단축키 등록: ${shortcut}`)
+        console.log(`⌨️ 메인 개발자도구 단축키 등록: ${shortcut}`)
       } else {
         console.warn(`⚠️ 단축키 등록 실패: ${shortcut}`)
+      }
+    })
+
+    // 오버레이 윈도우 개발자도구 토글 단축키 등록
+    DEV_TOOLS_CONFIG.overlayShortcuts.forEach(shortcut => {
+      const callback = () => this.windowManager.toggleOverlayDevTools()
+      
+      if (globalShortcut.register(shortcut, callback)) {
+        this.registeredShortcuts.set(shortcut, callback)
+        console.log(`⌨️ 오버레이 개발자도구 단축키 등록: ${shortcut}`)
+      } else {
+        console.warn(`⚠️ 오버레이 개발자도구 단축키 등록 실패: ${shortcut}`)
       }
     })
   }
