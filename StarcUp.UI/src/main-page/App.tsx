@@ -118,20 +118,38 @@ export default function App() {
     };
   }, []);
 
+  // InGame 상태에 따른 자동 overlay 토글
+  useEffect(() => {
+    // 게임 감지가 활성화된 상태에서만 자동 토글 동작
+    if (!isActive) return;
+
+    if (gameStatus === 'playing') {
+      // InGame 상태일 때 overlay 보이기
+      console.log('🎮 InGame 감지 - overlay 표시');
+      window.electronAPI?.showOverlay();
+    } else if (gameStatus === 'waiting' || gameStatus === 'error') {
+      // InGame이 아닐 때 overlay 숨기기
+      console.log('🚪 OutGame 감지 - overlay 숨김');
+      window.electronAPI?.hideOverlay();
+    }
+  }, [gameStatus, isActive]);
+
   const toggleOverlay = async () => {
     const newState = !isActive;
     
     if (newState) {
-      // 즉시 활성화 상태로 변경
+      // 활성화 상태로 변경
       setIsActive(true);
       setGameStatus('error'); // 게임 감지 안됨 상태 (초기 상태)
-      window.electronAPI?.showOverlay();
       
       // 백그라운드에서 Core 게임 감지 시작
       try {
         const response = await window.coreAPI?.startDetection();
         if (response?.success) {
           console.log('Core 게임 감지 시작됨:', response.data);
+          // 게임 감지 시작 성공 시 초기 상태에서는 overlay 숨김
+          // (InGame 상태가 되면 자동으로 표시됨)
+          window.electronAPI?.hideOverlay();
         } else {
           console.error('Core 게임 감지 시작 실패:', response?.error);
           // 실패 시 버튼 비활성화
@@ -147,7 +165,7 @@ export default function App() {
         window.electronAPI?.hideOverlay();
       }
     } else {
-      // 즉시 비활성화 상태로 변경
+      // 비활성화 상태로 변경
       setIsActive(false);
       setGameStatus('error'); // 게임 감지 안됨 상태
       window.electronAPI?.hideOverlay();
