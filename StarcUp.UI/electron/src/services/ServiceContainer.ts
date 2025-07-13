@@ -1,6 +1,8 @@
 import { ICoreCommunicationService } from './core/interfaces'
 import { IShortcutManager, IWindowManager } from './window/interfaces'
 import { IIPCService } from './ipc/interfaces'
+import { IForegroundWindowService } from './foreground/interfaces'
+import { IOverlayAutoManager } from './overlay/interfaces'
 import { DataStorageService } from './storage/DataStorageService'
 import { WindowManager } from './window/WindowManager'
 import { WINDOW_CONFIG } from './window/WindowConfiguration'
@@ -10,6 +12,8 @@ import { CoreCommunicationService } from './core/CoreCommunicationService'
 import { AuthService } from './auth/AuthService'
 import { IPCService } from './ipc/IPCService'
 import { ChannelHandlers } from './ipc/ChannelHandlers'
+import { ForegroundWindowService } from './foreground/ForegroundWindowService'
+import { OverlayAutoManager } from './overlay/OverlayAutoManager'
 
 export interface IServiceContainer {
   register<T>(name: string, factory: () => T): void
@@ -93,6 +97,14 @@ export class ServiceContainer implements IServiceContainer {
       return new AuthService()
     })
     
+    this.registerSingleton('foregroundWindowService', () => {
+      return new ForegroundWindowService()
+    })
+
+    this.registerSingleton('overlayAutoManager', () => {
+      return new OverlayAutoManager(this.resolve('windowManager'))
+    })
+    
     this.registerSingleton('ipcService', () => {
       return new IPCService()
     })
@@ -104,7 +116,8 @@ export class ServiceContainer implements IServiceContainer {
         this.resolve('authService'),
         this.resolve('dataStorageService'),
         this.resolve('windowManager'),
-        this.resolve('shortcutManager')
+        this.resolve('shortcutManager'),
+        this.resolve('overlayAutoManager')
       )
     })
     
@@ -116,7 +129,42 @@ export class ServiceContainer implements IServiceContainer {
     const channelHandlers = this.resolve<{ setupAllHandlers(): void }>('channelHandlers')
     channelHandlers.setupAllHandlers()
     
+    // CoreCommunicationService와 ForegroundWindowService 연결
+    this.setupGameEventHandlers()
+    
     console.log('✅ 모든 서비스 초기화 완료')
+  }
+  
+  private setupGameEventHandlers(): void {
+    const coreService = this.resolve<ICoreCommunicationService>('coreCommunicationService')
+    const foregroundService = this.resolve<IForegroundWindowService>('foregroundWindowService')
+    const overlayAutoManager = this.resolve<IOverlayAutoManager>('overlayAutoManager')
+    
+    // 게임 감지 시 foreground 모니터링 시작
+    coreService.onGameDetected((gameInfo: any) => {
+      console.log('🎮 게임 감지됨 - ForegroundWindowService 시작')
+      foregroundService.startMonitoring(gameInfo)
+    })
+    
+    // 게임 종료 시 foreground 모니터링 중지
+    coreService.onGameEnded(() => {
+      console.log('🔚 게임 종료됨 - ForegroundWindowService 중지')
+      foregroundService.stopMonitoring()
+    })
+
+    // InGame 상태 변경을 OverlayAutoManager로 전달
+    coreService.onGameStatusChanged((status: string) => {
+      const isInGame = status === 'playing'
+      overlayAutoManager.updateInGameStatus(isInGame)
+      this.resolve<IWindowManager>('windowManager').sendToMainWindow('game-status-changed', { status })
+    })
+
+    // Foreground 상태 변경을 OverlayAutoManager로 전달
+    foregroundService.on('foreground-changed', (event) => {
+      overlayAutoManager.updateForegroundStatus(event.isStarcraftInForeground)
+    })
+    
+    console.log('🔗 게임 이벤트 핸들러 설정 완료')
   }
   
   // 서비스 정리
@@ -149,8 +197,20 @@ export class ServiceContainer implements IServiceContainer {
         windowManager.cleanup()
       }
       
+      // ForegroundWindowService 정리
+      const foregroundService = this.resolve<IForegroundWindowService>('foregroundWindowService')
+      if (foregroundService && typeof foregroundService.dispose === 'function') {
+        foregroundService.dispose()
+      }
+
+      // OverlayAutoManager 정리
+      const overlayAutoManager = this.resolve<IOverlayAutoManager>('overlayAutoManager')
+      if (overlayAutoManager && typeof overlayAutoManager.dispose === 'function') {
+        overlayAutoManager.dispose()
+      }
+      
       // 싱글톤 서비스들 정리
-      for (const [name, instance] of this.singletons) {
+      for (const [, instance] of this.singletons) {
         if (instance && typeof instance.dispose === 'function') {
           await instance.dispose()
         }

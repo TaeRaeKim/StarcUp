@@ -118,39 +118,38 @@ export default function App() {
     };
   }, []);
 
+  // 자동 overlay 관리는 이제 메인 프로세스에서 처리됩니다
+
   const toggleOverlay = async () => {
     const newState = !isActive;
     
     if (newState) {
-      // 즉시 활성화 상태로 변경
+      // 활성화 상태로 변경
       setIsActive(true);
       setGameStatus('error'); // 게임 감지 안됨 상태 (초기 상태)
-      window.electronAPI?.showOverlay();
       
       // 백그라운드에서 Core 게임 감지 시작
       try {
         const response = await window.coreAPI?.startDetection();
         if (response?.success) {
           console.log('Core 게임 감지 시작됨:', response.data);
+          // 자동 overlay 관리가 메인 프로세스에서 처리됩니다
         } else {
           console.error('Core 게임 감지 시작 실패:', response?.error);
           // 실패 시 버튼 비활성화
           setIsActive(false);
           setGameStatus('error');
-          window.electronAPI?.hideOverlay();
         }
       } catch (error) {
         console.error('Core 통신 실패:', error);
         // 통신 실패 시 버튼 비활성화
         setIsActive(false);
         setGameStatus('error');
-        window.electronAPI?.hideOverlay();
       }
     } else {
-      // 즉시 비활성화 상태로 변경
+      // 비활성화 상태로 변경
       setIsActive(false);
       setGameStatus('error'); // 게임 감지 안됨 상태
-      window.electronAPI?.hideOverlay();
       
       // 백그라운드에서 Core 게임 감지 중지
       try {
