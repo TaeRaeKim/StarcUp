@@ -84,20 +84,19 @@ export function WorkerDetailSettings({ isOpen, onClose }: WorkerDetailSettingsPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* 배경 오버레이 */}
+    <div className="h-screen overflow-hidden border-2 shadow-2xl"
+      style={{
+        backgroundColor: 'var(--starcraft-bg)',
+        background: 'linear-gradient(135deg, var(--starcraft-bg) 0%, rgba(0, 20, 0, 0.95) 100%)',
+        borderColor: 'var(--starcraft-green)',
+        boxShadow: '0 0 30px rgba(0, 255, 0, 0.4), inset 0 0 30px rgba(0, 255, 0, 0.1)'
+      }}
+    >
+      {/* 전체 화면 컨테이너 */}
       <div 
-        className="absolute inset-0 backdrop-blur-sm"
-        style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)' }}
-      />
-      
-      {/* 메인 컨테이너 */}
-      <div 
-        className="relative w-full max-w-4xl max-h-[95vh] overflow-hidden rounded-lg border-2 shadow-2xl"
+        className="flex flex-col h-full"
         style={{
-          backgroundColor: 'var(--starcraft-bg)',
-          borderColor: 'var(--starcraft-green)',
-          boxShadow: '0 0 30px rgba(0, 255, 0, 0.4), inset 0 0 30px rgba(0, 255, 0, 0.1)'
+          backgroundColor: 'var(--starcraft-bg)'
         }}
       >
         {/* 헤더 */}
@@ -141,9 +140,8 @@ export function WorkerDetailSettings({ isOpen, onClose }: WorkerDetailSettingsPr
           </div>
         </div>
 
-        {/* 스크롤 가능한 컨텐츠 */}
-        <div className="overflow-y-auto max-h-[calc(95vh-140px)]">
-          <div className="p-6 space-y-8">
+        {/* 컨텐츠 - 스크롤 가능 */}
+        <div className="flex-1 overflow-y-auto starcraft-scrollbar p-6 space-y-8">
             {/* 안내 문구 */}
             <div className="space-y-4">
               <h2 
@@ -267,7 +265,6 @@ export function WorkerDetailSettings({ isOpen, onClose }: WorkerDetailSettingsPr
                 <li>• 성능에 민감한 기능들은 필요시에만 활성화하세요</li>
               </ul>
             </div>
-          </div>
         </div>
 
         {/* 하단 버튼 */}

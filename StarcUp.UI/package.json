@@ -19,7 +19,6 @@
     "@tailwindcss/vite": "^4.1.11",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
-    "@types/styled-jsx": "^2.2.9",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
     "@typescript-eslint/parser": "^7.1.1",
     "@vitejs/plugin-react": "^4.2.1",

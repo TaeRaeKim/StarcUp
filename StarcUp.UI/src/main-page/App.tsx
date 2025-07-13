@@ -6,9 +6,25 @@ import { WorkerDetailSettings } from "@/components/WorkerDetailSettings";
 import { UnitDetailSettings } from "@/components/UnitDetailSettings";
 import { UpgradeDetailSettings } from "@/components/UpgradeDetailSettings";
 import { BuildOrderDetailSettings } from "@/components/BuildOrderDetailSettings";
+import { DevelopmentModal } from "@/components/DevelopmentModal";
 
 // 게임 상태 타입 정의
 type GameStatus = 'playing' | 'waiting' | 'error';
+
+// 현재 뷰 타입 정의
+type CurrentView = 'main' | 'preset-settings' | 'population-settings' | 'worker-settings' | 'unit-settings' | 'upgrade-settings' | 'build-order-settings' | 'development-progress';
+
+// 뷰별 윈도우 크기 정의 (실제 윈도우는 40px씩 더 크고, DOM은 기존 크기로 중앙 배치)
+const VIEW_WINDOW_SIZES = {
+  'main': { width: 540, height: 790 },  // 500x750 + 40px 여유
+  'preset-settings': { width: 740, height: 840 },      // 700x800 + 40px 여유
+  'population-settings': { width: 840, height: 840 },  // 800x800 + 40px 여유
+  'worker-settings': { width: 740, height: 840 },      // 700x800 + 40px 여유
+  'unit-settings': { width: 740, height: 840 },        // 700x800 + 40px 여유
+  'upgrade-settings': { width: 740, height: 840 },     // 700x800 + 40px 여유
+  'build-order-settings': { width: 740, height: 840 }, // 700x800 + 40px 여유
+  'development-progress': { width: 740, height: 840 }  // 700x800 + 40px 여유
+} as const;
 
 // 프리셋 타입 정의
 interface Preset {
@@ -25,21 +41,21 @@ const initialPresets: Preset[] = [
     id: "preset1",
     name: "공발질-8겟뽕",
     description: "공중 발업 질럿 러쉬 + 8마리 겟뽕",
-    featureStates: [true, true, true, false, false], // 인구수, 일꾼, 유닛, 업그레이드, 빌드오더(비활성화)
+    featureStates: [true, false, false, false, false], // 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
     selectedRace: 'protoss'
   },
   {
     id: "preset2", 
     name: "커공발-운영",
     description: "커세어 + 공중 발업 운영 빌드",
-    featureStates: [true, true, false, true, false], // 인구수, 일꾼, 유닛, 업그레이드, 빌드오더(비활성화)
+    featureStates: [true, false, false, false, false], // 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
     selectedRace: 'terran'
   },
   {
     id: "preset3",
     name: "패닼아비터",
     description: "패스트 다크템플러 + 아비터 전략",
-    featureStates: [false, true, true, true, false], // 인구수, 일꾼, 유닛, 업그레이드, 빌드오더(비활성화)
+    featureStates: [true, false, false, false, false], // 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
     selectedRace: 'protoss'
   }
 ];
@@ -50,16 +66,24 @@ export default function App() {
   const [currentPresetIndex, setCurrentPresetIndex] = useState(0);
   const [presets, setPresets] = useState(initialPresets);
   
-  // 모달 상태 관리
-  const [showPresetSettings, setShowPresetSettings] = useState(false);
-  const [showPopulationSettings, setShowPopulationSettings] = useState(false);
-  const [showWorkerSettings, setShowWorkerSettings] = useState(false);
-  const [showUnitSettings, setShowUnitSettings] = useState(false);
-  const [showUpgradeSettings, setShowUpgradeSettings] = useState(false);
-  const [showBuildOrderSettings, setShowBuildOrderSettings] = useState(false);
+  // 현재 뷰 상태 관리 (모달 대신 페이지 전환 방식)
+  const [currentView, setCurrentView] = useState<CurrentView>('main');
 
   // 현재 편집 중인 종족 상태 (실시간 동기화용)
   const [currentEditingRace, setCurrentEditingRace] = useState<'protoss' | 'terran' | 'zerg' | null>(null);
+
+  // 개발 중 기능 상태
+  const [developmentFeatureName, setDevelopmentFeatureName] = useState('');
+  const [developmentFeatureType, setDevelopmentFeatureType] = useState<'buildorder' | 'upgrade' | 'population' | 'unit'>('buildorder');
+
+  // 윈도우 크기 변경 함수
+  const changeWindowSize = (view: CurrentView) => {
+    const size = VIEW_WINDOW_SIZES[view];
+    if (window.electronAPI?.resizeWindow) {
+      window.electronAPI.resizeWindow(size.width, size.height);
+      console.log(`윈도우 크기 변경: ${view} → ${size.width}x${size.height}`);
+    }
+  };
 
   // 게임 상태 이벤트 리스너
   useEffect(() => {
@@ -166,17 +190,25 @@ export default function App() {
     setCurrentEditingRace(null);
   };
 
-  // 프리셋 설정 모달 핸들러
+  // 뷰 전환 핸들러
   const handleOpenPresetSettings = () => {
     // 프리셋 설정을 열 때 현재 프리셋의 종족으로 편집 상태 초기화
     setCurrentEditingRace(currentPreset.selectedRace || 'protoss');
-    setShowPresetSettings(true);
+    setCurrentView('preset-settings');
+    changeWindowSize('preset-settings');
   };
 
-  const handleClosePresetSettings = () => {
-    // 프리셋 설정을 닫을 때 편집 중인 종족 상태 초기화
+  const handleBackToMain = () => {
+    // 메인으로 돌아갈 때 편집 중인 종족 상태 초기화
     setCurrentEditingRace(null);
-    setShowPresetSettings(false);
+    setCurrentView('main');
+    changeWindowSize('main');
+  };
+
+  const handleBackToPresetSettings = () => {
+    // 프리셋 설정으로 돌아가기 (종족 상태는 유지)
+    setCurrentView('preset-settings');
+    changeWindowSize('preset-settings');
   };
 
   // 종족 실시간 변경 핸들러
@@ -185,106 +217,133 @@ export default function App() {
     setCurrentEditingRace(race);
   };
 
-  // 인구수 설정 모달 핸들러
+  // 설정 페이지 전환 핸들러들
   const handleOpenPopulationSettings = () => {
-    setShowPopulationSettings(true);
+    setCurrentView('population-settings');
+    changeWindowSize('population-settings');
   };
 
-  const handleClosePopulationSettings = () => {
-    setShowPopulationSettings(false);
-  };
-
-  // 일꾼 설정 모달 핸들러
   const handleOpenWorkerSettings = () => {
-    setShowWorkerSettings(true);
+    setCurrentView('worker-settings');
+    changeWindowSize('worker-settings');
   };
 
-  const handleCloseWorkerSettings = () => {
-    setShowWorkerSettings(false);
-  };
-
-  // 유닛 설정 모달 핸들러
   const handleOpenUnitSettings = () => {
-    setShowUnitSettings(true);
+    setCurrentView('unit-settings');
+    changeWindowSize('unit-settings');
   };
 
-  const handleCloseUnitSettings = () => {
-    setShowUnitSettings(false);
-  };
-
-  // 업그레이드 설정 모달 핸들러
   const handleOpenUpgradeSettings = () => {
-    setShowUpgradeSettings(true);
+    setCurrentView('upgrade-settings');
+    changeWindowSize('upgrade-settings');
   };
 
-  const handleCloseUpgradeSettings = () => {
-    setShowUpgradeSettings(false);
-  };
-
-  // 빌드 오더 설정 모달 핸들러
   const handleOpenBuildOrderSettings = () => {
-    setShowBuildOrderSettings(true);
+    setCurrentView('build-order-settings');
+    changeWindowSize('build-order-settings');
   };
 
-  const handleCloseBuildOrderSettings = () => {
-    setShowBuildOrderSettings(false);
+  const handleOpenDevelopmentProgress = (featureName: string, featureType: 'buildorder' | 'upgrade' | 'population' | 'unit') => {
+    setDevelopmentFeatureName(featureName);
+    setDevelopmentFeatureType(featureType);
+    setCurrentView('development-progress');
+    changeWindowSize('development-progress');
+  };
+
+  // 현재 뷰에 따라 렌더링할 컴포넌트 결정
+  const renderCurrentView = () => {
+    switch (currentView) {
+      case 'main':
+        return (
+          <MainInterface
+            presets={presets}
+            currentPresetIndex={currentPresetIndex}
+            onPresetIndexChange={handlePresetIndexChange}
+            onOpenPresetSettings={handleOpenPresetSettings}
+            isActive={isActive}
+            gameStatus={gameStatus}
+            onToggleOverlay={toggleOverlay}
+          />
+        );
+
+      case 'preset-settings':
+        return (
+          <PresetSettingsModal
+            isOpen={true}
+            onClose={handleBackToMain}
+            currentPreset={currentPreset}
+            onSave={handleSavePreset}
+            onRaceChange={handleRaceChange}
+            onOpenPopulationSettings={handleOpenPopulationSettings}
+            onOpenWorkerSettings={handleOpenWorkerSettings}
+            onOpenUnitSettings={handleOpenUnitSettings}
+            onOpenUpgradeSettings={handleOpenUpgradeSettings}
+            onOpenBuildOrderSettings={handleOpenBuildOrderSettings}
+            onOpenDevelopmentProgress={handleOpenDevelopmentProgress}
+          />
+        );
+
+      case 'population-settings':
+        return (
+          <PopulationDetailSettings
+            isOpen={true}
+            onClose={handleBackToPresetSettings}
+            initialRace={currentEditingRace || currentPreset.selectedRace}
+          />
+        );
+
+      case 'worker-settings':
+        return (
+          <WorkerDetailSettings
+            isOpen={true}
+            onClose={handleBackToPresetSettings}
+          />
+        );
+
+      case 'unit-settings':
+        return (
+          <UnitDetailSettings
+            isOpen={true}
+            onClose={handleBackToPresetSettings}
+            initialRace={currentEditingRace || currentPreset.selectedRace}
+          />
+        );
+
+      case 'upgrade-settings':
+        return (
+          <UpgradeDetailSettings
+            isOpen={true}
+            onClose={handleBackToPresetSettings}
+            initialRace={currentEditingRace || currentPreset.selectedRace}
+          />
+        );
+
+      case 'build-order-settings':
+        return (
+          <BuildOrderDetailSettings
+            isOpen={true}
+            onClose={handleBackToPresetSettings}
+          />
+        );
+
+      case 'development-progress':
+        return (
+          <DevelopmentModal
+            isOpen={true}
+            onClose={handleBackToPresetSettings}
+            featureName={developmentFeatureName}
+            featureType={developmentFeatureType}
+          />
+        );
+
+      default:
+        return null;
+    }
   };
 
   return (
-    <>
-      {/* 메인 인터페이스 */}
-      <MainInterface
-        presets={presets}
-        currentPresetIndex={currentPresetIndex}
-        onPresetIndexChange={handlePresetIndexChange}
-        onOpenPresetSettings={handleOpenPresetSettings}
-        isActive={isActive}
-        gameStatus={gameStatus}
-        onToggleOverlay={toggleOverlay}
-      />
-
-      {/* 프리셋 설정 모달 */}
-      <PresetSettingsModal
-        isOpen={showPresetSettings}
-        onClose={handleClosePresetSettings}
-        currentPreset={currentPreset}
-        onSave={handleSavePreset}
-        onRaceChange={handleRaceChange}
-        onOpenPopulationSettings={handleOpenPopulationSettings}
-        onOpenWorkerSettings={handleOpenWorkerSettings}
-        onOpenUnitSettings={handleOpenUnitSettings}
-        onOpenUpgradeSettings={handleOpenUpgradeSettings}
-        onOpenBuildOrderSettings={handleOpenBuildOrderSettings}
-      />
-
-      {/* 기능별 상세 설정 모달들 */}
-      <PopulationDetailSettings
-        isOpen={showPopulationSettings}
-        onClose={handleClosePopulationSettings}
-        initialRace={currentEditingRace || currentPreset.selectedRace}
-      />
-
-      <WorkerDetailSettings
-        isOpen={showWorkerSettings}
-        onClose={handleCloseWorkerSettings}
-      />
-
-      <UnitDetailSettings
-        isOpen={showUnitSettings}
-        onClose={handleCloseUnitSettings}
-        initialRace={currentEditingRace || currentPreset.selectedRace}
-      />
-
-      <UpgradeDetailSettings
-        isOpen={showUpgradeSettings}
-        onClose={handleCloseUpgradeSettings}
-        initialRace={currentEditingRace || currentPreset.selectedRace}
-      />
-
-      <BuildOrderDetailSettings
-        isOpen={showBuildOrderSettings}
-        onClose={handleCloseBuildOrderSettings}
-      />
-    </>
+    <div className={`app-container window-centered-container ${currentView}`}>
+      {renderCurrentView()}
+    </div>
   );
 }

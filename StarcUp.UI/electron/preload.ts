@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleOverlay: () => ipcRenderer.invoke('window:toggle-overlay'),
   showOverlay: () => ipcRenderer.invoke('window:show-overlay'),
   hideOverlay: () => ipcRenderer.invoke('window:hide-overlay'),
+  resizeWindow: (width: number, height: number) => ipcRenderer.invoke('window:resize', { width, height }),
 })
 
 // --------- Expose Core API to the Renderer process ---------

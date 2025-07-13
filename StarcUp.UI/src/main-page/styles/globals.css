@@ -11,9 +11,14 @@
   transform: rotate(90deg);
 }
 
-/* 설정 버튼용 회전 */
+/* 설정 버튼용 회전 및 배경 효과 */
 .feature-settings-btn:hover .cog-icon {
   transform: rotate(90deg);
+}
+
+.feature-settings-btn:hover {
+  background-color: var(--starcraft-bg-active);
+  box-shadow: 0 0 4px rgba(0, 255, 0, 0.3);
 }
 
 /* Input number 스피너 제거 */
@@ -209,7 +214,8 @@ input[type="number"] {
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background: transparent;
   }
 }
 
@@ -271,5 +277,136 @@ input[type="number"] {
 html {
   font-size: var(--font-size);
 }
+
+/* 윈도우 중앙 배치 컨테이너 */
+.window-centered-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  min-width: 100vw;
+  box-sizing: border-box;
+  background: transparent;
+}
+
+/* 각 뷰별 컨텐츠 크기 제한 */
+.window-centered-container > * {
+  /* 메인 뷰: 500x750 */
+  width: 500px;
+  height: 750px;
+  max-width: 500px;
+  max-height: 750px;
+  overflow: hidden !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* 프리셋 설정 뷰용 크기 조정 */
+.window-centered-container.preset-settings > * {
+  width: 700px;
+  height: 800px;
+  max-width: 700px;
+  max-height: 800px;
+  overflow: hidden !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* 인구수 설정 뷰용 크기 조정 */
+.window-centered-container.population-settings > * {
+  width: 800px;
+  height: 800px;
+  max-width: 800px;
+  max-height: 800px;
+  overflow: hidden !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* 일꾼/유닛/업그레이드/빌드오더 설정 뷰용 크기 조정 */
+.window-centered-container.worker-settings > *,
+.window-centered-container.unit-settings > *,
+.window-centered-container.upgrade-settings > *,
+.window-centered-container.build-order-settings > * {
+  width: 700px;
+  height: 800px;
+  max-width: 700px;
+  max-height: 800px;
+  overflow: hidden !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* StarCraft Style Custom Scrollbar */
+/* 윈도우/body 스크롤바 완전 숨기기 */
+html, body {
+  overflow: hidden; /* 윈도우 레벨 스크롤 완전 차단 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+html::-webkit-scrollbar, 
+body::-webkit-scrollbar {
+  display: none !important; /* Chrome/Safari/Webkit */
+}
+
+/* 필요시 사용할 스크롤바 숨김 클래스 */
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Webkit */
+}
+
+/* 커스텀 스크롤바 컨테이너용 클래스 */
+.starcraft-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--starcraft-green) var(--starcraft-bg-secondary);
+}
+
+.starcraft-scrollbar::-webkit-scrollbar {
+  width: 14px;
+}
+
+.starcraft-scrollbar::-webkit-scrollbar-track {
+  background: var(--starcraft-bg-secondary);
+  border: 2px solid var(--starcraft-border);
+  border-radius: 0;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+.starcraft-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--starcraft-green-bright) 0%, var(--starcraft-green) 50%, var(--starcraft-green-dim) 100%);
+  border: 1px solid var(--starcraft-green-dim);
+  border-radius: 0;
+  box-shadow: 
+    inset 0 0 3px rgba(0, 255, 0, 0.4),
+    0 0 8px rgba(0, 255, 0, 0.2);
+  min-height: 20px;
+}
+
+.starcraft-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--starcraft-green-bright) 0%, var(--starcraft-green-bright) 50%, var(--starcraft-green) 100%);
+  box-shadow: 
+    inset 0 0 5px rgba(0, 255, 0, 0.6),
+    0 0 12px rgba(0, 255, 0, 0.4);
+  border-color: var(--starcraft-green);
+}
+
+.starcraft-scrollbar::-webkit-scrollbar-thumb:active {
+  background: var(--starcraft-green-bright);
+  box-shadow: 
+    inset 0 0 8px rgba(0, 255, 0, 0.8),
+    0 0 16px rgba(0, 255, 0, 0.6);
+  border-color: var(--starcraft-green-bright);
+}
+
+.starcraft-scrollbar::-webkit-scrollbar-corner {
+  background: var(--starcraft-bg-secondary);
+  border: 1px solid var(--starcraft-border);
+}
+
 
 @import "./starcup.css";

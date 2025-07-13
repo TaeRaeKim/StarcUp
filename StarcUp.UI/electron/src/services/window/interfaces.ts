@@ -15,6 +15,7 @@ export interface IWindowManager {
   closeMain(): void
   focusMain(): void
   centerMain(): void
+  resizeMain(width: number, height: number): void
   
   // 오버레이 제어
   toggleOverlay(): void

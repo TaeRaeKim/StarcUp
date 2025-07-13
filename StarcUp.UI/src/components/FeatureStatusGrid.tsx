@@ -12,19 +12,19 @@ const presets: Preset[] = [
     id: "preset1",
     name: "공발질-8겟뽕",
     description: "공중 발업 질럿 러쉬 + 8마리 겟뽕",
-    featureStates: [true, true, true, false, false] // 5개: 인구수, 일꾼, 유닛, 업그레이드, 빌드오더(비활성화)
+    featureStates: [true, false, false, false, false] // 5개: 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
   },
   {
     id: "preset2", 
     name: "커공발-운영",
     description: "커세어 + 공중 발업 운영 빌드",
-    featureStates: [true, true, false, true, false] // 5개: 인구수, 일꾼, 유닛, 업그레이드, 빌드오더(비활성화)
+    featureStates: [true, false, false, false, false] // 5개: 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
   },
   {
     id: "preset3",
     name: "패닼아비터",
     description: "패스트 다크템플러 + 아비터 전략",
-    featureStates: [false, true, true, true, false] // 5개: 인구수, 일꾼, 유닛, 업그레이드, 빌드오더(비활성화)
+    featureStates: [true, false, false, false, false] // 5개: 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
   }
 ];
 
@@ -63,8 +63,12 @@ export function FeatureStatusGrid({
       {/* 고정 5x1 기능 상태 그리드 */}
       <div className="grid grid-cols-5 gap-3">
         {featureStates.map((isActive, index) => {
+          const isWorker = index === 0; // 일꾼은 인덱스 0 (맨위로 이동)
+          const isPopulation = index === 1; // 인구수는 인덱스 1
+          const isUnit = index === 2; // 유닛은 인덱스 2
+          const isUpgrade = index === 3; // 업그레이드는 인덱스 3
           const isBuildOrder = index === 4; // 빌드오더는 인덱스 4
-          const isDisabled = isBuildOrder; // 빌드오더만 비활성화 표시
+          const isDisabled = isPopulation || isUnit || isUpgrade || isBuildOrder; // 일꾼만 활성화
           
           return (
           <div
