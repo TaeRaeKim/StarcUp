@@ -7,6 +7,8 @@ export class CoreCommunicationService implements ICoreCommunicationService {
   private namedPipeService: INamedPipeService
   private commandRegistry: ICommandRegistry
   private gameStatusChangedCallback: ((status: string) => void) | null = null
+  private gameDetectedCallback: ((gameInfo: any) => void) | null = null
+  private gameEndedCallback: (() => void) | null = null
   
   constructor(namedPipeService?: INamedPipeService) {
     this.namedPipeService = namedPipeService || new NamedPipeService()
@@ -117,6 +119,9 @@ export class CoreCommunicationService implements ICoreCommunicationService {
     // 게임 프로세스 감지 이벤트 핸들러
     this.namedPipeService.onEvent('game-detected', (data: any) => {
       console.log('🔍 게임 프로세스 감지됨:', data)
+      if (this.gameDetectedCallback && data.gameInfo) {
+        this.gameDetectedCallback(data.gameInfo)
+      }
       if (this.gameStatusChangedCallback) {
         this.gameStatusChangedCallback('waiting')
       }
@@ -125,21 +130,21 @@ export class CoreCommunicationService implements ICoreCommunicationService {
     // 게임 프로세스 종료 이벤트 핸들러
     this.namedPipeService.onEvent('game-ended', (data: any) => {
       console.log('🔚 게임 프로세스 종료됨:', data)
+      if (this.gameEndedCallback) {
+        this.gameEndedCallback()
+      }
       if (this.gameStatusChangedCallback) {
-        this.gameStatusChangedCallback('error')
+        this.gameStatusChangedCallback('game-ended')
       }
     })
 
+
     // 인게임 상태 이벤트 핸들러
-    this.namedPipeService.onEvent('in-game-status', (data: any) => {
-      console.log('🎮 인게임 상태 변경됨:', data)
+    this.namedPipeService.onEvent('in-game-status', (data: any) => {      
       if (this.gameStatusChangedCallback) {
-        if(data?.inGameInfo?.isInGame) {
-          this.gameStatusChangedCallback('playing')
-        }
-        else {
-          this.gameStatusChangedCallback('waiting')
-        }
+        const isInGame = data?.inGameInfo?.isInGame === true
+        const newStatus = isInGame ? 'playing' : 'waiting'
+        this.gameStatusChangedCallback(newStatus)
       }
     })
 
@@ -154,6 +159,26 @@ export class CoreCommunicationService implements ICoreCommunicationService {
   // 게임 상태 변경 콜백 제거
   offGameStatusChanged(): void {
     this.gameStatusChangedCallback = null
+  }
+
+  // 게임 감지 콜백 설정
+  onGameDetected(callback: (gameInfo: any) => void): void {
+    this.gameDetectedCallback = callback
+  }
+
+  // 게임 감지 콜백 제거
+  offGameDetected(): void {
+    this.gameDetectedCallback = null
+  }
+
+  // 게임 종료 콜백 설정
+  onGameEnded(callback: () => void): void {
+    this.gameEndedCallback = callback
+  }
+
+  // 게임 종료 콜백 제거
+  offGameEnded(): void {
+    this.gameEndedCallback = null
   }
   
 }

@@ -3,6 +3,7 @@ import { ICoreCommunicationService } from '../core/interfaces'
 import { IAuthService } from '../auth/interfaces'
 import { IDataStorageService } from '../storage/interfaces'
 import { IWindowManager, IShortcutManager } from '../window/interfaces'
+import { IOverlayAutoManager } from '../overlay/interfaces'
 
 export class ChannelHandlers {
   private ipcService: IIPCService
@@ -11,6 +12,7 @@ export class ChannelHandlers {
   private dataService: IDataStorageService
   private windowManager: IWindowManager
   private shortcutManager: IShortcutManager
+  private overlayAutoManager: IOverlayAutoManager
 
   constructor(
     ipcService: IIPCService,
@@ -18,7 +20,8 @@ export class ChannelHandlers {
     authService: IAuthService,
     dataService: IDataStorageService,
     windowManager: IWindowManager,
-    shortcutManager: IShortcutManager
+    shortcutManager: IShortcutManager,
+    overlayAutoManager: IOverlayAutoManager
   ) {
     this.ipcService = ipcService
     this.coreService = coreService
@@ -26,6 +29,7 @@ export class ChannelHandlers {
     this.dataService = dataService
     this.windowManager = windowManager
     this.shortcutManager = shortcutManager
+    this.overlayAutoManager = overlayAutoManager
   }
 
   setupAllHandlers(): void {    
@@ -43,13 +47,21 @@ export class ChannelHandlers {
       connected: this.coreService.isConnected
     }))
 
-    this.ipcService.registerHandler('core:start-detection', async () => 
-      await this.coreService.startGameDetection()
-    )
+    this.ipcService.registerHandler('core:start-detection', async () => {
+      const result = await this.coreService.startGameDetection()
+      // 게임 감지 시작 시 자동 overlay 관리 활성화
+      if (result.success) {
+        this.overlayAutoManager.enableAutoMode()
+      }
+      return result
+    })
 
-    this.ipcService.registerHandler('core:stop-detection', async () => 
-      await this.coreService.stopGameDetection()
-    )
+    this.ipcService.registerHandler('core:stop-detection', async () => {
+      const result = await this.coreService.stopGameDetection()
+      // 게임 감지 중지 시 자동 overlay 관리 비활성화
+      this.overlayAutoManager.disableAutoMode()
+      return result
+    })
 
     this.ipcService.registerHandler('core:get-game-status', async () => 
       await this.coreService.getGameStatus()
