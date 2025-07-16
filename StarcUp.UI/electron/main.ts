@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from 'electron'
 import { serviceContainer } from './src/services/ServiceContainer'
-import { IWindowManager, IShortcutManager } from './src/services/window/interfaces'
-import { ICoreCommunicationService } from './src/services/core/interfaces'
+import { IWindowManager, IShortcutManager } from './src/services/window'
+import { ICoreCommunicationService } from './src/services/core'
 
 // 애플리케이션 종료 처리
 app.on('window-all-closed', async () => {

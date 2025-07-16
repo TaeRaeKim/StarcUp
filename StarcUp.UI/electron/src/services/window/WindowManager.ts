@@ -15,6 +15,7 @@ export class WindowManager implements IWindowManager {
   private mainWindow: BrowserWindow | null = null
   private overlayWindow: BrowserWindow | null = null
   private windowConfig: IWindowConfiguration
+  private savedMainWindowPosition: { x: number; y: number } | null = null
   
   constructor(windowConfig: IWindowConfiguration = WINDOW_CONFIG) {
     this.windowConfig = windowConfig
@@ -132,8 +133,8 @@ export class WindowManager implements IWindowManager {
   resizeMain(width: number, height: number): void {
     if (this.mainWindow) {
       this.mainWindow.setSize(width, height)
-      this.mainWindow.center() // 크기 변경 후 중앙에 배치
-      console.log(`메인 윈도우 크기 변경: ${width}x${height}`)
+      // 위치 유지 - center() 호출 제거
+      console.log(`메인 윈도우 크기 변경: ${width}x${height} (위치 유지)`)
     }
   }
   
@@ -370,6 +371,29 @@ export class WindowManager implements IWindowManager {
       if (config.skipTaskbar !== undefined) {
         this.overlayWindow.setSkipTaskbar(config.skipTaskbar)
       }
+    }
+  }
+  
+  // 위치 저장/복원 기능
+  saveMainWindowPosition(): void {
+    if (this.mainWindow) {
+      const bounds = this.mainWindow.getBounds()
+      this.savedMainWindowPosition = { x: bounds.x, y: bounds.y }
+      console.log(`📍 메인 윈도우 위치 저장: x=${bounds.x}, y=${bounds.y}`)
+    }
+  }
+  
+  restoreMainWindowPosition(): void {
+    if (this.mainWindow && this.savedMainWindowPosition) {
+      this.mainWindow.setPosition(this.savedMainWindowPosition.x, this.savedMainWindowPosition.y)
+      console.log(`📍 메인 윈도우 위치 복원: x=${this.savedMainWindowPosition.x}, y=${this.savedMainWindowPosition.y}`)
+    }
+  }
+  
+  setMainWindowPosition(x: number, y: number): void {
+    if (this.mainWindow) {
+      this.mainWindow.setPosition(x, y)
+      console.log(`📍 메인 윈도우 위치 설정: x=${x}, y=${y}`)
     }
   }
   

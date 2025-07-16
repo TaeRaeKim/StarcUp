@@ -33,6 +33,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showOverlay: () => ipcRenderer.invoke('window:show-overlay'),
   hideOverlay: () => ipcRenderer.invoke('window:hide-overlay'),
   resizeWindow: (width: number, height: number) => ipcRenderer.invoke('window:resize', { width, height }),
+  
+  // 위치 저장/복원 기능
+  saveWindowPosition: () => ipcRenderer.invoke('window:save-position'),
+  restoreWindowPosition: () => ipcRenderer.invoke('window:restore-position'),
+  setWindowPosition: (x: number, y: number) => ipcRenderer.invoke('window:set-position', { x, y }),
 })
 
 // --------- Expose Core API to the Renderer process ---------

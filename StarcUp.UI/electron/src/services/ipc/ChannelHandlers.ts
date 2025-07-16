@@ -1,9 +1,9 @@
 import { IIPCService } from './interfaces'
-import { ICoreCommunicationService } from '../core/interfaces'
-import { IAuthService } from '../auth/interfaces'
-import { IDataStorageService } from '../storage/interfaces'
-import { IWindowManager, IShortcutManager } from '../window/interfaces'
-import { IOverlayAutoManager } from '../overlay/interfaces'
+import { ICoreCommunicationService } from '../core'
+import { IAuthService } from '../auth'
+import { IDataStorageService } from '../storage'
+import { IWindowManager, IShortcutManager } from '../window'
+import { IOverlayAutoManager } from '../overlay'
 
 export class ChannelHandlers {
   private ipcService: IIPCService
@@ -172,6 +172,19 @@ export class ChannelHandlers {
 
     this.ipcService.registerHandler('window:toggle-dev-tools', async () => {
       this.windowManager.toggleDevTools()
+    })
+
+    // 위치 저장/복원 핸들러
+    this.ipcService.registerHandler('window:save-position', async () => {
+      this.windowManager.saveMainWindowPosition()
+    })
+
+    this.ipcService.registerHandler('window:restore-position', async () => {
+      this.windowManager.restoreMainWindowPosition()
+    })
+
+    this.ipcService.registerHandler('window:set-position', async (data) => {
+      this.windowManager.setMainWindowPosition(data.x, data.y)
     })
 
     console.log('📡 Window IPC 핸들러 등록 완료')

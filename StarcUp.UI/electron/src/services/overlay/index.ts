@@ -1,2 +1,2 @@
 export { OverlayAutoManager } from './OverlayAutoManager'
-export { IOverlayAutoManager } from './interfaces'
+export type { IOverlayAutoManager } from './interfaces'

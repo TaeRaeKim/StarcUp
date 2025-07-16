@@ -40,6 +40,11 @@ export interface IWindowManager {
   getMainWindowBounds(): Electron.Rectangle | null
   getOverlayWindowBounds(): Electron.Rectangle | null
   
+  // 위치 저장/복원 기능
+  saveMainWindowPosition(): void
+  restoreMainWindowPosition(): void
+  setMainWindowPosition(x: number, y: number): void
+  
   // 윈도우 통신
   sendToMainWindow(channel: string, data: any): void
   sendToOverlayWindow(channel: string, data: any): void

@@ -160,10 +160,6 @@ export function MainInterface({
               onClick={() => window.electronAPI?.minimizeWindow()}
             ></button>
             <button 
-              className="w-4 h-4 bg-gray-500 rounded-full hover:bg-gray-400 transition-colors"
-              onClick={() => window.electronAPI?.maximizeWindow()}
-            ></button>
-            <button 
               className="w-4 h-4 bg-red-500 rounded-full hover:bg-red-400 transition-colors"
               onClick={() => window.electronAPI?.closeWindow()}
             ></button>

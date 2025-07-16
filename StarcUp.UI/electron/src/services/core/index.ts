@@ -1,0 +1,5 @@
+export { NamedPipeService } from './NamedPipeService'
+export { CommandRegistry } from './CommandRegistry'
+export { CoreCommunicationService } from './CoreCommunicationService'
+export { NamedPipeProtocol } from './NamedPipeProtocol'
+export type { INamedPipeService, ICommandRegistry, ICoreCommunicationService } from './interfaces'
