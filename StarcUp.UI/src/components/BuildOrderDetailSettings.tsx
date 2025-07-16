@@ -26,7 +26,7 @@ export function BuildOrderDetailSettings({ isOpen, onClose }: BuildOrderDetailSe
       >
         {/* 헤더 */}
         <div 
-          className="flex items-center justify-between p-4 border-b"
+          className="flex items-center justify-between p-4 border-b draggable-titlebar"
           style={{ 
             backgroundColor: 'var(--starcraft-bg-secondary)',
             borderBottomColor: 'var(--starcraft-border)'
