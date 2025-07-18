@@ -91,8 +91,14 @@ namespace StarcUp.Business.Units.Runtime.Models
 
         public byte currentUpgradeLevel;    // 0x119: 현재 업그레이드 레벨 (1바이트)
 
-        // 나머지 데이터 (0x11A-0x1E7) - 206바이트
-        public fixed byte remainingData[206];
+        // 패딩 (0x11A-0x12A) - 17바이트
+        public fixed byte padding9[17];
+
+        // 자원 채취 상태 (0x12B)
+        public byte gatheringState;         // 0x12B: 자원 채취 상태 (1바이트)
+
+        // 나머지 데이터 (0x12C-0x1E7) - 188바이트
+        public fixed byte remainingData[188];
 
         public bool IsValid => unitType != 0 && playerIndex < 12;
 

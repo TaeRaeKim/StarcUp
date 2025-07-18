@@ -612,7 +612,8 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                     if (IsRawUnitValid(currentUnitRaw) && currentUnitRaw.playerIndex == (byte)playerId)
                     {
                         // 기존 Unit 인스턴스에 UnitRaw 데이터를 직접 파싱 (메모리 재활용)
-                        buffer[unitCount].ParseRaw(currentUnitRaw);
+                        // 실제 메모리 주소를 고유 식별자로 전달
+                        buffer[unitCount].ParseRaw(currentUnitRaw, currentUnitPointer);
                         
                         // Unit 레벨에서도 유효성 검사
                         if (buffer[unitCount].IsValid)

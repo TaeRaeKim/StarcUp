@@ -7,6 +7,7 @@ using StarcUp.Business.Units.Runtime.Repositories;
 using StarcUp.Business.Units.StaticData.Repositories;
 using StarcUp.Business.Game;
 using StarcUp.Business.GameManager.Extensions;
+using StarcUp.Business.Profile;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Windows;
 using StarcUp.Infrastructure.Communication;
@@ -80,12 +81,17 @@ namespace StarcUp.DependencyInjection
             PlayerExtensions.SetUnitCountService(container.Resolve<IUnitCountService>());
             PlayerExtensions.SetUnitService(container.Resolve<IUnitService>());
 
+            // Worker Management Services
+            container.RegisterSingleton<IWorkerManager>(
+                c => new WorkerManager());
+
             container.RegisterSingleton<IGameManager>(
                 c => new GameManager(
                     c.Resolve<IInGameDetector>(),
                     c.Resolve<IUnitService>(),
                     c.Resolve<IMemoryService>(),
-                    c.Resolve<IUnitCountService>()));
+                    c.Resolve<IUnitCountService>(),
+                    c.Resolve<IWorkerManager>()));
 
             Console.WriteLine("✅ 서비스 등록 완료:");
             Console.WriteLine("   📖 MemoryReader - 통합된 메모리 읽기 서비스");
@@ -101,6 +107,7 @@ namespace StarcUp.DependencyInjection
             Console.WriteLine("   📊 UnitCountService - 유닛 카운트 관리 서비스");
             Console.WriteLine("   🔗 NamedPipeClient - Named Pipe 통신 클라이언트");
             Console.WriteLine("   📡 CommunicationService - UI 통신 관리 서비스");
+            Console.WriteLine("   👷 WorkerManager - 일꾼 관리 및 이벤트 서비스");
             Console.WriteLine("   🎯 GameManager - 게임 관리 서비스 (자동 유닛 데이터 로딩)");
         }
     }
