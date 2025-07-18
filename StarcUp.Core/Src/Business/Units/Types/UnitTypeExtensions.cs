@@ -829,6 +829,13 @@ namespace StarcUp.Business.Units.Types
                    unitType == UnitType.ZergDrone;
         }
 
+        public static bool IsGasBuilding(this UnitType unitType)
+        {
+            return unitType == UnitType.TerranRefinery ||
+                   unitType == UnitType.ZergExtractor ||
+                   unitType == UnitType.ProtossAssimilator;
+        }
+
         public static bool IsCritter(this UnitType unitType)
         {
             return unitType.GetUnitName().StartsWith("Critter_");
