@@ -20,6 +20,8 @@ namespace StarcUp.Business.Units.Runtime.Models
         public byte CurrentUpgradeLevel { get; set; }
         public byte ProductionQueueIndex { get; set; }
         public ushort[] ProductionQueue { get; set; } = new ushort[5];
+        public byte GatheringState { get; set; }
+        public nint MemoryAddress { get; set; } = 0; // 유닛의 메모리 주소 (고유 식별자)
 
         /// <summary>
         /// 기본 생성자 (미리 할당된 배열에서 사용)
@@ -35,6 +37,7 @@ namespace StarcUp.Business.Units.Runtime.Models
         public bool IsBuilding => UnitType.IsBuilding();
         public bool IsWorker => UnitType.IsWorker();
         public bool IsHero => UnitType.IsHero();
+        public bool IsGasBuilding => UnitType.IsGasBuilding();
         
         public int TotalHitPoints => (int)(Health + Shield);
         public double HealthPercentage => Health > 0 ? (double)Health / GetMaxHealth() : 0;
@@ -46,7 +49,7 @@ namespace StarcUp.Business.Units.Runtime.Models
             return 100;
         }
 
-        public static Unit FromRaw(UnitRaw raw)
+        public static Unit FromRaw(UnitRaw raw, nint memoryAddress = 0)
         {
             var productionQueue = new ushort[5];
             unsafe
@@ -74,7 +77,9 @@ namespace StarcUp.Business.Units.Runtime.Models
                 CurrentUpgrade = raw.currentUpgrade,
                 CurrentUpgradeLevel = raw.currentUpgradeLevel,
                 ProductionQueueIndex = raw.productionQueueIndex,
-                ProductionQueue = productionQueue
+                ProductionQueue = productionQueue,
+                GatheringState = raw.gatheringState,
+                MemoryAddress = memoryAddress
             };
         }
 
@@ -82,7 +87,8 @@ namespace StarcUp.Business.Units.Runtime.Models
         /// 기존 Unit 인스턴스에 UnitRaw 데이터를 직접 파싱 (메모리 재활용)
         /// </summary>
         /// <param name="raw">파싱할 UnitRaw 데이터</param>
-        public void ParseRaw(UnitRaw raw)
+        /// <param name="memoryAddress">유닛의 메모리 주소</param>
+        public void ParseRaw(UnitRaw raw, nint memoryAddress = 0)
         {
             Health = raw.health;
             Shield = raw.shield;
@@ -99,6 +105,8 @@ namespace StarcUp.Business.Units.Runtime.Models
             CurrentUpgrade = raw.currentUpgrade;
             CurrentUpgradeLevel = raw.currentUpgradeLevel;
             ProductionQueueIndex = raw.productionQueueIndex;
+            GatheringState = raw.gatheringState;
+            MemoryAddress = memoryAddress;
             
             // ProductionQueue 배열 재활용 (이미 할당된 배열이 있으면 재사용)
             if (ProductionQueue == null || ProductionQueue.Length != 5)

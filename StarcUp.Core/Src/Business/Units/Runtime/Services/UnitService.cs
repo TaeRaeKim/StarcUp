@@ -64,7 +64,7 @@ namespace StarcUp.Business.Units.Runtime.Services
                 throw new ObjectDisposedException(nameof(UnitService));
 
             return _memoryAdapter.GetAllRawUnits()
-                .Select(Unit.FromRaw)
+                .Select(raw => Unit.FromRaw(raw, 0)) // 메모리 주소를 알 수 없으므로 0 사용
                 .Where(IsUnitValid);
         }
 
@@ -74,7 +74,7 @@ namespace StarcUp.Business.Units.Runtime.Services
                 throw new ObjectDisposedException(nameof(UnitService));
 
             return _memoryAdapter.GetPlayerRawUnits(playerId)
-                .Select(Unit.FromRaw)
+                .Select(raw => Unit.FromRaw(raw, 0)) // 메모리 주소를 알 수 없으므로 0 사용
                 .Where(IsUnitValid);
         }
 
@@ -93,7 +93,7 @@ namespace StarcUp.Business.Units.Runtime.Services
                 throw new ObjectDisposedException(nameof(UnitService));
 
             return _memoryAdapter.GetRawUnitsByType((ushort)unitType)
-                .Select(Unit.FromRaw)
+                .Select(raw => Unit.FromRaw(raw, 0)) // 메모리 주소를 알 수 없으므로 0 사용
                 .Where(IsUnitValid);
         }
 
@@ -103,7 +103,7 @@ namespace StarcUp.Business.Units.Runtime.Services
                 throw new ObjectDisposedException(nameof(UnitService));
 
             return _memoryAdapter.GetRawUnitsNearPosition(x, y, radius)
-                .Select(Unit.FromRaw)
+                .Select(raw => Unit.FromRaw(raw, 0)) // 메모리 주소를 알 수 없으므로 0 사용
                 .Where(IsUnitValid);
         }
 
