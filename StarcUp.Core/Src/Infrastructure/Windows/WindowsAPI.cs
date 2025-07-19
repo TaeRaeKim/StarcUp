@@ -31,6 +31,18 @@ namespace StarcUp.Infrastructure.Windows
         public static extern bool IsWindowVisible(IntPtr hWnd);
 
         [DllImport("user32.dll")]
+        public static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+
+        [DllImport("user32.dll")]
+        public static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
+
+        [DllImport("user32.dll")]
+        public static extern bool IsIconic(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern bool IsZoomed(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
         public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
 
         [DllImport("user32.dll")]
@@ -120,8 +132,8 @@ namespace StarcUp.Infrastructure.Windows
         [StructLayout(LayoutKind.Sequential)]
         public struct POINT
         {
-            public int x;
-            public int y;
+            public int X;
+            public int Y;
         }
 
         // 메시지 상수

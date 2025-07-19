@@ -345,13 +345,11 @@ namespace StarcUp.Infrastructure.Windows
             {
                 string eventName = GetEventTypeName(eventType);
                 uint currentThreadId = WindowsAPI.GetCurrentThreadId();
-                Console.WriteLine($"[WindowManager] ✅ 이벤트 콜백 실행: {eventName} (PID: {_targetProcessId}, Thread: {currentThreadId}, MessageLoopThread: {_messageLoopRunner.ThreadId})");
 
                 if (eventType == WindowsAPI.EVENT_OBJECT_LOCATIONCHANGE ||
                     eventType == WindowsAPI.EVENT_OBJECT_SIZECHANGE ||
                     eventType == WindowsAPI.EVENT_SYSTEM_MOVESIZEEND)
                 {
-                    Console.WriteLine($"[WindowManager] 윈도우 변경 확인 중...");
                     CheckWindowChanges();
                 }
             }
