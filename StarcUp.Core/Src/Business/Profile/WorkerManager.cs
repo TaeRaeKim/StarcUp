@@ -89,6 +89,8 @@ namespace StarcUp.Business.Profile
                     if (existingState.ShouldTriggerAlert())
                     {
                         RaiseGasBuildingAlert(existingState);
+                        // 알림 발생 후 타이머 초기화하여 중복 알림 방지
+                        existingState.StateStartTime = DateTime.Now;
                     }
                 }
                 else
