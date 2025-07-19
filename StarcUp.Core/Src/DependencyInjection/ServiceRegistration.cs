@@ -78,7 +78,8 @@ namespace StarcUp.DependencyInjection
                 c => new CommunicationService(
                     c.Resolve<INamedPipeClient>(),
                     c.Resolve<IGameDetector>(),
-                    c.Resolve<IInGameDetector>()));
+                    c.Resolve<IInGameDetector>(),
+                    c.Resolve<IWindowManager>()));
 
             PlayerExtensions.SetUnitCountService(container.Resolve<IUnitCountService>());
             PlayerExtensions.SetUnitService(container.Resolve<IUnitService>());
