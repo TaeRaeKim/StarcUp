@@ -68,6 +68,11 @@ namespace StarcUp.Infrastructure.Windows
         /// </summary>
         public DateTime Timestamp { get; set; }
 
+        /// <summary>
+        /// 이벤트 타입 (Debounced Throttling용)
+        /// </summary>
+        public string EventType { get; set; }
+
         public WindowPositionData()
         {
             Timestamp = DateTime.UtcNow;

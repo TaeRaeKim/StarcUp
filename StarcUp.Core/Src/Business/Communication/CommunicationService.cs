@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using StarcUp.Infrastructure.Communication;
 using StarcUp.Infrastructure.Windows;
@@ -23,6 +24,12 @@ namespace StarcUp.Business.Communication
         private WindowPositionData _lastWindowPosition;
         private DateTime _lastPositionSentTime = DateTime.MinValue;
         private const int ThrottleMs = 50; // 50ms 제한
+        
+        // Debounced Throttling을 위한 필드
+        private WindowPositionData _pendingWindowPosition;
+        private Timer _debounceTimer;
+        private readonly object _debounceLock = new object();
+        private const int DebounceDelayMs = 80; // 마지막 이벤트 처리 지연 시간 (UI보다 길게 설정)
 
         public bool IsConnected => _pipeClient.IsConnected;
 
@@ -129,6 +136,13 @@ namespace StarcUp.Business.Communication
                 _windowManager.WindowPositionChanged -= OnWindowPositionChanged;
                 _windowManager.WindowSizeChanged -= OnWindowSizeChanged;
 
+                // Debounce 타이머 정리
+                ClearDebounceTimer();
+                lock (_debounceLock)
+                {
+                    _pendingWindowPosition = null;
+                }
+
                 Console.WriteLine("✅ 통신 서비스 중지 완료");
             }
             catch (Exception ex)
@@ -194,13 +208,6 @@ namespace StarcUp.Business.Communication
         {
             try
             {
-                // Throttling 체크
-                var now = DateTime.UtcNow;
-                if ((now - _lastPositionSentTime).TotalMilliseconds < ThrottleMs)
-                {
-                    return;
-                }
-
                 // 현재 윈도우 정보를 WindowPositionData로 변환
                 var positionData = e.CurrentWindowInfo?.ToPositionData();
                 if (positionData == null)
@@ -214,6 +221,77 @@ namespace StarcUp.Business.Communication
                     return;
                 }
 
+                lock (_debounceLock)
+                {
+                    _pendingWindowPosition = positionData.Clone();
+                    _pendingWindowPosition.EventType = eventType; // 이벤트 타입 저장
+
+                    // Throttling 체크
+                    var now = DateTime.UtcNow;
+                    if ((now - _lastPositionSentTime).TotalMilliseconds >= ThrottleMs)
+                    {
+                        // 즉시 전송 가능
+                        SendWindowPositionEvent(_pendingWindowPosition, eventType);
+                        _pendingWindowPosition = null;
+                        ClearDebounceTimer();
+                        //Console.WriteLine("✅ Core: 즉시 위치 이벤트 전송");
+                    }
+                    else
+                    {
+                        // Throttling으로 인해 지연, debounce 타이머 설정
+                        SetupDebounceTimer();
+                        //Console.WriteLine("⏳ Core: Throttling으로 인해 debounce 타이머 설정");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 윈도우 위치 변경 이벤트 처리 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Debounce 타이머 설정 (마지막 이벤트 처리 보장)
+        /// </summary>
+        private void SetupDebounceTimer()
+        {
+            ClearDebounceTimer();
+            
+            _debounceTimer = new Timer(OnDebounceTimerElapsed, null, DebounceDelayMs, Timeout.Infinite);
+        }
+
+        /// <summary>
+        /// Debounce 타이머 정리
+        /// </summary>
+        private void ClearDebounceTimer()
+        {
+            _debounceTimer?.Dispose();
+            _debounceTimer = null;
+        }
+
+        /// <summary>
+        /// Debounce 타이머 콜백 (마지막 이벤트 전송)
+        /// </summary>
+        private void OnDebounceTimerElapsed(object state)
+        {
+            lock (_debounceLock)
+            {
+                if (_pendingWindowPosition != null)
+                {
+                    Console.WriteLine("⏰ Core: Debounce 타이머로 마지막 위치 이벤트 전송");
+                    SendWindowPositionEvent(_pendingWindowPosition, _pendingWindowPosition.EventType ?? "window-position-changed");
+                    _pendingWindowPosition = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 윈도우 위치 이벤트 실제 전송
+        /// </summary>
+        private void SendWindowPositionEvent(WindowPositionData positionData, string eventType)
+        {
+            try
+            {
                 var eventData = new
                 {
                     eventType = eventType,
@@ -237,11 +315,11 @@ namespace StarcUp.Business.Communication
                 _pipeClient.SendEvent(eventData.eventType, eventData);
                 
                 _lastWindowPosition = positionData.Clone();
-                _lastPositionSentTime = now;
+                _lastPositionSentTime = DateTime.UtcNow;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 윈도우 위치 변경 이벤트 전송 실패: {ex.Message}");
+                Console.WriteLine($"❌ 윈도우 위치 이벤트 전송 실패: {ex.Message}");
             }
         }
         private void OnGameDetected(object sender, GameEventArgs e)
@@ -336,6 +414,9 @@ namespace StarcUp.Business.Communication
             try
             {
                 Stop();
+                
+                // 추가적인 리소스 정리
+                ClearDebounceTimer();
             }
             catch (Exception ex)
             {
