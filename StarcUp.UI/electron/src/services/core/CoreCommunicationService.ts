@@ -161,6 +161,12 @@ export class CoreCommunicationService implements ICoreCommunicationService {
         this.windowPositionChangedCallback(data.windowPosition)
       }
     })
+    
+    this.namedPipeService.onEvent('window-overlay-init', (data: WindowPositionEvent) => {
+      if (this.windowPositionChangedCallback) {
+        this.windowPositionChangedCallback(data.windowPosition)
+      }
+    })
 
     console.log('✅ Core 이벤트 핸들러 설정 완료')
   }

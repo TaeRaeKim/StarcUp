@@ -38,6 +38,11 @@ export interface IOverlayAutoManager {
   getCurrentStarCraftPosition(): WindowPositionData | null
 
   /**
+   * 오버레이 표시 시 저장된 위치 정보 적용
+   */
+  applyStoredPositionOnShow(): void
+
+  /**
    * 리소스 정리
    */
   dispose(): void

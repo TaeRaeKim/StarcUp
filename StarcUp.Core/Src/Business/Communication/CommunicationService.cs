@@ -215,9 +215,16 @@ namespace StarcUp.Business.Communication
                     return;
                 }
 
-                // 중복 이벤트 필터링 (5픽셀 이하 변경은 무시)
-                if (_lastWindowPosition != null && !positionData.HasPositionChanged(_lastWindowPosition, 5))
+                // 중복 이벤트 필터링 (5픽셀 이하 변경은 무시) - window-overlay-init은 필터링 제외
+                if (eventType != "window-overlay-init" && _lastWindowPosition != null && !positionData.HasPositionChanged(_lastWindowPosition, 5))
                 {
+                    return;
+                }
+
+                // window-overlay-init은 즉시 전송 (throttling 및 debouncing 건너뛰기)
+                if (eventType == "window-overlay-init")
+                {
+                    SendWindowPositionEvent(positionData, eventType);
                     return;
                 }
 
@@ -343,6 +350,15 @@ namespace StarcUp.Business.Communication
                 if (_windowManager.StartMonitoring(e.GameInfo.ProcessId))
                 {
                     Console.WriteLine($"🪟 스타크래프트 윈도우 모니터링 시작 (PID: {e.GameInfo.ProcessId})");
+                    
+                    // 윈도우 정보 가져와서 window-overlay-init 이벤트 전송
+                    var currentWindowInfo = _windowManager.GetCurrentWindowInfo();
+                    var windowChangedArgs = new WindowChangedEventArgs(
+                        previousWindowInfo: null,
+                        currentWindowInfo: currentWindowInfo,
+                        changeType: WindowChangeType.PositionChanged
+                    );
+                    OnWindowChanged(windowChangedArgs, "window-overlay-init");
                 }
                 else
                 {
