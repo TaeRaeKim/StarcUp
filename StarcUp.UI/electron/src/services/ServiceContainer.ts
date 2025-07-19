@@ -123,6 +123,11 @@ export class ServiceContainer implements IServiceContainer {
     // CoreCommunicationService와 ForegroundWindowService 연결
     this.setupGameEventHandlers()
     
+    // ShortcutManager에 OverlayAutoManager 연결
+    const shortcutManager = this.resolve<IShortcutManager>('shortcutManager')
+    const overlayAutoManager = this.resolve<IOverlayAutoManager>('overlayAutoManager')
+    shortcutManager.setOverlayAutoManager(overlayAutoManager)
+    
     console.log('✅ 모든 서비스 초기화 완료')
   }
   

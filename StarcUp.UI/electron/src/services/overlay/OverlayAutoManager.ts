@@ -35,6 +35,15 @@ export class OverlayAutoManager implements IOverlayAutoManager {
   }
 
   /**
+   * 오버레이 표시 시 저장된 위치 정보 적용
+   */
+  applyStoredPositionOnShow(): void {
+    if (this.currentStarCraftPosition) {
+      this.syncOverlayPosition(this.currentStarCraftPosition)
+    }
+  }
+
+  /**
    * 자동 overlay 관리 모드 비활성화
    */
   disableAutoMode(): void {
@@ -100,21 +109,32 @@ export class OverlayAutoManager implements IOverlayAutoManager {
    * 스타크래프트 윈도우 위치 변경 처리 (Debounced Throttling)
    */
   updateStarCraftWindowPosition(position: WindowPositionData): void {
+    // 항상 현재 위치 정보 업데이트 (오버레이 표시 여부와 관계없이)
     this.currentStarCraftPosition = position
     this.pendingPosition = position
     
-    //console.log(`🪟 스타크래프트 윈도우 업데이트: ${position.clientX},${position.clientY} ${position.clientWidth}x${position.clientHeight}`)
+    // 자동 모드가 활성화되어 있으면 오버레이 표시 여부 확인 후 동기화
+    if (this.isAutoModeEnabled) {
+      // 오버레이가 표시되어야 하는 상황인지 확인
+      const shouldShowOverlay = this.isInGame && this.isStarcraftInForeground
+      
+      if (shouldShowOverlay) {
+        this.windowManager.showOverlay()
+        this.syncOverlayPosition(position)
+        this.pendingPosition = null
+        this.clearDebounceTimer()
+        return
+      }
+    }
     
-    // 즉시 동기화 가능한지 확인
+    // 이미 오버레이가 표시된 상태라면 위치 동기화 진행
     if (this.shouldSyncPosition()) {
       this.syncOverlayPosition(position)
       this.pendingPosition = null // 처리했으므로 pending 클리어
       this.clearDebounceTimer()
-      //console.log('✅ 즉시 위치 동기화 실행')
-    } else {
+    } else if (this.windowManager.isOverlayWindowVisible()) {
       // throttling에 의해 즉시 처리 불가능한 경우, debounce 타이머 설정
       this.setupDebounceTimer()
-      //console.log('⏳ Throttling으로 인해 debounce 타이머 설정')
     }
   }
 
