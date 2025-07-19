@@ -1,68 +1,60 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace StarcUp.Infrastructure.Windows
 {
-    /// <summary>
-    /// 윈도우 정보를 담는 구조체
-    /// </summary>
-    public struct WindowInfo
+    public class WindowInfo
     {
-        public nint Handle;
-        public WindowsAPI.RECT WindowRect;
-        public WindowsAPI.RECT ClientRect;
-        public bool IsVisible;
-        public bool IsMinimized;
-        public bool IsMaximized;
-        public bool IsFullscreen;
-        public string Title;
-        public uint ProcessId;
+        public IntPtr Handle { get; set; }
+        public string Title { get; set; }
+        public string ProcessName { get; set; }
+        public int ProcessId { get; set; }
+        public int X { get; set; }
+        public int Y { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public DateTime LastUpdated { get; set; }
 
-        public WindowInfo(nint handle)
+        public WindowInfo()
         {
-            Handle = handle;
-            WindowRect = new WindowsAPI.RECT();
-            ClientRect = new WindowsAPI.RECT();
-            IsVisible = false;
-            IsMinimized = false;
-            IsMaximized = false;
-            IsFullscreen = false;
+            Handle = IntPtr.Zero;
             Title = string.Empty;
+            ProcessName = string.Empty;
             ProcessId = 0;
-
-            if (WindowsAPI.IsValidWindow(handle))
-            {
-                RefreshInfo();
-            }
+            X = 0;
+            Y = 0;
+            Width = 0;
+            Height = 0;
+            LastUpdated = DateTime.Now;
         }
 
-        public void RefreshInfo()
+        public WindowInfo(IntPtr handle, string title, string processName, int processId, int x, int y, int width, int height)
         {
-            if (!WindowsAPI.IsValidWindow(Handle))
-                return;
+            Handle = handle;
+            Title = title ?? string.Empty;
+            ProcessName = processName ?? string.Empty;
+            ProcessId = processId;
+            X = x;
+            Y = y;
+            Width = width;
+            Height = height;
+            LastUpdated = DateTime.Now;
+        }
 
-            // 윈도우 사각형 정보
-            WindowsAPI.GetWindowRect(Handle, out WindowRect);
-            WindowsAPI.GetClientRect(Handle, out ClientRect);
-
-            // 상태 정보
-            IsVisible = WindowsAPI.IsWindowVisible(Handle);
-            IsMinimized = WindowsAPI.IsIconic(Handle);
-            IsMaximized = WindowsAPI.IsZoomed(Handle);
-            IsFullscreen = WindowsAPI.IsFullscreen(Handle);
-
-            // 제목 및 프로세스 ID
-            Title = WindowsAPI.GetWindowTitle(Handle);
-            WindowsAPI.GetWindowThreadProcessId(Handle, out ProcessId);
+        public bool HasSizeOrPositionChanged(WindowInfo other)
+        {
+            if (other == null) return true;
+            
+            return X != other.X || Y != other.Y || Width != other.Width || Height != other.Height;
         }
 
         public override string ToString()
         {
-            return $"Window: {Title} ({Handle:X8}) - {WindowRect} - Visible:{IsVisible}, Min:{IsMinimized}, Max:{IsMaximized}, Full:{IsFullscreen}";
+            return $"Window[{ProcessName}({ProcessId})] - {Title} at ({X},{Y}) size {Width}x{Height}";
+        }
+
+        public WindowInfo Clone()
+        {
+            return new WindowInfo(Handle, Title, ProcessName, ProcessId, X, Y, Width, Height);
         }
     }
-
 }
