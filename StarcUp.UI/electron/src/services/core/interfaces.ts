@@ -1,4 +1,4 @@
-import { ICoreCommand, ICoreResponse, ICommandDefinition } from '../types'
+import { ICoreCommand, ICoreResponse, ICommandDefinition, WindowPositionData } from '../types'
 
 export interface INamedPipeService {
   connect(): Promise<void>
@@ -51,4 +51,8 @@ export interface ICoreCommunicationService {
   offGameDetected(): void
   onGameEnded(callback: () => void): void
   offGameEnded(): void
+
+  // 윈도우 위치 변경 콜백
+  onWindowPositionChanged(callback: (data: WindowPositionData) => void): void
+  offWindowPositionChanged(): void
 }

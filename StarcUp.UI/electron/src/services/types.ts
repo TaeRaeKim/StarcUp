@@ -113,6 +113,9 @@ export interface IIPCChannels {
   'window:set-overlay-size': { request: { width: number; height: number }; response: void }
   'window:set-overlay-opacity': { request: { opacity: number }; response: void }
   'window:toggle-dev-tools': { request: void; response: void }
+  'window:save-position': { request: void; response: void }
+  'window:restore-position': { request: void; response: void }
+  'window:set-position': { request: { x: number; y: number }; response: void }
   
   // 단축키 관리
   'shortcut:register': { request: { accelerator: string; action: string }; response: { success: boolean } }
@@ -129,4 +132,45 @@ export interface ICommandDefinition<TRequest = any, TResponse = any> {
   requestValidator?: (data: any) => data is TRequest
   responseValidator?: (data: any) => data is TResponse
   handler: (request: TRequest) => Promise<TResponse>
+}
+
+// 윈도우 위치 동기화 관련 타입
+export interface WindowPositionData {
+  x: number
+  y: number
+  width: number
+  height: number
+  clientX: number
+  clientY: number
+  clientWidth: number
+  clientHeight: number
+  isMinimized: boolean
+  isMaximized: boolean
+  isVisible: boolean
+  timestamp: string
+}
+
+export interface WindowPositionEvent {
+  eventType: 'window-position-changed' | 'window-size-changed'
+  windowPosition: WindowPositionData
+}
+
+export interface CenterPositionData {
+  x: number
+  y: number
+  gameAreaBounds: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+}
+
+export interface OverlaySyncSettings {
+  enablePositionSync: boolean      // 위치 동기화 활성화
+  syncThrottleMs: number          // 동기화 Throttling 간격
+  offsetX: number                 // X축 오프셋
+  offsetY: number                 // Y축 오프셋
+  scaleX: number                  // X축 스케일 (1.0 = 100%)
+  scaleY: number                  // Y축 스케일 (1.0 = 100%)
 }

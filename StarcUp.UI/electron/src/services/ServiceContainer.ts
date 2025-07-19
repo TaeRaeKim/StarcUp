@@ -154,6 +154,11 @@ export class ServiceContainer implements IServiceContainer {
     foregroundService.on('foreground-changed', (event) => {
       overlayAutoManager.updateForegroundStatus(event.isStarcraftInForeground)
     })
+
+    // 윈도우 위치 동기화 이벤트 연결
+    coreService.onWindowPositionChanged((position: any) => {
+      overlayAutoManager.updateStarCraftWindowPosition(position)
+    })
     
     console.log('🔗 게임 이벤트 핸들러 설정 완료')
   }
