@@ -324,6 +324,8 @@ namespace StarcUp.Business.Communication
 
             ConnectionStateChanged?.Invoke(this, isConnected);
         }
+
+
         public void Dispose()
         {
             if (_disposed)

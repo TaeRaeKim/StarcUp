@@ -15,6 +15,11 @@ export class OverlayAutoManager implements IOverlayAutoManager {
   private enablePositionSync = true
   private lastSyncTime = 0
   private readonly syncThrottleMs = 16 // 60fps (16ms)
+  
+  // 마지막 이벤트 누락 방지를 위한 debouncing
+  private pendingPosition: WindowPositionData | null = null
+  private debounceTimer: NodeJS.Timeout | null = null
+  private readonly debounceDelayMs = 50 // 마지막 이벤트 처리 지연 시간
 
   constructor(windowManager: IWindowManager) {
     this.windowManager = windowManager
@@ -37,6 +42,10 @@ export class OverlayAutoManager implements IOverlayAutoManager {
     this.isInGame = false
     this.isStarcraftInForeground = false
     console.log('🎯 자동 overlay 관리 비활성화')
+    
+    // Debounce 타이머 정리
+    this.clearDebounceTimer()
+    this.pendingPosition = null
     
     // 자동 관리 비활성화 시 overlay 숨김
     this.windowManager.hideOverlay()
@@ -88,16 +97,49 @@ export class OverlayAutoManager implements IOverlayAutoManager {
   }
 
   /**
-   * 스타크래프트 윈도우 위치 변경 처리
+   * 스타크래프트 윈도우 위치 변경 처리 (Debounced Throttling)
    */
   updateStarCraftWindowPosition(position: WindowPositionData): void {
     this.currentStarCraftPosition = position
+    this.pendingPosition = position
     
     //console.log(`🪟 스타크래프트 윈도우 업데이트: ${position.clientX},${position.clientY} ${position.clientWidth}x${position.clientHeight}`)
     
-    // 오버레이가 표시 중이고 위치 동기화가 활성화된 경우에만 동기화
+    // 즉시 동기화 가능한지 확인
     if (this.shouldSyncPosition()) {
       this.syncOverlayPosition(position)
+      this.pendingPosition = null // 처리했으므로 pending 클리어
+      this.clearDebounceTimer()
+      //console.log('✅ 즉시 위치 동기화 실행')
+    } else {
+      // throttling에 의해 즉시 처리 불가능한 경우, debounce 타이머 설정
+      this.setupDebounceTimer()
+      //console.log('⏳ Throttling으로 인해 debounce 타이머 설정')
+    }
+  }
+
+  /**
+   * Debounce 타이머 설정 (마지막 이벤트 처리 보장)
+   */
+  private setupDebounceTimer(): void {
+    this.clearDebounceTimer()
+    
+    this.debounceTimer = setTimeout(() => {
+      if (this.pendingPosition && this.shouldSyncPositionForced()) {
+        console.log('⏰ Debounce 타이머로 마지막 위치 동기화 실행')
+        this.syncOverlayPosition(this.pendingPosition)
+        this.pendingPosition = null
+      }
+    }, this.debounceDelayMs)
+  }
+
+  /**
+   * Debounce 타이머 정리
+   */
+  private clearDebounceTimer(): void {
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer)
+      this.debounceTimer = null
     }
   }
 
@@ -121,6 +163,24 @@ export class OverlayAutoManager implements IOverlayAutoManager {
       return false
     }
     
+    return true
+  }
+
+  /**
+   * 위치 동기화 여부 결정 (Throttling 무시, 마지막 이벤트용)
+   */
+  private shouldSyncPositionForced(): boolean {
+    if (!this.enablePositionSync) return false
+    if (!this.isAutoModeEnabled) return false
+    if (!this.windowManager.isOverlayWindowVisible()) return false
+    if (!this.currentStarCraftPosition) return false
+    
+    // 스타크래프트가 최소화되었거나 보이지 않으면 동기화 안함
+    if (this.currentStarCraftPosition.isMinimized || !this.currentStarCraftPosition.isVisible) {
+      return false
+    }
+    
+    // Throttling 검사 없이 동기화 허용
     return true
   }
 
