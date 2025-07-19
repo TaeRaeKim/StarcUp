@@ -9,8 +9,8 @@ using StarcUp.Business.Game;
 using StarcUp.Business.GameManager.Extensions;
 using StarcUp.Business.Profile;
 using StarcUp.Infrastructure.Memory;
-using StarcUp.Infrastructure.Windows;
 using StarcUp.Infrastructure.Communication;
+using StarcUp.Infrastructure.Windows;
 using StarcUp.Business.Communication;
 
 namespace StarcUp.DependencyInjection
@@ -27,8 +27,10 @@ namespace StarcUp.DependencyInjection
             // Infrastructure Services
             container.RegisterSingleton<IMemoryReader>(
                 c => new MemoryReader());
+            container.RegisterSingleton<IMessageLoopRunner>(
+                c => new MessageLoopRunner());
             container.RegisterSingleton<IWindowManager>(
-                c => new WindowManager());
+                c => new WindowManager(c.Resolve<IMessageLoopRunner>()));
 
             // Offset Repository
             container.RegisterSingleton(
@@ -95,7 +97,8 @@ namespace StarcUp.DependencyInjection
 
             Console.WriteLine("✅ 서비스 등록 완료:");
             Console.WriteLine("   📖 MemoryReader - 통합된 메모리 읽기 서비스");
-            Console.WriteLine("   🪟 WindowManager - 윈도우 관리 서비스");
+            Console.WriteLine("   🔄 MessageLoopRunner - Windows 메시지 루프 관리 서비스");
+            Console.WriteLine("   🪟 WindowManager - 윈도우 관리 서비스 (이벤트 기반)");
             Console.WriteLine("   🧠 MemoryService - 메모리 비즈니스 로직");
             Console.WriteLine("   🎮 GameDetector - 게임 감지 서비스");
             Console.WriteLine("   📊 InGameStateMonitor - 게임 상태 모니터링 서비스");

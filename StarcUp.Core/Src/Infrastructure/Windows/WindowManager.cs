@@ -1,216 +1,439 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace StarcUp.Infrastructure.Windows
 {
     public class WindowManager : IWindowManager
     {
-        private readonly List<nint> _eventHooks;
-        private readonly WindowsAPI.WinEventDelegate _winEventDelegate;
+        private WindowInfo _currentWindowInfo;
+        private WindowInfo _previousWindowInfo;
+        private IntPtr _targetWindowHandle;
+        private int _targetProcessId;
+        private string _targetProcessName;
+        private bool _isMonitoring;
         private bool _isDisposed;
+        private readonly object _lockObject = new();
 
-        public event Action<nint> WindowPositionChanged;
-        public event Action<nint> WindowActivated;
-        public event Action<nint> WindowDeactivated;
+        private IntPtr _winEventLocationHook;
+        private IntPtr _winEventSizeHook;
+        private IntPtr _winEventMoveStartHook;
+        private IntPtr _winEventMoveEndHook;
+        private WindowsAPI.WinEventDelegate _winEventDelegate;
 
-        public WindowManager()
+        // 메시지 루프 관련 필드
+        private readonly IMessageLoopRunner _messageLoopRunner;
+
+        public event EventHandler<WindowChangedEventArgs> WindowPositionChanged;
+        public event EventHandler<WindowChangedEventArgs> WindowSizeChanged;
+        public event EventHandler<WindowChangedEventArgs> WindowLost;
+
+        public bool IsMonitoring => _isMonitoring;
+        public bool IsWindowValid => _targetWindowHandle != IntPtr.Zero && WindowsAPI.IsWindow(_targetWindowHandle);
+        public bool IsMessageLoopRunning => _messageLoopRunner.IsRunning;
+        public uint MessageLoopThreadId => _messageLoopRunner.ThreadId;
+
+        public WindowManager(IMessageLoopRunner messageLoopRunner = null)
         {
-            _eventHooks = new List<nint>();
-            _winEventDelegate = new WindowsAPI.WinEventDelegate(WinEventCallback);
+            _messageLoopRunner = messageLoopRunner ?? new MessageLoopRunner();
+            _winEventDelegate = WinEventProc;
         }
 
-        public bool SetupWindowEventHook(nint windowHandle, uint processId)
+        public bool StartMonitoring(int processId)
         {
-            if (_isDisposed)
-                return false;
+            if (_isDisposed) return false;
 
-            try
+            lock (_lockObject)
             {
-                Console.WriteLine($"[WindowManager] 윈도우 이벤트 후킹 설정: Handle=0x{windowHandle:X8}, PID={processId}");
-
-                // 위치 변경 이벤트 후킹
-                var locationHook = WindowsAPI.SetWinEventHook(
-                    WindowsAPI.EVENT_OBJECT_LOCATIONCHANGE,
-                    WindowsAPI.EVENT_OBJECT_LOCATIONCHANGE,
-                    0,
-                    _winEventDelegate,
-                    processId,
-                    0,
-                    WindowsAPI.WINEVENT_OUTOFCONTEXT);
-
-                if (locationHook != 0)
+                if (_isMonitoring)
                 {
-                    _eventHooks.Add(locationHook);
-                    Console.WriteLine($"[WindowManager] 위치 변경 이벤트 후킹 성공: 0x{locationHook:X8}");
+                    StopMonitoring();
                 }
 
-                // 최소화/복원 이벤트 후킹
-                var minimizeHook = WindowsAPI.SetWinEventHook(
-                    WindowsAPI.EVENT_SYSTEM_MINIMIZESTART,
-                    WindowsAPI.EVENT_SYSTEM_MINIMIZEEND,
-                    0,
-                    _winEventDelegate,
-                    processId,
-                    0,
-                    WindowsAPI.WINEVENT_OUTOFCONTEXT);
-
-                if (minimizeHook != 0)
+                _targetProcessId = processId;
+                
+                try
                 {
-                    _eventHooks.Add(minimizeHook);
-                    Console.WriteLine($"[WindowManager] 최소화 이벤트 후킹 성공: 0x{minimizeHook:X8}");
-                }
+                    var process = Process.GetProcessById(processId);
+                    _targetProcessName = process.ProcessName;
+                    
+                    var windowHandle = FindMainWindow(processId);
+                    if (windowHandle == IntPtr.Zero)
+                    {
+                        Console.WriteLine($"[WindowManager] 프로세스 ID {processId}의 메인 윈도우를 찾을 수 없습니다.");
+                        return false;
+                    }
 
-                return _eventHooks.Count > 0;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[WindowManager] 윈도우 이벤트 후킹 실패: {ex.Message}");
-                return false;
-            }
-        }
+                    _targetWindowHandle = windowHandle;
+                    _currentWindowInfo = GetWindowInfo(windowHandle);
+                    _previousWindowInfo = _currentWindowInfo?.Clone();
 
-        public bool SetupForegroundEventHook()
-        {
-            if (_isDisposed)
-                return false;
+                    StartEventBasedMonitoring();
+                    _isMonitoring = true;
 
-            try
-            {
-                Console.WriteLine("[WindowManager] 포어그라운드 이벤트 후킹 설정");
-
-                var foregroundHook = WindowsAPI.SetWinEventHook(
-                    WindowsAPI.EVENT_SYSTEM_FOREGROUND,
-                    WindowsAPI.EVENT_SYSTEM_FOREGROUND,
-                    0,
-                    _winEventDelegate,
-                    0, // 모든 프로세스
-                    0, // 모든 스레드
-                    WindowsAPI.WINEVENT_OUTOFCONTEXT | WindowsAPI.WINEVENT_SKIPOWNPROCESS);
-
-                if (foregroundHook != 0)
-                {
-                    _eventHooks.Add(foregroundHook);
-                    Console.WriteLine($"[WindowManager] 포어그라운드 이벤트 후킹 성공: 0x{foregroundHook:X8}");
+                    Console.WriteLine($"[WindowManager] 윈도우 모니터링 시작: {_currentWindowInfo}");
                     return true;
                 }
-
-                Console.WriteLine("[WindowManager] 포어그라운드 이벤트 후킹 실패");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[WindowManager] 포어그라운드 이벤트 후킹 실패: {ex.Message}");
-                return false;
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[WindowManager] 모니터링 시작 실패 (PID: {processId}): {ex.Message}");
+                    return false;
+                }
             }
         }
-        public void RemoveAllHooks()
+
+        public bool StartMonitoring(string processName)
         {
+            if (_isDisposed) return false;
+
             try
             {
-                Console.WriteLine($"[WindowManager] 모든 이벤트 후킹 해제 시작 ({_eventHooks.Count}개)");
-
-                foreach (var hook in _eventHooks)
+                var processes = Process.GetProcessesByName(processName);
+                if (processes.Length == 0)
                 {
-                    if (hook != 0)
-                    {
-                        bool success = WindowsAPI.UnhookWinEvent(hook);
-                        Console.WriteLine($"[WindowManager] 후킹 해제: 0x{hook:X8} - {(success ? "성공" : "실패")}");
-                    }
+                    Console.WriteLine($"[WindowManager] 프로세스 '{processName}'을 찾을 수 없습니다.");
+                    return false;
                 }
 
-                _eventHooks.Clear();
-                Console.WriteLine("[WindowManager] 모든 이벤트 후킹 해제 완료");
+                var success = StartMonitoring(processes[0].Id);
+                
+                for (int i = 1; i < processes.Length; i++)
+                {
+                    processes[i].Dispose();
+                }
+                processes[0].Dispose();
+
+                return success;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WindowManager] 이벤트 후킹 해제 중 오류: {ex.Message}");
+                Console.WriteLine($"[WindowManager] 모니터링 시작 실패 (프로세스명: {processName}): {ex.Message}");
+                return false;
             }
         }
 
-        public WindowInfo GetWindowInfo(nint windowHandle)
+        public void StopMonitoring()
         {
+            lock (_lockObject)
+            {
+                if (!_isMonitoring) return;
+
+                StopEventBasedMonitoring();
+                
+                _targetWindowHandle = IntPtr.Zero;
+                _targetProcessId = 0;
+                _targetProcessName = null;
+                _currentWindowInfo = null;
+                _previousWindowInfo = null;
+                _isMonitoring = false;
+
+                Console.WriteLine("[WindowManager] 윈도우 모니터링 중지");
+            }
+        }
+
+        public WindowInfo GetCurrentWindowInfo()
+        {
+            lock (_lockObject)
+            {
+                return _currentWindowInfo?.Clone();
+            }
+        }
+
+
+        private void CheckWindowChanges()
+        {
+            lock (_lockObject)
+            {
+                if (!IsWindowValid)
+                {
+                    OnWindowLost();
+                    return;
+                }
+
+                var newWindowInfo = GetWindowInfo(_targetWindowHandle);
+                if (newWindowInfo == null)
+                {
+                    OnWindowLost();
+                    return;
+                }
+
+                if (_currentWindowInfo != null && newWindowInfo.HasSizeOrPositionChanged(_currentWindowInfo))
+                {
+                    _previousWindowInfo = _currentWindowInfo.Clone();
+                    _currentWindowInfo = newWindowInfo;
+
+                    DetermineAndFireChangeEvent();
+                }
+                else if (_currentWindowInfo == null)
+                {
+                    _currentWindowInfo = newWindowInfo;
+                }
+            }
+        }
+
+        private void DetermineAndFireChangeEvent()
+        {
+            if (_previousWindowInfo == null || _currentWindowInfo == null)
+                return;
+
+            bool positionChanged = _currentWindowInfo.X != _previousWindowInfo.X || _currentWindowInfo.Y != _previousWindowInfo.Y;
+            bool sizeChanged = _currentWindowInfo.Width != _previousWindowInfo.Width || _currentWindowInfo.Height != _previousWindowInfo.Height;
+
+            WindowChangeType changeType;
+            if (positionChanged && sizeChanged)
+            {
+                changeType = WindowChangeType.BothChanged;
+                WindowPositionChanged?.Invoke(this, new WindowChangedEventArgs(_previousWindowInfo, _currentWindowInfo, changeType));
+                WindowSizeChanged?.Invoke(this, new WindowChangedEventArgs(_previousWindowInfo, _currentWindowInfo, changeType));
+            }
+            else if (positionChanged)
+            {
+                changeType = WindowChangeType.PositionChanged;
+                WindowPositionChanged?.Invoke(this, new WindowChangedEventArgs(_previousWindowInfo, _currentWindowInfo, changeType));
+            }
+            else if (sizeChanged)
+            {
+                changeType = WindowChangeType.SizeChanged;
+                WindowSizeChanged?.Invoke(this, new WindowChangedEventArgs(_previousWindowInfo, _currentWindowInfo, changeType));
+            }
+        }
+
+        private void OnWindowLost()
+        {
+            if (_currentWindowInfo != null)
+            {
+                Console.WriteLine("[WindowManager] 대상 윈도우가 손실되었습니다.");
+                WindowLost?.Invoke(this, new WindowChangedEventArgs(_currentWindowInfo, null, WindowChangeType.WindowLost));
+            }
+            
+            StopMonitoring();
+        }
+
+        private IntPtr FindMainWindow(int processId)
+        {
+            IntPtr mainWindow = IntPtr.Zero;
+            
+            WindowsAPI.EnumWindows((hWnd, lParam) =>
+            {
+                WindowsAPI.GetWindowThreadProcessId(hWnd, out uint windowProcessId);
+                
+                if (windowProcessId == processId && WindowsAPI.IsWindowVisible(hWnd))
+                {
+                    var windowInfo = GetWindowInfo(hWnd);
+                    if (windowInfo != null && !string.IsNullOrEmpty(windowInfo.Title))
+                    {
+                        mainWindow = hWnd;
+                        return false;
+                    }
+                }
+                
+                return true;
+            }, IntPtr.Zero);
+
+            return mainWindow;
+        }
+
+        private WindowInfo GetWindowInfo(IntPtr hWnd)
+        {
+            if (hWnd == IntPtr.Zero || !WindowsAPI.IsWindow(hWnd))
+                return null;
+
             try
             {
-                var windowInfo = new WindowInfo(windowHandle);
-                return windowInfo;
+                WindowsAPI.GetWindowThreadProcessId(hWnd, out uint processId);
+                
+                if (!WindowsAPI.GetWindowRect(hWnd, out WindowsAPI.RECT rect))
+                    return null;
+
+                int titleLength = WindowsAPI.GetWindowTextLength(hWnd);
+                StringBuilder titleBuilder = new StringBuilder(titleLength + 1);
+                WindowsAPI.GetWindowText(hWnd, titleBuilder, titleBuilder.Capacity);
+
+                string processName = GetProcessName((int)processId);
+
+                return new WindowInfo(
+                    hWnd,
+                    titleBuilder.ToString(),
+                    processName,
+                    (int)processId,
+                    rect.Left,
+                    rect.Top,
+                    rect.Width,
+                    rect.Height
+                );
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[WindowManager] 윈도우 정보 가져오기 실패: {ex.Message}");
-                return new WindowInfo();
+                return null;
             }
         }
 
-        public bool IsWindowMinimized(nint windowHandle)
+        private string GetProcessName(int processId)
         {
-            return WindowsAPI.IsValidWindow(windowHandle) && WindowsAPI.IsIconic(windowHandle);
+            try
+            {
+                using var process = Process.GetProcessById(processId);
+                return process.ProcessName;
+            }
+            catch
+            {
+                return "Unknown";
+            }
         }
 
-        public bool IsWindowMaximized(nint windowHandle)
+        private async void StartEventBasedMonitoring()
         {
-            return WindowsAPI.IsValidWindow(windowHandle) && WindowsAPI.IsZoomed(windowHandle);
+            if (_winEventDelegate == null) return;
+
+            // 메시지 루프를 시작하고, 그 스레드에서 훅 설정
+            await _messageLoopRunner.StartAsync(() => SetupEventHooks());
         }
 
-        public nint GetForegroundWindow()
+        private void StopEventBasedMonitoring()
         {
-            return WindowsAPI.GetForegroundWindow();
+            int unhookCount = 0;
+
+            if (_winEventLocationHook != IntPtr.Zero)
+            {
+                WindowsAPI.UnhookWinEvent(_winEventLocationHook);
+                _winEventLocationHook = IntPtr.Zero;
+                unhookCount++;
+            }
+
+            if (_winEventSizeHook != IntPtr.Zero)
+            {
+                WindowsAPI.UnhookWinEvent(_winEventSizeHook);
+                _winEventSizeHook = IntPtr.Zero;
+                unhookCount++;
+            }
+
+            if (_winEventMoveStartHook != IntPtr.Zero)
+            {
+                WindowsAPI.UnhookWinEvent(_winEventMoveStartHook);
+                _winEventMoveStartHook = IntPtr.Zero;
+                unhookCount++;
+            }
+
+            if (_winEventMoveEndHook != IntPtr.Zero)
+            {
+                WindowsAPI.UnhookWinEvent(_winEventMoveEndHook);
+                _winEventMoveEndHook = IntPtr.Zero;
+                unhookCount++;
+            }
+
+            if (unhookCount > 0)
+            {
+                Console.WriteLine($"[WindowManager] 이벤트 기반 모니터링 중지 ({unhookCount}개 훅 해제)");
+            }
+            
+            // 메시지 루프 중지
+            _messageLoopRunner.Stop();
         }
 
-        private void WinEventCallback(nint hWinEventHook, uint eventType, nint hwnd,
-            int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
+        private void WinEventProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
         {
-            if (hwnd == 0 || _isDisposed)
+            if (_isDisposed || !_isMonitoring)
+                return;
+
+            if (hwnd != _targetWindowHandle)
                 return;
 
             try
             {
-                switch (eventType)
+                string eventName = GetEventTypeName(eventType);
+                uint currentThreadId = WindowsAPI.GetCurrentThreadId();
+                Console.WriteLine($"[WindowManager] ✅ 이벤트 콜백 실행: {eventName} (PID: {_targetProcessId}, Thread: {currentThreadId}, MessageLoopThread: {_messageLoopRunner.ThreadId})");
+
+                if (eventType == WindowsAPI.EVENT_OBJECT_LOCATIONCHANGE ||
+                    eventType == WindowsAPI.EVENT_OBJECT_SIZECHANGE ||
+                    eventType == WindowsAPI.EVENT_SYSTEM_MOVESIZEEND)
                 {
-                    case WindowsAPI.EVENT_OBJECT_LOCATIONCHANGE:
-                        Console.WriteLine($"[WindowManager] 윈도우 위치 변경: 0x{hwnd:X8}");
-                        WindowPositionChanged?.Invoke(hwnd);
-                        break;
-
-                    case WindowsAPI.EVENT_SYSTEM_MINIMIZESTART:
-                        Console.WriteLine($"[WindowManager] 윈도우 최소화 시작: 0x{hwnd:X8}");
-                        WindowPositionChanged?.Invoke(hwnd);
-                        break;
-
-                    case WindowsAPI.EVENT_SYSTEM_MINIMIZEEND:
-                        Console.WriteLine($"[WindowManager] 윈도우 최소화 종료: 0x{hwnd:X8}");
-                        WindowPositionChanged?.Invoke(hwnd);
-                        break;
-
-                    case WindowsAPI.EVENT_SYSTEM_FOREGROUND:
-                        //Console.WriteLine($"[WindowManager] 포어그라운드 변경: 0x{hwnd:X8}");
-
-                        // 현재 프로세스는 무시
-                        WindowsAPI.GetWindowThreadProcessId(hwnd, out uint processId);
-                        if (processId == Process.GetCurrentProcess().Id)
-                            return;
-
-                        WindowActivated?.Invoke(hwnd);
-                        break;
+                    Console.WriteLine($"[WindowManager] 윈도우 변경 확인 중...");
+                    CheckWindowChanges();
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WindowManager] 윈도우 이벤트 콜백 오류: {ex.Message}");
+                Console.WriteLine($"[WindowManager] 이벤트 처리 중 오류: {ex.Message}");
             }
         }
 
+        private string GetEventTypeName(uint eventType)
+        {
+            return eventType switch
+            {
+                WindowsAPI.EVENT_OBJECT_LOCATIONCHANGE => "위치 변경",
+                WindowsAPI.EVENT_OBJECT_SIZECHANGE => "크기 변경",
+                WindowsAPI.EVENT_SYSTEM_MOVESIZESTART => "이동/크기 변경 시작",
+                WindowsAPI.EVENT_SYSTEM_MOVESIZEEND => "이동/크기 변경 완료",
+                _ => $"알 수 없는 이벤트 (0x{eventType:X})"
+            };
+        }
+
+        private void SetupEventHooks()
+        {
+            uint hookFlags = WindowsAPI.WINEVENT_OUTOFCONTEXT | WindowsAPI.WINEVENT_SKIPOWNPROCESS;
+            uint processId = (uint)_targetProcessId;
+            uint currentThreadId = WindowsAPI.GetCurrentThreadId();
+
+            Console.WriteLine($"[WindowManager] 훅 설정 시작 (스레드 ID: {currentThreadId}, 대상 PID: {processId})");
+
+            _winEventLocationHook = WindowsAPI.SetWinEventHook(
+                WindowsAPI.EVENT_OBJECT_LOCATIONCHANGE,
+                WindowsAPI.EVENT_OBJECT_LOCATIONCHANGE,
+                IntPtr.Zero,
+                _winEventDelegate,
+                processId,
+                0,
+                hookFlags);
+
+            // _winEventSizeHook = WindowsAPI.SetWinEventHook(
+            //     WindowsAPI.EVENT_OBJECT_SIZECHANGE,
+            //     WindowsAPI.EVENT_OBJECT_SIZECHANGE,
+            //     IntPtr.Zero,
+            //     _winEventDelegate,
+            //     processId,
+            //     0,
+            //     hookFlags);
+
+            // _winEventMoveStartHook = WindowsAPI.SetWinEventHook(
+            //     WindowsAPI.EVENT_SYSTEM_MOVESIZESTART,
+            //     WindowsAPI.EVENT_SYSTEM_MOVESIZESTART,
+            //     IntPtr.Zero,
+            //     _winEventDelegate,
+            //     processId,
+            //     0,
+            //     hookFlags);
+
+            // _winEventMoveEndHook = WindowsAPI.SetWinEventHook(
+            //     WindowsAPI.EVENT_SYSTEM_MOVESIZEEND,
+            //     WindowsAPI.EVENT_SYSTEM_MOVESIZEEND,
+            //     IntPtr.Zero,
+            //     _winEventDelegate,
+            //     processId,
+            //     0,
+            //     hookFlags);
+
+            int hookCount = 0;
+            if (_winEventLocationHook != IntPtr.Zero) hookCount++;
+            if (_winEventSizeHook != IntPtr.Zero) hookCount++;
+            if (_winEventMoveStartHook != IntPtr.Zero) hookCount++;
+            if (_winEventMoveEndHook != IntPtr.Zero) hookCount++;
+
+            Console.WriteLine($"[WindowManager] 이벤트 훅 설정 완료 ({hookCount}/4 훅 등록 성공)");
+        }
+
+
         public void Dispose()
         {
-            if (_isDisposed)
-                return;
+            if (_isDisposed) return;
 
-            Console.WriteLine("[WindowManager] 윈도우 매니저 해제 시작");
-
-            RemoveAllHooks();
+            StopMonitoring();
+            _messageLoopRunner?.Dispose();
             _isDisposed = true;
-
-            Console.WriteLine("[WindowManager] 윈도우 매니저 해제 완료");
         }
     }
 }

@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Threading;
 using StarcUp.Common.Constants;
 using StarcUp.Common.Events;
-using StarcUp.Infrastructure.Windows;
 using Timer = System.Threading.Timer;
 
 namespace StarcUp.Business.GameDetection
