@@ -91,10 +91,7 @@ export class ForegroundWindowService extends EventEmitter implements IForeground
           } : undefined
         };
 
-        console.log(`🔄 스타크래프트 foreground 상태 변경: ${isInForeground ? 'FOREGROUND' : 'BACKGROUND'}`);
-        if (activeWin && !isInForeground) {
-          console.log(`   현재 활성 윈도우: ${activeWin.title} (PID: ${activeWin.owner.processId})`);
-        }
+        //console.log(`🔄 스타크래프트 foreground 상태 변경: ${isInForeground ? 'FOREGROUND' : 'BACKGROUND'}`);
 
         this.emit('foreground-changed', event);
       }
