@@ -59,10 +59,10 @@ namespace StarcUp.Infrastructure.Windows
                     var process = Process.GetProcessById(processId);
                     _targetProcessName = process.ProcessName;
                     
-                    var windowHandle = FindMainWindow(processId);
+                    var windowHandle = FindMainWindowWithRetry(processId);
                     if (windowHandle == IntPtr.Zero)
                     {
-                        Console.WriteLine($"[WindowManager] 프로세스 ID {processId}의 메인 윈도우를 찾을 수 없습니다.");
+                        Console.WriteLine($"[WindowManager] 프로세스 ID {processId}의 메인 윈도우를 찾을 수 없습니다. (50회 재시도 완료)");
                         return false;
                     }
 
@@ -209,6 +209,33 @@ namespace StarcUp.Infrastructure.Windows
             }
             
             StopMonitoring();
+        }
+
+        private IntPtr FindMainWindowWithRetry(int processId)
+        {
+            const int maxRetryCount = 50;
+            const int retryDelayMs = 100;
+            
+            for (int attempt = 1; attempt <= maxRetryCount; attempt++)
+            {
+                var windowHandle = FindMainWindow(processId);
+                if (windowHandle != IntPtr.Zero)
+                {
+                    if (attempt > 1)
+                    {
+                        Console.WriteLine($"[WindowManager] 프로세스 ID {processId}의 메인 윈도우를 {attempt}번째 시도에서 찾았습니다.");
+                    }
+                    return windowHandle;
+                }
+                
+                if (attempt < maxRetryCount)
+                {
+                    Thread.Sleep(retryDelayMs);
+                }
+            }
+            
+            Console.WriteLine($"[WindowManager] 프로세스 ID {processId}의 메인 윈도우를 {maxRetryCount}회 재시도 후에도 찾지 못했습니다.");
+            return IntPtr.Zero;
         }
 
         private IntPtr FindMainWindow(int processId)
