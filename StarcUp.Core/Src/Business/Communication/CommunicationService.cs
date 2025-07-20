@@ -484,6 +484,18 @@ namespace StarcUp.Business.Communication
                     return;
                 }
 
+                // JSON 데이터가 args 배열로 래핑되어 있는 경우 한번 더 추출
+                if (jsonData.Contains("\"args\":["))
+                {
+                    var tempElement = JsonSerializer.Deserialize<JsonElement>(jsonData);
+                    if (tempElement.TryGetProperty("args", out var argsElement) && 
+                        argsElement.ValueKind == JsonValueKind.Array && 
+                        argsElement.GetArrayLength() > 0)
+                    {
+                        jsonData = argsElement[0].GetString();
+                    }
+                }
+                
                 var initData = JsonSerializer.Deserialize<PresetInitData>(jsonData);
                 
                 // 일꾼 프리셋 처리
