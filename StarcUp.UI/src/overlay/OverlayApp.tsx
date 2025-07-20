@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { CenterPositionData } from '../../electron/src/services/types'
 
 export function OverlayApp() {
@@ -13,6 +13,24 @@ export function OverlayApp() {
   // WorkerManager 이벤트 상태
   const [workerStatus, setWorkerStatus] = useState<any>(null)
   const [lastWorkerEvent, setLastWorkerEvent] = useState<string | null>(null)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [debugPosition, setDebugPosition] = useState({ x: 10, y: 10 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+
+  // 기본 위치로 리셋하는 함수 (오버레이 컨테이너 기준)
+  const resetToCenter = () => {
+    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement
+    if (overlayContainer) {
+      const containerRect = overlayContainer.getBoundingClientRect()
+      const centerX = containerRect.width / 2 - 160 // 패널 너비의 절반 정도
+      const centerY = containerRect.height / 2 - 100 // 패널 높이의 절반 정도
+      setDebugPosition({ x: centerX, y: centerY })
+      console.log('🎯 디버그 패널 위치 중앙으로 리셋:', { x: centerX, y: centerY })
+    } else {
+      console.warn('⚠️ 오버레이 컨테이너를 찾을 수 없습니다')
+    }
+  }
 
   useEffect(() => {
     // Electron API가 사용 가능한지 확인
@@ -91,51 +109,201 @@ export function OverlayApp() {
     return () => clearInterval(interval)
   }, [lastUpdateTime])
 
+  // Electron IPC를 통한 편집 모드 토글
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      const electronAPI = window.electronAPI as any
+      if (electronAPI.onToggleEditMode) {
+        console.log('🎯 편집 모드 IPC 리스너 등록')
+        const unsubscribe = electronAPI.onToggleEditMode((data: { isEditMode: boolean }) => {
+          console.log('🎯 편집 모드 토글 IPC 이벤트 수신:', data.isEditMode)
+          setIsEditMode(data.isEditMode)
+        })
+        
+        return unsubscribe
+      } else {
+        console.warn('⚠️ onToggleEditMode 메서드를 찾을 수 없습니다')
+      }
+    } else {
+      console.warn('⚠️ Electron API를 찾을 수 없습니다')
+    }
+  }, [])
+
+  // 드래그 관련 이벤트 핸들러
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!isEditMode) return
+    
+    e.preventDefault()
+    setIsDragging(true)
+    
+    const rect = (e.target as HTMLElement).getBoundingClientRect()
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    })
+  }
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging || !isEditMode) return
+    
+    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement
+    if (!overlayContainer) return
+    
+    const containerRect = overlayContainer.getBoundingClientRect()
+    const newPosition = {
+      x: e.clientX - containerRect.left - dragOffset.x,
+      y: e.clientY - containerRect.top - dragOffset.y
+    }
+    
+    // 오버레이 컨테이너 경계 제한
+    const clampedX = Math.max(0, Math.min(containerRect.width - 320, newPosition.x))
+    const clampedY = Math.max(0, Math.min(containerRect.height - 200, newPosition.y))
+    
+    setDebugPosition({ x: clampedX, y: clampedY })
+  }, [isDragging, isEditMode, dragOffset])
+
+  const handleMouseUp = useCallback(() => {
+    if (!isDragging) return
+    setIsDragging(false)
+  }, [isDragging])
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp])
+
   // 개발 환경에서만 디버그 정보 표시
   const showDebugInfo = process.env.NODE_ENV === 'development'
 
   return (
     <div className="overlay-container">
-      {/* Hello World 중앙 배치 */}
-      {isVisible && centerPosition && (
+      {/* 편집 모드 배경 효과 - 시각적 집중을 위한 오버레이 */}
+      {isEditMode && (
         <div 
-          className="hello-world"
+          className="edit-mode-backdrop"
           style={{
             position: 'absolute',
-            left: `${centerPosition.x}px`,
-            top: `${centerPosition.y}px`,
-            transform: 'translate(-50%, -50%)',
-            color: 'white',
-            fontSize: '32px',
-            fontWeight: 'bold',
-            textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
-            zIndex: 9999,
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: `
+              radial-gradient(ellipse at center, 
+                rgba(0, 0, 0, 0.2) 0%, 
+                rgba(0, 0, 0, 0.6) 70%, 
+                rgba(0, 0, 0, 0.8) 100%
+              ),
+              linear-gradient(
+                45deg,
+                rgba(0, 153, 255, 0.05) 0%,
+                transparent 50%,
+                rgba(0, 153, 255, 0.05) 100%
+              )
+            `,
             pointerEvents: 'none',
-            userSelect: 'none',
-            fontFamily: 'Arial, sans-serif'
+            zIndex: 100,
+            transition: 'all 0.3s ease-out',
+            boxShadow: 'inset 0 0 100px rgba(0, 153, 255, 0.2)',
+            filter: 'saturate(1.1)'
+          }}
+        />
+      )}
+
+      {/* 편집 모드 상태 표시 헤더 */}
+      {isEditMode && (
+        <div 
+          className="edit-mode-header"
+          style={{
+            position: 'absolute',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: '#0099ff',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: '0 4px 20px rgba(0, 153, 255, 0.4)',
+            zIndex: 15000,
+            fontSize: '14px',
+            fontWeight: '600',
+            transition: 'all 0.3s ease-out',
+            pointerEvents: 'auto'  // 헤더는 클릭 가능하도록
           }}
         >
-          Hello World
+          <span>편집 모드 활성화</span>
+          <button
+            onClick={resetToCenter}
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              border: 'none',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              pointerEvents: 'auto'  // 버튼 클릭 가능
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'
+            }}
+          >
+            모두 리셋
+          </button>
         </div>
       )}
+
       
       {/* 디버그 정보 (개발 환경에서만) */}
       {showDebugInfo && (
-        <div className="debug-info" style={{
-          position: 'absolute',
-          top: '10px',
-          left: '10px',
+        <div 
+          className={`debug-info ${isEditMode ? 'cursor-move' : ''}`}
+          style={{
+            position: 'absolute',
+            top: `${debugPosition.y}px`,
+            left: `${debugPosition.x}px`,
+            cursor: isEditMode ? 'move' : 'default',
           background: 'rgba(0,0,0,0.9)',
           color: '#00ff00',
           padding: '12px',
           fontSize: '11px',
           borderRadius: '6px',
           fontFamily: 'monospace',
-          border: `2px solid ${connectionStatus === 'connected' ? '#00ff00' : connectionStatus === 'connecting' ? '#ffaa00' : '#ff0000'}`,
+          border: `2px solid ${isEditMode ? '#0099ff' : connectionStatus === 'connected' ? '#00ff00' : connectionStatus === 'connecting' ? '#ffaa00' : '#ff0000'}`,
           zIndex: 10000,
           maxWidth: '320px',
-          minWidth: '280px'
-        }}>
+          minWidth: '280px',
+          transition: isDragging ? 'none' : 'all 0.2s ease',
+          boxShadow: isEditMode ? '0 4px 20px rgba(0, 153, 255, 0.3)' : 'none'
+        }}
+          onMouseDown={handleMouseDown}
+        >
+          {isEditMode && (
+            <div style={{ 
+              marginBottom: '8px', 
+              padding: '4px 8px',
+              backgroundColor: 'rgba(0, 153, 255, 0.2)',
+              borderRadius: '4px',
+              fontSize: '10px',
+              textAlign: 'center',
+              color: '#0099ff'
+            }}>
+              📝 편집 모드 - 드래그하여 위치 조정
+            </div>
+          )}
           <div><strong>🔗 Connection Status:</strong></div>
           <div style={{ color: connectionStatus === 'connected' ? '#00ff00' : connectionStatus === 'connecting' ? '#ffaa00' : '#ff0000' }}>
             {connectionStatus === 'connected' ? '✅ Connected' : connectionStatus === 'connecting' ? '🔄 Connecting...' : '❌ Disconnected'}
@@ -214,12 +382,13 @@ const overlayStyles = `
     pointer-events: none;
   }
 
-  .hello-world {
-    transition: all 0.1s ease-out;
-  }
-
   .debug-info {
     transition: opacity 0.3s ease;
+  }
+
+  .edit-mode-backdrop {
+    backdrop-filter: blur(8px) saturate(1.2);
+    -webkit-backdrop-filter: blur(8px) saturate(1.2);
   }
 `
 
