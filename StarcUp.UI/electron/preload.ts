@@ -47,6 +47,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // 리스너 정리 함수 반환
     return () => ipcRenderer.off('update-center-position', listener)
   },
+
+  // WorkerManager 이벤트 리스너들
+  onWorkerStatusChanged: (callback: (data: any) => void) => {
+    const listener = (_event: any, data: any) => callback(data)
+    ipcRenderer.on('worker-status-changed', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('worker-status-changed', listener)
+  },
+
+  onGasBuildingAlert: (callback: () => void) => {
+    const listener = (_event: any, data: any) => callback()
+    ipcRenderer.on('gas-building-alert', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('gas-building-alert', listener)
+  },
+
+  onWorkerPresetChanged: (callback: (data: any) => void) => {
+    const listener = (_event: any, data: any) => callback(data)
+    ipcRenderer.on('worker-preset-changed', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('worker-preset-changed', listener)
+  },
 })
 
 // --------- Expose Core API to the Renderer process ---------

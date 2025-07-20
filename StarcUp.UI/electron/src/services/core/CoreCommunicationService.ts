@@ -208,21 +208,18 @@ export class CoreCommunicationService implements ICoreCommunicationService {
 
     // WorkerManager 이벤트 핸들러들
     this.namedPipeService.onEvent(Events.WorkerStatusChanged, (data: WorkerStatusChangedEvent) => {
-      console.log('👷 일꾼 상태 변경:', data)
       if (this.workerStatusChangedCallback) {
         this.workerStatusChangedCallback(data)
       }
     })
 
     this.namedPipeService.onEvent(Events.GasBuildingAlert, (data: GasBuildingAlertEvent) => {
-      console.log('⛽ 가스 건물 채취 중단 알림')
       if (this.gasBuildingAlertCallback) {
         this.gasBuildingAlertCallback()
       }
     })
 
     this.namedPipeService.onEvent(Events.WorkerPresetChanged, (data: WorkerPresetChangedEvent) => {
-      console.log('⚙️ 일꾼 프리셋 변경:', data)
       if (this.workerPresetChangedCallback) {
         this.workerPresetChangedCallback(data)
       }

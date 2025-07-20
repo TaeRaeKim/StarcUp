@@ -1,4 +1,4 @@
-import { ICoreCommand, ICoreResponse, ICommandDefinition, WindowPositionData } from '../types'
+import { ICoreCommand, ICoreResponse, ICommandDefinition, WindowPositionData, WorkerStatusChangedEvent, GasBuildingAlertEvent, WorkerPresetChangedEvent } from '../types'
 
 export interface INamedPipeService {
   connect(): Promise<void>
@@ -59,4 +59,12 @@ export interface ICoreCommunicationService {
   // 윈도우 위치 변경 콜백
   onWindowPositionChanged(callback: (data: WindowPositionData) => void): void
   offWindowPositionChanged(): void
+
+  // WorkerManager 이벤트 콜백
+  onWorkerStatusChanged(callback: (data: WorkerStatusChangedEvent) => void): void
+  offWorkerStatusChanged(): void
+  onGasBuildingAlert(callback: () => void): void
+  offGasBuildingAlert(): void
+  onWorkerPresetChanged(callback: (data: WorkerPresetChangedEvent) => void): void
+  offWorkerPresetChanged(): void
 }
