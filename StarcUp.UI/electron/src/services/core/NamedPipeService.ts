@@ -79,7 +79,7 @@ export class NamedPipeService implements INamedPipeService {
     this.isReconnecting = false
   }
   
-  async sendCommand(command: string, args: string[] = []): Promise<ICoreResponse> {
+  async sendCommand(command: string, payload?: any): Promise<ICoreResponse> {
     if (!this.isConnected || !this.clientSocket) {
       return {
         success: false,
@@ -88,13 +88,12 @@ export class NamedPipeService implements INamedPipeService {
     }
     
     // 새로운 프로토콜을 사용하여 Request 메시지 생성
-    const payload = args.length > 0 ? { args } : undefined
     const request = NamedPipeProtocol.createRequest(command, payload)
     const message = JSON.stringify(request)
     
     return new Promise((resolve, reject) => {
       try {
-            console.log(`📤 Request: { type: "${MessageType[request.type]}", command: "${command}", id: "${request.id}", timestamp: ${request.timestamp}, args: ${JSON.stringify(args)} }`)
+            console.log(`📤 Request: { type: "${MessageType[request.type]}", command: "${command}", id: "${request.id}", timestamp: ${request.timestamp}, payload: ${JSON.stringify(payload)} }`)
         
         // 타임아웃 설정 (15초)
         const timeout = setTimeout(() => {

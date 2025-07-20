@@ -3,7 +3,7 @@ import { ICoreCommand, ICoreResponse, ICommandDefinition, WindowPositionData } f
 export interface INamedPipeService {
   connect(): Promise<void>
   disconnect(): void
-  sendCommand(command: string, args?: string[]): Promise<ICoreResponse>
+  sendCommand(command: string, payload?: any): Promise<ICoreResponse>
   get connected(): boolean
   get reconnecting(): boolean
   
