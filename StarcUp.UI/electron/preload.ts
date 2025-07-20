@@ -38,6 +38,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveWindowPosition: () => ipcRenderer.invoke('window:save-position'),
   restoreWindowPosition: () => ipcRenderer.invoke('window:restore-position'),
   setWindowPosition: (x: number, y: number) => ipcRenderer.invoke('window:set-position', { x, y }),
+
+  // 오버레이 중앙 위치 업데이트 이벤트 리스너
+  onUpdateCenterPosition: (callback: (data: any) => void) => {
+    const listener = (_event: any, data: any) => callback(data)
+    ipcRenderer.on('update-center-position', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('update-center-position', listener)
+  },
 })
 
 // --------- Expose Core API to the Renderer process ---------

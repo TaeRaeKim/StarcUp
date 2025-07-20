@@ -1,5 +1,5 @@
 import { ICoreCommunicationService, INamedPipeService, ICommandRegistry } from './interfaces'
-import { ICoreCommand, ICoreResponse } from '../types'
+import { ICoreCommand, ICoreResponse, WindowPositionData, WindowPositionEvent } from '../types'
 import { NamedPipeService } from './NamedPipeService'
 import { CommandRegistry } from './CommandRegistry'
 
@@ -9,6 +9,7 @@ export class CoreCommunicationService implements ICoreCommunicationService {
   private gameStatusChangedCallback: ((status: string) => void) | null = null
   private gameDetectedCallback: ((gameInfo: any) => void) | null = null
   private gameEndedCallback: (() => void) | null = null
+  private windowPositionChangedCallback: ((data: WindowPositionData) => void) | null = null
   
   constructor(namedPipeService?: INamedPipeService) {
     this.namedPipeService = namedPipeService || new NamedPipeService()
@@ -148,6 +149,25 @@ export class CoreCommunicationService implements ICoreCommunicationService {
       }
     })
 
+    // 윈도우 위치 변경 이벤트 핸들러
+    this.namedPipeService.onEvent('window-position-changed', (data: WindowPositionEvent) => {
+      if (this.windowPositionChangedCallback) {
+        this.windowPositionChangedCallback(data.windowPosition)
+      }
+    })
+    
+    this.namedPipeService.onEvent('window-size-changed', (data: WindowPositionEvent) => {
+      if (this.windowPositionChangedCallback) {
+        this.windowPositionChangedCallback(data.windowPosition)
+      }
+    })
+    
+    this.namedPipeService.onEvent('window-overlay-init', (data: WindowPositionEvent) => {
+      if (this.windowPositionChangedCallback) {
+        this.windowPositionChangedCallback(data.windowPosition)
+      }
+    })
+
     console.log('✅ Core 이벤트 핸들러 설정 완료')
   }
 
@@ -179,6 +199,16 @@ export class CoreCommunicationService implements ICoreCommunicationService {
   // 게임 종료 콜백 제거
   offGameEnded(): void {
     this.gameEndedCallback = null
+  }
+
+  // 윈도우 위치 변경 콜백 등록
+  onWindowPositionChanged(callback: (data: WindowPositionData) => void): void {
+    this.windowPositionChangedCallback = callback
+  }
+
+  // 윈도우 위치 변경 콜백 제거
+  offWindowPositionChanged(): void {
+    this.windowPositionChangedCallback = null
   }
   
 }

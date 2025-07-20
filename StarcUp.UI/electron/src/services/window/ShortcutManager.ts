@@ -1,13 +1,19 @@
 import { globalShortcut } from 'electron'
 import { IWindowManager, IShortcutManager } from './interfaces'
+import { IOverlayAutoManager } from '../overlay/interfaces'
 import { DEV_TOOLS_CONFIG, OVERLAY_CONFIG } from './WindowConfiguration'
 
 export class ShortcutManager implements IShortcutManager {
   private windowManager: IWindowManager
+  private overlayAutoManager: IOverlayAutoManager | null = null
   private registeredShortcuts: Map<string, () => void> = new Map()
 
   constructor(windowManager: IWindowManager) {
     this.windowManager = windowManager
+  }
+
+  setOverlayAutoManager(overlayAutoManager: IOverlayAutoManager): void {
+    this.overlayAutoManager = overlayAutoManager
   }
 
   registerShortcuts(): void {
@@ -44,7 +50,14 @@ export class ShortcutManager implements IShortcutManager {
 
   private registerOverlayShortcuts(): void {
     // 오버레이 토글 단축키 등록
-    const callback = () => this.windowManager.toggleOverlay()
+    const callback = () => {
+      this.windowManager.toggleOverlay()
+      
+      // 오버레이가 표시되는 경우 저장된 위치 적용
+      if (this.windowManager.isOverlayWindowVisible() && this.overlayAutoManager) {
+        this.overlayAutoManager.applyStoredPositionOnShow()
+      }
+    }
     
     if (globalShortcut.register(OVERLAY_CONFIG.toggleShortcut, callback)) {
       this.registeredShortcuts.set(OVERLAY_CONFIG.toggleShortcut, callback)

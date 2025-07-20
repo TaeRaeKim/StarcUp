@@ -135,10 +135,16 @@ export class ChannelHandlers {
 
     this.ipcService.registerHandler('window:toggle-overlay', async () => {
       this.windowManager.toggleOverlay()
+      // 오버레이가 표시되는 경우 저장된 위치 적용
+      if (this.windowManager.isOverlayWindowVisible()) {
+        this.overlayAutoManager.applyStoredPositionOnShow()
+      }
     })
 
     this.ipcService.registerHandler('window:show-overlay', async () => {
       this.windowManager.showOverlay()
+      // 오버레이 표시 시 저장된 위치 적용
+      this.overlayAutoManager.applyStoredPositionOnShow()
     })
 
     this.ipcService.registerHandler('window:hide-overlay', async () => {
@@ -215,9 +221,19 @@ export class ChannelHandlers {
   private getShortcutCallback(action: string): (() => void) | null {
     switch (action) {
       case 'toggle-overlay':
-        return () => this.windowManager.toggleOverlay()
+        return () => {
+          this.windowManager.toggleOverlay()
+          // 오버레이가 표시되는 경우 저장된 위치 적용
+          if (this.windowManager.isOverlayWindowVisible()) {
+            this.overlayAutoManager.applyStoredPositionOnShow()
+          }
+        }
       case 'show-overlay':
-        return () => this.windowManager.showOverlay()
+        return () => {
+          this.windowManager.showOverlay()
+          // 오버레이 표시 시 저장된 위치 적용
+          this.overlayAutoManager.applyStoredPositionOnShow()
+        }
       case 'hide-overlay':
         return () => this.windowManager.hideOverlay()
       case 'toggle-dev-tools':
