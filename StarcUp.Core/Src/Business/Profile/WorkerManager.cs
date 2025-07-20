@@ -12,7 +12,7 @@ namespace StarcUp.Business.Profile
     [Flags]
     public enum WorkerPresetEnum : byte
     {
-        None = 0b0000_0000,        // 0s
+        None = 0b0000_0000,        // 0
         Default = 0b0000_0001,        // 1
         IncludeProduction = 0b0000_0010,  // 2
         Idle = 0b0000_0100,       // 4

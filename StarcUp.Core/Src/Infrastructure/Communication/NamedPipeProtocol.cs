@@ -122,6 +122,10 @@ namespace StarcUp.Infrastructure.Communication
             public const string GetGameStatus = "get-game-status";
             public const string GetUnitCounts = "get-unit-counts";
             public const string GetPlayerInfo = "get-player-info";
+            
+            // 프리셋 관련 명령
+            public const string PresetInit = "preset-init";
+            public const string PresetUpdate = "preset-update";
         }
 
         /// <summary>

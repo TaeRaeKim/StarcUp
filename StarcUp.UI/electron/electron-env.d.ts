@@ -37,5 +37,7 @@ interface Window {
     stopDetection: () => Promise<ICoreResponse>
     getGameStatus: () => Promise<ICoreResponse>
     onGameStatusChanged: (callback: (data: { status: string }) => void) => (() => void)
+    sendPresetInit: (message: any) => Promise<ICoreResponse>
+    sendPresetUpdate: (message: any) => Promise<ICoreResponse>
   }
 }

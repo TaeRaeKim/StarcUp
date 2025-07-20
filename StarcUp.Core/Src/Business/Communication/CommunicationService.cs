@@ -1,11 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.Json;
 using StarcUp.Infrastructure.Communication;
 using StarcUp.Infrastructure.Windows;
 using StarcUp.Common.Events;
 using StarcUp.Business.GameDetection;
 using StarcUp.Business.InGameDetector;
+using StarcUp.Business.Profile;
+using StarcUp.Business.Profile.Models;
 
 namespace StarcUp.Business.Communication
 {
@@ -18,6 +22,7 @@ namespace StarcUp.Business.Communication
         private readonly IGameDetector _gameDetector;
         private readonly IInGameDetector _inGameDetector;
         private readonly IWindowManager _windowManager;
+        private readonly IWorkerManager _workerManager;
         private bool _disposed = false;
         
         // 윈도우 위치 변경 관련 필드
@@ -35,12 +40,13 @@ namespace StarcUp.Business.Communication
 
         public event EventHandler<bool> ConnectionStateChanged;
 
-        public CommunicationService(INamedPipeClient pipeClient, IGameDetector gameDetector, IInGameDetector inGameDetector, IWindowManager windowManager)
+        public CommunicationService(INamedPipeClient pipeClient, IGameDetector gameDetector, IInGameDetector inGameDetector, IWindowManager windowManager, IWorkerManager workerManager)
         {
             _pipeClient = pipeClient ?? throw new ArgumentNullException(nameof(pipeClient));
             _gameDetector = gameDetector ?? throw new ArgumentNullException(nameof(gameDetector));
             _inGameDetector = inGameDetector ?? throw new ArgumentNullException(nameof(inGameDetector));
             _windowManager = windowManager ?? throw new ArgumentNullException(nameof(windowManager));
+            _workerManager = workerManager ?? throw new ArgumentNullException(nameof(workerManager));
         }
 
         public async Task<bool> StartAsync(string pipeName = "StarcUp.Dev")
@@ -164,6 +170,16 @@ namespace StarcUp.Business.Communication
                     case NamedPipeProtocol.Commands.StopGameDetect:
                         _gameDetector.StopDetection();
                         break;
+                        
+                    // 프리셋 관련 명령들
+                    case NamedPipeProtocol.Commands.PresetInit:
+                        HandlePresetInit(e);
+                        break;
+                        
+                    case NamedPipeProtocol.Commands.PresetUpdate:
+                        HandlePresetUpdate(e);
+                        break;
+                        
                     default:
                         Console.WriteLine($"⚠️ 알 수 없는 명령: {e.Command}");
                         break;
@@ -419,6 +435,220 @@ namespace StarcUp.Business.Communication
             ConnectionStateChanged?.Invoke(this, isConnected);
         }
 
+        /// <summary>
+        /// 프리셋 초기화 요청 처리
+        /// </summary>
+        private void HandlePresetInit(CommandRequestEventArgs e)
+        {
+            try
+            {
+                Console.WriteLine("🚀 프리셋 초기화 요청 수신");
+                
+                if (e.Payload == null)
+                {
+                    Console.WriteLine("❌ 프리셋 초기화 데이터가 없습니다");
+                    return;
+                }
+
+                // Payload 처리: Named Pipe에서 { args: ['json_string'] } 형태로 전송됨
+                string jsonData = null;
+                
+                if (e.Payload is JsonElement element)
+                {
+                    // args 배열에서 첫 번째 요소 추출
+                    if (element.TryGetProperty("args", out JsonElement argsElement) && 
+                        argsElement.ValueKind == JsonValueKind.Array && 
+                        argsElement.GetArrayLength() > 0)
+                    {
+                        jsonData = argsElement[0].GetString();
+                    }
+                    else
+                    {
+                        // args가 없으면 전체 payload 사용
+                        jsonData = element.GetRawText();
+                    }
+                }
+                else if (e.Payload is string jsonString)
+                {
+                    jsonData = jsonString;
+                }
+                else
+                {
+                    Console.WriteLine($"❌ 지원되지 않는 페이로드 타입: {e.Payload.GetType()}");
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(jsonData))
+                {
+                    Console.WriteLine("❌ 프리셋 초기화 JSON 데이터가 비어있습니다");
+                    return;
+                }
+
+                var initData = JsonSerializer.Deserialize<PresetInitData>(jsonData);
+                
+                // 일꾼 프리셋 처리
+                if (initData.Presets?.Worker != null)
+                {
+                    var workerPreset = (WorkerPresetEnum)initData.Presets.Worker.SettingsMask;
+                    _workerManager.WorkerPreset = workerPreset;
+                    
+                    Console.WriteLine($"✅ 일꾼 프리셋 초기화: {workerPreset}");
+                }
+                
+                // 향후 다른 프리셋들도 여기서 처리...
+                // if (initData.Presets?.Population != null) { ... }
+                // if (initData.Presets?.Unit != null) { ... }
+                // if (initData.Presets?.Upgrade != null) { ... }
+                // if (initData.Presets?.BuildOrder != null) { ... }
+                
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 프리셋 초기화 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 프리셋 업데이트 요청 처리
+        /// </summary>
+        private void HandlePresetUpdate(CommandRequestEventArgs e)
+        {
+            try
+            {
+                Console.WriteLine("🔄 프리셋 업데이트 요청 수신");
+                
+                if (e.Payload == null)
+                {
+                    Console.WriteLine("❌ 프리셋 업데이트 데이터가 없습니다");
+                    return;
+                }
+
+                // Payload 처리: Named Pipe에서 { args: ['json_string'] } 형태로 전송됨
+                string jsonData = null;
+                
+                if (e.Payload is JsonElement element)
+                {
+                    // args 배열에서 첫 번째 요소 추출
+                    if (element.TryGetProperty("args", out JsonElement argsElement) && 
+                        argsElement.ValueKind == JsonValueKind.Array && 
+                        argsElement.GetArrayLength() > 0)
+                    {
+                        jsonData = argsElement[0].GetString();
+                    }
+                    else
+                    {
+                        // args가 없으면 전체 payload 사용
+                        jsonData = element.GetRawText();
+                    }
+                }
+                else if (e.Payload is string jsonString)
+                {
+                    jsonData = jsonString;
+                }
+                else
+                {
+                    Console.WriteLine($"❌ 지원되지 않는 페이로드 타입: {e.Payload.GetType()}");
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(jsonData))
+                {
+                    Console.WriteLine("❌ 프리셋 업데이트 JSON 데이터가 비어있습니다");
+                    return;
+                }
+
+                // args 배열이 포함된 JSON인지 확인하고 실제 데이터 추출
+                if (jsonData.Contains("\"args\":[") && jsonData.Contains("\"{\\\"type\\\":\\\"preset-update\\\""))
+                {
+                    try
+                    {
+                        var argsWrapper = JsonSerializer.Deserialize<JsonElement>(jsonData);
+                        if (argsWrapper.TryGetProperty("args", out JsonElement argsArray) && 
+                            argsArray.ValueKind == JsonValueKind.Array && 
+                            argsArray.GetArrayLength() > 0)
+                        {
+                            jsonData = argsArray[0].GetString();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"❌ args 배열 추출 실패: {ex.Message}");
+                    }
+                }
+
+                PresetUpdateData updateData;
+                try
+                {
+                    updateData = JsonSerializer.Deserialize<PresetUpdateData>(jsonData);
+                }
+                catch (Exception deserializeEx)
+                {
+                    Console.WriteLine($"❌ JSON 역직렬화 실패: {deserializeEx.Message}");
+                    return;
+                }
+                
+                switch (updateData.PresetType?.ToLower())
+                {
+                    case "worker":
+                        var workerPreset = (WorkerPresetEnum)updateData.Data.SettingsMask;
+                        var previousPreset = _workerManager.WorkerPreset;
+                        _workerManager.WorkerPreset = workerPreset;
+                        
+                        Console.WriteLine($"✅ 일꾼 프리셋 업데이트: {previousPreset} → {workerPreset}");
+                        break;
+                        
+                    case "population":
+                        // 향후 구현
+                        Console.WriteLine("⚠️ 인구수 프리셋은 아직 구현되지 않았습니다");
+                        break;
+                        
+                    case "unit":
+                        // 향후 구현
+                        Console.WriteLine("⚠️ 유닛 프리셋은 아직 구현되지 않았습니다");
+                        break;
+                        
+                    case "upgrade":
+                        // 향후 구현
+                        Console.WriteLine("⚠️ 업그레이드 프리셋은 아직 구현되지 않았습니다");
+                        break;
+                        
+                    case "buildorder":
+                        // 향후 구현
+                        Console.WriteLine("⚠️ 빌드오더 프리셋은 아직 구현되지 않았습니다");
+                        break;
+                        
+                    default:
+                        Console.WriteLine($"⚠️ 알 수 없는 프리셋 타입: {updateData.PresetType}");
+                        return;
+                }
+                
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 프리셋 업데이트 실패: {ex.Message}");
+            }
+        }
+
+
+        /// <summary>
+        /// WorkerPresetEnum의 설명 문자열 생성 (디버깅용)
+        /// </summary>
+        private string GetWorkerPresetDescription(WorkerPresetEnum preset)
+        {
+            if (preset == WorkerPresetEnum.None)
+                return "None";
+
+            var flags = new List<string>();
+            
+            if (_workerManager.IsWorkerStateSet(WorkerPresetEnum.Default)) flags.Add("Default");
+            if (_workerManager.IsWorkerStateSet(WorkerPresetEnum.IncludeProduction)) flags.Add("IncludeProduction");
+            if (_workerManager.IsWorkerStateSet(WorkerPresetEnum.Idle)) flags.Add("Idle");
+            if (_workerManager.IsWorkerStateSet(WorkerPresetEnum.DetectProduction)) flags.Add("DetectProduction");
+            if (_workerManager.IsWorkerStateSet(WorkerPresetEnum.DetectDeath)) flags.Add("DetectDeath");
+            if (_workerManager.IsWorkerStateSet(WorkerPresetEnum.CheckGas)) flags.Add("CheckGas");
+            
+            return flags.Count > 0 ? string.Join(" | ", flags) : "None";
+        }
 
         public void Dispose()
         {

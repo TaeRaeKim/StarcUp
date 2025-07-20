@@ -71,6 +71,10 @@ namespace StarcUp.DependencyInjection
                 c => new UnitCountService(
                     c.Resolve<IUnitCountAdapter>()));
 
+            // Worker Management Services (CommunicationService 보다 먼저 등록)
+            container.RegisterSingleton<IWorkerManager>(
+                c => new WorkerManager());
+
             // Communication Services
             container.RegisterSingleton<INamedPipeClient>(
                 c => new NamedPipeClient());
@@ -79,14 +83,11 @@ namespace StarcUp.DependencyInjection
                     c.Resolve<INamedPipeClient>(),
                     c.Resolve<IGameDetector>(),
                     c.Resolve<IInGameDetector>(),
-                    c.Resolve<IWindowManager>()));
+                    c.Resolve<IWindowManager>(),
+                    c.Resolve<IWorkerManager>()));
 
             PlayerExtensions.SetUnitCountService(container.Resolve<IUnitCountService>());
             PlayerExtensions.SetUnitService(container.Resolve<IUnitService>());
-
-            // Worker Management Services
-            container.RegisterSingleton<IWorkerManager>(
-                c => new WorkerManager());
 
             container.RegisterSingleton<IGameManager>(
                 c => new GameManager(

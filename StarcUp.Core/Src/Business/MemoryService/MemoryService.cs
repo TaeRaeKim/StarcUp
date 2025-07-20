@@ -459,7 +459,6 @@ namespace StarcUp.Business.MemoryService
                                     if (tebAddress != 0)
                                     {
                                         tebList.Add(new TebInfo(threadEntry.th32ThreadID, tebAddress, threadIndex));
-                                        Console.WriteLine($"[MemoryService] 스레드 {threadEntry.th32ThreadID}: TEB=0x{tebAddress:X}");
                                         threadIndex++;
                                     }
                                 }
