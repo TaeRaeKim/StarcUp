@@ -227,6 +227,13 @@ export function OverlayApp() {
     }
   }, [isDragging, handleMouseMove, handleMouseUp])
 
+  // 편집모드가 해제될 때 설정창 자동 닫기
+  useEffect(() => {
+    if (!isEditMode && isSettingsOpen) {
+      setIsSettingsOpen(false)
+    }
+  }, [isEditMode, isSettingsOpen])
+
   // 윈도우 위치/크기 변경 감지 및 아이템 위치 조정 (window-position-changed 이벤트 기반)
   useEffect(() => {
     if (!centerPosition) return
@@ -383,40 +390,42 @@ export function OverlayApp() {
         </div>
       )}
 
-      {/* 오버레이 설정 버튼 - 우측 상단 고정 */}
-      <button
-        onClick={() => setIsSettingsOpen(true)}
-        style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          width: '40px',
-          height: '40px',
-          borderRadius: '50%',
-          border: 'none',
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          color: 'white',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '18px',
-          zIndex: 15000,
-          transition: 'all 0.2s ease',
-          pointerEvents: 'auto',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = 'rgba(0, 153, 255, 0.8)'
-          e.currentTarget.style.transform = 'scale(1.1)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'
-          e.currentTarget.style.transform = 'scale(1)'
-        }}
-      >
-        ⚙️
-      </button>
+      {/* 오버레이 설정 버튼 - 편집모드에서만 표시 */}
+      {isEditMode && (
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            border: 'none',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            color: 'white',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '18px',
+            zIndex: 15000,
+            transition: 'all 0.2s ease',
+            pointerEvents: 'auto',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(0, 153, 255, 0.8)'
+            e.currentTarget.style.transform = 'scale(1.1)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'
+            e.currentTarget.style.transform = 'scale(1)'
+          }}
+        >
+          ⚙️
+        </button>
+      )}
 
       {/* 일꾼 상태 오버레이 - InGame 상태일 때만 표시 */}
       {(() => {
