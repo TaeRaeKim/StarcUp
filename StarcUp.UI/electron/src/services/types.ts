@@ -176,3 +176,27 @@ export interface OverlaySyncSettings {
   scaleX: number                  // X축 스케일 (1.0 = 100%)
   scaleY: number                  // Y축 스케일 (1.0 = 100%)
 }
+
+// WorkerManager 이벤트 타입 정의
+export interface WorkerStatusChangedEvent {
+  totalWorkers: number
+  calculatedTotal: number
+  idleWorkers: number
+  productionWorkers: number
+  activeWorkers: number
+}
+
+export interface GasBuildingAlertEvent {
+  // 빈 객체 - 알림만 필요
+}
+
+export interface PresetInfo {
+  mask: number
+  flags: string[]
+}
+
+export interface WorkerPresetChangedEvent {
+  success: boolean
+  previousPreset: PresetInfo
+  currentPreset: PresetInfo
+}
