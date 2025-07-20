@@ -87,6 +87,8 @@ export interface IIPCChannels {
   'core:stop-detection': { request: void; response: ICoreResponse }
   'core:get-game-status': { request: void; response: ICoreResponse }
   'core:get-unit-counts': { request: { playerId?: number }; response: ICoreResponse }
+  'core:send-preset-init': { request: any; response: ICoreResponse }
+  'core:send-preset-update': { request: any; response: ICoreResponse }
   
   // 인증 관련
   'auth:login': { request: { username: string; password: string }; response: { success: boolean; token?: string; user?: IUser } }

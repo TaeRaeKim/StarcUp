@@ -2,6 +2,7 @@ import { ICoreCommunicationService, INamedPipeService, ICommandRegistry } from '
 import { ICoreCommand, ICoreResponse, WindowPositionData, WindowPositionEvent } from '../types'
 import { NamedPipeService } from './NamedPipeService'
 import { CommandRegistry } from './CommandRegistry'
+import { Commands } from './NamedPipeProtocol'
 
 export class CoreCommunicationService implements ICoreCommunicationService {
   private namedPipeService: INamedPipeService
@@ -99,17 +100,17 @@ export class CoreCommunicationService implements ICoreCommunicationService {
     // 기본 명령어들 등록 (ping은 NamedPipeService에서 직접 처리)
     this.commandRegistry.register({
       name: 'game:detect:start',
-      handler: async () => await this.namedPipeService.sendCommand('start-game-detect')
+      handler: async () => await this.namedPipeService.sendCommand(Commands.StartGameDetect)
     })
     
     this.commandRegistry.register({
       name: 'game:detect:stop',
-      handler: async () => await this.namedPipeService.sendCommand('stop-game-detect')
+      handler: async () => await this.namedPipeService.sendCommand(Commands.StopGameDetect)
     })
     
     this.commandRegistry.register({
       name: 'game:status',
-      handler: async () => await this.namedPipeService.sendCommand('get-game-status')
+      handler: async () => await this.namedPipeService.sendCommand(Commands.GetGameStatus)
     })
     
     this.commandRegistry.register({
@@ -117,30 +118,30 @@ export class CoreCommunicationService implements ICoreCommunicationService {
       requestValidator: (data): data is { playerId?: number } => 
         data.playerId === undefined || typeof data.playerId === 'number',
       handler: async (req) => {
-        const args = req.playerId ? [req.playerId.toString()] : []
-        return await this.namedPipeService.sendCommand('get-unit-counts', args)
+        // 새로운 프로토콜: payload에 직접 데이터 전송
+        return await this.namedPipeService.sendCommand(Commands.GetUnitCounts, req.playerId ? { playerId: req.playerId } : undefined)
       }
     })
     
     this.commandRegistry.register({
       name: 'game:player:info',
-      handler: async () => await this.namedPipeService.sendCommand('get-player-info')
+      handler: async () => await this.namedPipeService.sendCommand(Commands.GetPlayerInfo)
     })
     
     // 프리셋 관련 명령
     this.commandRegistry.register({
       name: 'preset:init',
       handler: async (req: any) => {
-        // Core에서 기대하는 형식으로 변환하여 전송
-        return await this.namedPipeService.sendCommand('preset-init', [JSON.stringify(req)])
+        // 새로운 프로토콜: payload에 직접 데이터 전송
+        return await this.namedPipeService.sendCommand(Commands.PresetInit, req)
       }
     })
     
     this.commandRegistry.register({
       name: 'preset:update',
       handler: async (req: any) => {
-        // Core에서 기대하는 형식으로 변환하여 전송
-        return await this.namedPipeService.sendCommand('preset-update', [JSON.stringify(req)])
+        // 새로운 프로토콜: payload에 직접 데이터 전송
+        return await this.namedPipeService.sendCommand(Commands.PresetUpdate, req)
       }
     })
     
