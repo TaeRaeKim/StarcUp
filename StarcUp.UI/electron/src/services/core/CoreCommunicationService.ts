@@ -1,8 +1,8 @@
 import { ICoreCommunicationService, INamedPipeService, ICommandRegistry } from './interfaces'
-import { ICoreCommand, ICoreResponse, WindowPositionData, WindowPositionEvent } from '../types'
+import { ICoreCommand, ICoreResponse, WindowPositionData, WindowPositionEvent, WorkerStatusChangedEvent, GasBuildingAlertEvent, WorkerPresetChangedEvent } from '../types'
 import { NamedPipeService } from './NamedPipeService'
 import { CommandRegistry } from './CommandRegistry'
-import { Commands } from './NamedPipeProtocol'
+import { Commands, Events } from './NamedPipeProtocol'
 
 export class CoreCommunicationService implements ICoreCommunicationService {
   private namedPipeService: INamedPipeService
@@ -11,6 +11,11 @@ export class CoreCommunicationService implements ICoreCommunicationService {
   private gameDetectedCallback: ((gameInfo: any) => void) | null = null
   private gameEndedCallback: (() => void) | null = null
   private windowPositionChangedCallback: ((data: WindowPositionData) => void) | null = null
+  
+  // WorkerManager 이벤트 콜백들
+  private workerStatusChangedCallback: ((data: WorkerStatusChangedEvent) => void) | null = null
+  private gasBuildingAlertCallback: (() => void) | null = null
+  private workerPresetChangedCallback: ((data: WorkerPresetChangedEvent) => void) | null = null
   
   constructor(namedPipeService?: INamedPipeService) {
     this.namedPipeService = namedPipeService || new NamedPipeService()
@@ -201,6 +206,28 @@ export class CoreCommunicationService implements ICoreCommunicationService {
       }
     })
 
+    // WorkerManager 이벤트 핸들러들
+    this.namedPipeService.onEvent(Events.WorkerStatusChanged, (data: WorkerStatusChangedEvent) => {
+      console.log('👷 일꾼 상태 변경:', data)
+      if (this.workerStatusChangedCallback) {
+        this.workerStatusChangedCallback(data)
+      }
+    })
+
+    this.namedPipeService.onEvent(Events.GasBuildingAlert, (data: GasBuildingAlertEvent) => {
+      console.log('⛽ 가스 건물 채취 중단 알림')
+      if (this.gasBuildingAlertCallback) {
+        this.gasBuildingAlertCallback()
+      }
+    })
+
+    this.namedPipeService.onEvent(Events.WorkerPresetChanged, (data: WorkerPresetChangedEvent) => {
+      console.log('⚙️ 일꾼 프리셋 변경:', data)
+      if (this.workerPresetChangedCallback) {
+        this.workerPresetChangedCallback(data)
+      }
+    })
+
     console.log('✅ Core 이벤트 핸들러 설정 완료')
   }
 
@@ -242,6 +269,31 @@ export class CoreCommunicationService implements ICoreCommunicationService {
   // 윈도우 위치 변경 콜백 제거
   offWindowPositionChanged(): void {
     this.windowPositionChangedCallback = null
+  }
+
+  // WorkerManager 이벤트 콜백 등록/해제 메서드들
+  onWorkerStatusChanged(callback: (data: WorkerStatusChangedEvent) => void): void {
+    this.workerStatusChangedCallback = callback
+  }
+
+  offWorkerStatusChanged(): void {
+    this.workerStatusChangedCallback = null
+  }
+
+  onGasBuildingAlert(callback: () => void): void {
+    this.gasBuildingAlertCallback = callback
+  }
+
+  offGasBuildingAlert(): void {
+    this.gasBuildingAlertCallback = null
+  }
+
+  onWorkerPresetChanged(callback: (data: WorkerPresetChangedEvent) => void): void {
+    this.workerPresetChangedCallback = callback
+  }
+
+  offWorkerPresetChanged(): void {
+    this.workerPresetChangedCallback = null
   }
   
 }

@@ -81,6 +81,13 @@ namespace StarcUp.Business.Communication
                 _windowManager.WindowPositionChanged += OnWindowPositionChanged;
                 _windowManager.WindowSizeChanged += OnWindowSizeChanged;
 
+                // WorkerManager 이벤트 구독
+                _workerManager.TotalCountChanged += OnWorkerTotalCountChanged;
+                _workerManager.ProductionCompleted += OnWorkerProductionCompleted;
+                _workerManager.WorkerDied += OnWorkerDied;
+                _workerManager.IdleCountChanged += OnWorkerIdleCountChanged;
+                _workerManager.GasBuildingAlert += OnGasBuildingAlert;
+
 
                 // 자동 재연결 시작 (3초 간격, 최대 10회 재시도)
                 _pipeClient.StartAutoReconnect(pipeName, 3000, 10);
@@ -141,6 +148,13 @@ namespace StarcUp.Business.Communication
                 _inGameDetector.InGameStateChanged -= OnInGameStatus;
                 _windowManager.WindowPositionChanged -= OnWindowPositionChanged;
                 _windowManager.WindowSizeChanged -= OnWindowSizeChanged;
+                
+                // WorkerManager 이벤트 구독 해제
+                _workerManager.TotalCountChanged -= OnWorkerTotalCountChanged;
+                _workerManager.ProductionCompleted -= OnWorkerProductionCompleted;
+                _workerManager.WorkerDied -= OnWorkerDied;
+                _workerManager.IdleCountChanged -= OnWorkerIdleCountChanged;
+                _workerManager.GasBuildingAlert -= OnGasBuildingAlert;
 
                 // Debounce 타이머 정리
                 ClearDebounceTimer();
@@ -470,10 +484,14 @@ namespace StarcUp.Business.Communication
                 // 일꾼 프리셋 처리
                 if (initData.Presets?.Worker != null)
                 {
+                    var previousPreset = _workerManager.WorkerPreset;
                     var workerPreset = (WorkerPresetEnum)initData.Presets.Worker.SettingsMask;
                     _workerManager.WorkerPreset = workerPreset;
                     
                     Console.WriteLine($"✅ 일꾼 프리셋 초기화: {workerPreset}");
+                    
+                    // 프리셋 변경 이벤트 전송
+                    SendWorkerPresetChangedEvent(previousPreset, workerPreset, true);
                 }
                 
                 // 향후 다른 프리셋들도 여기서 처리...
@@ -524,11 +542,14 @@ namespace StarcUp.Business.Communication
                 switch (updateData.PresetType?.ToLower())
                 {
                     case "worker":
-                        var workerPreset = (WorkerPresetEnum)updateData.Data.SettingsMask;
                         var previousPreset = _workerManager.WorkerPreset;
+                        var workerPreset = (WorkerPresetEnum)updateData.Data.SettingsMask;
                         _workerManager.WorkerPreset = workerPreset;
                         
                         Console.WriteLine($"✅ 일꾼 프리셋 업데이트: {previousPreset} → {workerPreset}");
+                        
+                        // 프리셋 변경 이벤트 전송
+                        SendWorkerPresetChangedEvent(previousPreset, workerPreset, true);
                         break;
                         
                     case "population":
@@ -563,38 +584,185 @@ namespace StarcUp.Business.Communication
             }
         }
 
-
         /// <summary>
-        /// WorkerPresetEnum의 설명 문자열 생성 (디버깅용)
+        /// 일꾼 총 개수 변경 이벤트 처리
         /// </summary>
-        private string GetWorkerPresetDescription(WorkerPresetEnum preset)
+        private void OnWorkerTotalCountChanged(object sender, WorkerEventArgs e)
         {
-            if (preset == WorkerPresetEnum.None)
-                return "None";
+            try
+            {
+                // Default 프리셋이 설정된 경우에만 전송
+                if (!_workerManager.IsWorkerStateSet(WorkerPresetEnum.Default))
+                    return;
 
-            var flags = new List<string>();
-            
-            if (_workerManager.IsWorkerStateSet(WorkerPresetEnum.Default)) flags.Add("Default");
-            if (_workerManager.IsWorkerStateSet(WorkerPresetEnum.IncludeProduction)) flags.Add("IncludeProduction");
-            if (_workerManager.IsWorkerStateSet(WorkerPresetEnum.Idle)) flags.Add("Idle");
-            if (_workerManager.IsWorkerStateSet(WorkerPresetEnum.DetectProduction)) flags.Add("DetectProduction");
-            if (_workerManager.IsWorkerStateSet(WorkerPresetEnum.DetectDeath)) flags.Add("DetectDeath");
-            if (_workerManager.IsWorkerStateSet(WorkerPresetEnum.CheckGas)) flags.Add("CheckGas");
-            
-            return flags.Count > 0 ? string.Join(" | ", flags) : "None";
+                SendWorkerStatusEvent(e);
+                Console.WriteLine($"👷 일꾼 총 개수 변경: {e.PreviousCalculatedWorkers} → {e.CalculatedTotalWorkers}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 일꾼 총 개수 변경 이벤트 전송 실패: {ex.Message}");
+            }
         }
 
+        /// <summary>
+        /// 일꾼 생산 완료 이벤트 처리
+        /// </summary>
+        private void OnWorkerProductionCompleted(object sender, WorkerEventArgs e)
+        {
+            try
+            {
+                // DetectProduction 프리셋이 설정된 경우에만 전송
+                if (!_workerManager.IsWorkerStateSet(WorkerPresetEnum.DetectProduction))
+                    return;
+
+                SendWorkerStatusEvent(e);
+                Console.WriteLine($"🏗️ 일꾼 생산 완료: {e.PreviousProductionWorkers} → {e.ProductionWorkers}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 일꾼 생산 완료 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 일꾼 사망 이벤트 처리
+        /// </summary>
+        private void OnWorkerDied(object sender, WorkerEventArgs e)
+        {
+            try
+            {
+                // DetectDeath 프리셋이 설정된 경우에만 전송
+                if (!_workerManager.IsWorkerStateSet(WorkerPresetEnum.DetectDeath))
+                    return;
+
+                SendWorkerStatusEvent(e);
+                Console.WriteLine($"💀 일꾼 사망: {e.PreviousTotalWorkers} → {e.TotalWorkers}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 일꾼 사망 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 유휴 일꾼 개수 변경 이벤트 처리
+        /// </summary>
+        private void OnWorkerIdleCountChanged(object sender, WorkerEventArgs e)
+        {
+            try
+            {
+                // Idle 프리셋이 설정된 경우에만 전송
+                if (!_workerManager.IsWorkerStateSet(WorkerPresetEnum.Idle))
+                    return;
+
+                SendWorkerStatusEvent(e);
+                Console.WriteLine($"😴 유휴 일꾼 변경: {e.PreviousIdleWorkers} → {e.IdleWorkers}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 유휴 일꾼 변경 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 가스 건물 알림 이벤트 처리
+        /// </summary>
+        private void OnGasBuildingAlert(object sender, GasBuildingEventArgs e)
+        {
+            try
+            {
+                // CheckGas 프리셋이 설정된 경우에만 전송
+                if (!_workerManager.IsWorkerStateSet(WorkerPresetEnum.CheckGas))
+                    return;
+
+                // 빈 데이터로 알림만 전송
+                var eventData = new { };
+                _pipeClient.SendEvent(NamedPipeProtocol.Events.GasBuildingAlert, eventData);
+                
+                Console.WriteLine($"⛽ 가스 건물 채취 중단 알림: {e.Duration.TotalMilliseconds}ms 지속");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 가스 건물 알림 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 일꾼 상태 변경 이벤트 전송 (공통)
+        /// </summary>
+        private void SendWorkerStatusEvent(WorkerEventArgs e)
+        {
+            var eventData = new
+            {
+                totalWorkers = e.TotalWorkers,
+                calculatedTotal = e.CalculatedTotalWorkers,
+                idleWorkers = e.IdleWorkers,
+                productionWorkers = e.ProductionWorkers,
+                activeWorkers = e.ActiveWorkers
+            };
+
+            _pipeClient.SendEvent(NamedPipeProtocol.Events.WorkerStatusChanged, eventData);
+        }
+
+        /// <summary>
+        /// 일꾼 프리셋 변경 이벤트 전송
+        /// </summary>
+        private void SendWorkerPresetChangedEvent(WorkerPresetEnum previousPreset, WorkerPresetEnum currentPreset, bool success = true)
+        {
+            try
+            {
+                var eventData = new
+                {
+                    success = success,
+                    previousPreset = new
+                    {
+                        mask = (int)previousPreset,
+                        flags = GetWorkerPresetFlags(previousPreset)
+                    },
+                    currentPreset = new
+                    {
+                        mask = (int)currentPreset,
+                        flags = GetWorkerPresetFlags(currentPreset)
+                    }
+                };
+
+                _pipeClient.SendEvent(NamedPipeProtocol.Events.WorkerPresetChanged, eventData);
+                Console.WriteLine($"⚙️ 일꾼 프리셋 변경 알림: {previousPreset} → {currentPreset}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 일꾼 프리셋 변경 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// WorkerPresetEnum을 문자열 배열로 변환
+        /// </summary>
+        private string[] GetWorkerPresetFlags(WorkerPresetEnum preset)
+        {
+            var flags = new List<string>();
+            
+            if ((preset & WorkerPresetEnum.Default) != 0) flags.Add("Default");
+            if ((preset & WorkerPresetEnum.IncludeProduction) != 0) flags.Add("IncludeProduction");
+            if ((preset & WorkerPresetEnum.Idle) != 0) flags.Add("Idle");
+            if ((preset & WorkerPresetEnum.DetectProduction) != 0) flags.Add("DetectProduction");
+            if ((preset & WorkerPresetEnum.DetectDeath) != 0) flags.Add("DetectDeath");
+            if ((preset & WorkerPresetEnum.CheckGas) != 0) flags.Add("CheckGas");
+            
+            return flags.ToArray();
+        }
+        
         public void Dispose()
         {
             if (_disposed)
                 return;
 
             _disposed = true;
-            
+
             try
             {
                 Stop();
-                
+
                 // 추가적인 리소스 정리
                 ClearDebounceTimer();
             }

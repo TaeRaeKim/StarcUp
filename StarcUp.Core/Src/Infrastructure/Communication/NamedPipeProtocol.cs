@@ -133,9 +133,15 @@ namespace StarcUp.Infrastructure.Communication
         /// </summary>
         public static class Events
         {
+            // 게임 프로세스 관련 이벤트
             public const string GameDetected = "game-detected";
             public const string GameEnded = "game-ended";
             public const string GameStatusChanged = "game-status-changed";
+            
+            // WorkerManager 관련 이벤트
+            public const string WorkerStatusChanged = "worker-status-changed";
+            public const string GasBuildingAlert = "gas-building-alert";
+            public const string WorkerPresetChanged = "worker-preset-changed";
         }
     }
 }

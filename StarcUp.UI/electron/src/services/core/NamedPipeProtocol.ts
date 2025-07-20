@@ -142,7 +142,13 @@ export const Commands = {
  * 지원되는 이벤트 목록
  */
 export const Events = {
+  // 게임 프로세스 관련 이벤트
   GameDetected: 'game-detected',
   GameEnded: 'game-ended',
   GameStatusChanged: 'game-status-changed',
+  
+  // WorkerManager 관련 이벤트
+  WorkerStatusChanged: 'worker-status-changed',
+  GasBuildingAlert: 'gas-building-alert',
+  WorkerPresetChanged: 'worker-preset-changed'
 } as const
