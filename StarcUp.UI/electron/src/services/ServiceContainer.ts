@@ -164,6 +164,24 @@ export class ServiceContainer implements IServiceContainer {
     coreService.onWindowPositionChanged((position: any) => {
       overlayAutoManager.updateStarCraftWindowPosition(position)
     })
+
+    // WorkerManager 이벤트를 Overlay에 전달 (개발자 도구 콘솔 출력용)
+    const windowManager = this.resolve<IWindowManager>('windowManager')
+    
+    coreService.onWorkerStatusChanged((data: any) => {
+      // Overlay 윈도우에 이벤트 전송
+      windowManager.sendToOverlayWindow('worker-status-changed', data)
+    })
+
+    coreService.onGasBuildingAlert(() => {
+      // Overlay 윈도우에 이벤트 전송
+      windowManager.sendToOverlayWindow('gas-building-alert', {})
+    })
+
+    coreService.onWorkerPresetChanged((data: any) => {
+      // Overlay 윈도우에 이벤트 전송
+      windowManager.sendToOverlayWindow('worker-preset-changed', data)
+    })
     
     console.log('🔗 게임 이벤트 핸들러 설정 완료')
   }

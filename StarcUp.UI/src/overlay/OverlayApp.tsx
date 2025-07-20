@@ -9,6 +9,10 @@ export function OverlayApp() {
   const [updateCount, setUpdateCount] = useState(0)
   const [frameRate, setFrameRate] = useState(0)
   const [lastEventType, setLastEventType] = useState<'immediate' | 'debounced' | null>(null)
+  
+  // WorkerManager 이벤트 상태
+  const [workerStatus, setWorkerStatus] = useState<any>(null)
+  const [lastWorkerEvent, setLastWorkerEvent] = useState<string | null>(null)
 
   useEffect(() => {
     // Electron API가 사용 가능한지 확인
@@ -37,6 +41,36 @@ export function OverlayApp() {
     } else {
       setConnectionStatus('disconnected')
       console.warn('⚠️ Electron API를 찾을 수 없습니다')
+    }
+  }, [])
+
+  // WorkerManager 이벤트 구독
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      const electronAPI = window.electronAPI as any
+
+      // WorkerManager 이벤트 리스너들
+      const removeWorkerStatusListener = electronAPI.onWorkerStatusChanged && electronAPI.onWorkerStatusChanged((data: any) => {
+        console.log('👷 [Overlay] 일꾼 상태 변경:', data)
+        setWorkerStatus(data)
+        setLastWorkerEvent('status-changed')
+      })
+
+      const removeGasAlertListener = electronAPI.onGasBuildingAlert && electronAPI.onGasBuildingAlert(() => {
+        console.log('⛽ [Overlay] 가스 건물 채취 중단 알림')
+        setLastWorkerEvent('gas-alert')
+      })
+
+      const removePresetChangedListener = electronAPI.onWorkerPresetChanged && electronAPI.onWorkerPresetChanged((data: any) => {
+        console.log('⚙️ [Overlay] 일꾼 프리셋 변경:', data)
+        setLastWorkerEvent('preset-changed')
+      })
+
+      return () => {
+        if (removeWorkerStatusListener) removeWorkerStatusListener()
+        if (removeGasAlertListener) removeGasAlertListener()
+        if (removePresetChangedListener) removePresetChangedListener()
+      }
     }
   }, [])
 
@@ -137,6 +171,16 @@ export function OverlayApp() {
           <div>Throttling: 16ms (60fps target)</div>
           <div>Debounce Delay: 50ms (last event guarantee)</div>
           <div>Last Event: {lastEventType || 'N/A'}</div>
+          <br />
+          <div><strong>👷 WorkerManager Events:</strong></div>
+          <div>Last Event: {lastWorkerEvent || 'None'}</div>
+          {workerStatus && (
+            <>
+              <div>Total: {workerStatus.totalWorkers} / Calc: {workerStatus.calculatedTotal}</div>
+              <div>Idle: {workerStatus.idleWorkers} / Prod: {workerStatus.productionWorkers}</div>
+              <div>Active: {workerStatus.activeWorkers}</div>
+            </>
+          )}
         </div>
       )}
 

@@ -596,7 +596,6 @@ namespace StarcUp.Business.Communication
                     return;
 
                 SendWorkerStatusEvent(e);
-                Console.WriteLine($"👷 일꾼 총 개수 변경: {e.PreviousCalculatedWorkers} → {e.CalculatedTotalWorkers}");
             }
             catch (Exception ex)
             {
@@ -616,7 +615,6 @@ namespace StarcUp.Business.Communication
                     return;
 
                 SendWorkerStatusEvent(e);
-                Console.WriteLine($"🏗️ 일꾼 생산 완료: {e.PreviousProductionWorkers} → {e.ProductionWorkers}");
             }
             catch (Exception ex)
             {
@@ -636,7 +634,6 @@ namespace StarcUp.Business.Communication
                     return;
 
                 SendWorkerStatusEvent(e);
-                Console.WriteLine($"💀 일꾼 사망: {e.PreviousTotalWorkers} → {e.TotalWorkers}");
             }
             catch (Exception ex)
             {
@@ -656,7 +653,6 @@ namespace StarcUp.Business.Communication
                     return;
 
                 SendWorkerStatusEvent(e);
-                Console.WriteLine($"😴 유휴 일꾼 변경: {e.PreviousIdleWorkers} → {e.IdleWorkers}");
             }
             catch (Exception ex)
             {
@@ -678,8 +674,6 @@ namespace StarcUp.Business.Communication
                 // 빈 데이터로 알림만 전송
                 var eventData = new { };
                 _pipeClient.SendEvent(NamedPipeProtocol.Events.GasBuildingAlert, eventData);
-                
-                Console.WriteLine($"⛽ 가스 건물 채취 중단 알림: {e.Duration.TotalMilliseconds}ms 지속");
             }
             catch (Exception ex)
             {
@@ -727,7 +721,6 @@ namespace StarcUp.Business.Communication
                 };
 
                 _pipeClient.SendEvent(NamedPipeProtocol.Events.WorkerPresetChanged, eventData);
-                Console.WriteLine($"⚙️ 일꾼 프리셋 변경 알림: {previousPreset} → {currentPreset}");
             }
             catch (Exception ex)
             {
