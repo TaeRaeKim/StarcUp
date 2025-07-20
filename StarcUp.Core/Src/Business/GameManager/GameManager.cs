@@ -50,13 +50,6 @@ namespace StarcUp.Business.Game
             _unitCountTimer.AutoReset = true;
             
             _inGameDetector.InGameStateChanged += OnInGameStateChanged;
-            
-            // WorkerManager 이벤트 구독
-            _workerManager.TotalCountChanged += OnWorkerTotalCountChanged;
-            _workerManager.ProductionCompleted += OnWorkerProductionCompleted;
-            _workerManager.WorkerDied += OnWorkerDied;
-            _workerManager.IdleCountChanged += OnWorkerIdleCountChanged;
-            _workerManager.GasBuildingAlert += OnGasBuildingAlert;
         }
 
         public LocalGameData LocalGameData { get; private set; } = new LocalGameData();
@@ -296,31 +289,6 @@ namespace StarcUp.Business.Game
             return false;
         }
 
-        private void OnWorkerTotalCountChanged(object? sender, WorkerEventArgs e)
-        {
-            Console.WriteLine($"GameManager: 총 일꾼 개수 변경 - 플레이어 {e.PlayerId}: {e.PreviousCalculatedWorkers} → {e.CalculatedTotalWorkers}");
-        }
-
-        private void OnWorkerProductionCompleted(object? sender, WorkerEventArgs e)
-        {
-            Console.WriteLine($"GameManager: 일꾼 생산 완료 - 플레이어 {e.PlayerId}: 생산중 {e.PreviousProductionWorkers} → {e.ProductionWorkers}");
-        }
-
-        private void OnWorkerDied(object? sender, WorkerEventArgs e)
-        {
-            Console.WriteLine($"GameManager: 일꾼 사망 - 플레이어 {e.PlayerId}: 총 개수 {e.PreviousTotalWorkers} → {e.TotalWorkers}");
-        }
-
-        private void OnWorkerIdleCountChanged(object? sender, WorkerEventArgs e)
-        {
-            Console.WriteLine($"GameManager: 유휴 일꾼 개수 변경 - 플레이어 {e.PlayerId}: {e.PreviousIdleWorkers} → {e.IdleWorkers}");
-        }
-
-        private void OnGasBuildingAlert(object? sender, GasBuildingEventArgs e)
-        {
-            Console.WriteLine($"GameManager: 가스 건물 알림 - 플레이어 {e.PlayerId}: 건물 ID {e.GasBuildingUnitId}, 지속시간 {e.Duration.TotalMilliseconds}ms");
-        }
-
         public void Dispose()
         {
             if (_disposed)
@@ -342,11 +310,6 @@ namespace StarcUp.Business.Game
             
             if (_workerManager != null)
             {
-                _workerManager.TotalCountChanged -= OnWorkerTotalCountChanged;
-                _workerManager.ProductionCompleted -= OnWorkerProductionCompleted;
-                _workerManager.WorkerDied -= OnWorkerDied;
-                _workerManager.IdleCountChanged -= OnWorkerIdleCountChanged;
-                _workerManager.GasBuildingAlert -= OnGasBuildingAlert;
                 _workerManager.Dispose();
             }
             
