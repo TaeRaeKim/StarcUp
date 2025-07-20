@@ -17,9 +17,6 @@ export function OverlayApp() {
   const [lastWorkerEvent, setLastWorkerEvent] = useState<string | null>(null)
   const [gameStatus, setGameStatus] = useState<string>('waiting') // 'waiting', 'playing', 'game-ended'
   const [isEditMode, setIsEditMode] = useState(false)
-  const [debugPosition, setDebugPosition] = useState({ x: 10, y: 10 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [workerPosition, setWorkerPosition] = useState({ x: 50, y: 50 })
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   
@@ -36,20 +33,23 @@ export function OverlayApp() {
   // 기본 위치로 리셋하는 함수 (오버레이 컨테이너 기준)
   const resetToCenter = () => {
     const overlayContainer = document.querySelector('.overlay-container') as HTMLElement
-    const debugPanel = document.querySelector('.debug-info') as HTMLElement
     
-    if (overlayContainer && debugPanel) {
-      const containerRect = overlayContainer.getBoundingClientRect()
-      const panelRect = debugPanel.getBoundingClientRect()
+    if (!overlayContainer) {
+      console.warn('⚠️ 오버레이 컨테이너를 찾을 수 없습니다')
+      return
+    }
+    
+    const containerRect = overlayContainer.getBoundingClientRect()
+    
+    // WorkerStatus 위치 리셋
+    const workerStatusElement = document.querySelector('.worker-status') as HTMLElement
+    if (workerStatusElement) {
+      const workerRect = workerStatusElement.getBoundingClientRect()
+      const centerX = (containerRect.width - workerRect.width) / 2
+      const centerY = (containerRect.height - workerRect.height) / 2
       
-      // 실제 패널 크기를 기반으로 한 정확한 중앙 계산
-      const centerX = (containerRect.width - panelRect.width) / 2
-      const centerY = (containerRect.height - panelRect.height) / 2
-      
-      setDebugPosition({ x: centerX, y: centerY })
-      console.log('🎯 디버그 패널 위치 중앙으로 리셋:', { x: centerX, y: centerY })
-    } else {
-      console.warn('⚠️ 오버레이 컨테이너 또는 디버그 패널을 찾을 수 없습니다')
+      setWorkerPosition({ x: centerX, y: centerY })
+      console.log('🎯 WorkerStatus 위치 중앙으로 리셋:', { x: centerX, y: centerY })
     }
   }
 
@@ -162,70 +162,6 @@ export function OverlayApp() {
     }
   }, [])
 
-  // 드래그 관련 이벤트 핸들러
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!isEditMode) return
-    
-    e.preventDefault()
-    setIsDragging(true)
-    
-    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement
-    const debugPanel = document.querySelector('.debug-info') as HTMLElement
-    
-    if (overlayContainer && debugPanel) {
-      const containerRect = overlayContainer.getBoundingClientRect()
-      const panelRect = debugPanel.getBoundingClientRect()
-      
-      // 컨테이너 기준으로 현재 패널 위치 계산
-      const currentPanelX = panelRect.left - containerRect.left
-      const currentPanelY = panelRect.top - containerRect.top
-      
-      // 마우스 클릭 위치에서 패널 좌상단까지의 오프셋
-      setDragOffset({
-        x: e.clientX - containerRect.left - currentPanelX,
-        y: e.clientY - containerRect.top - currentPanelY
-      })
-    }
-  }
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging || !isEditMode) return
-    
-    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement
-    const debugPanel = document.querySelector('.debug-info') as HTMLElement
-    if (!overlayContainer || !debugPanel) return
-    
-    const containerRect = overlayContainer.getBoundingClientRect()
-    const panelRect = debugPanel.getBoundingClientRect()
-    
-    const newPosition = {
-      x: e.clientX - containerRect.left - dragOffset.x,
-      y: e.clientY - containerRect.top - dragOffset.y
-    }
-    
-    // 실제 패널 크기를 기반으로 한 경계 제한
-    const clampedX = Math.max(0, Math.min(containerRect.width - panelRect.width, newPosition.x))
-    const clampedY = Math.max(0, Math.min(containerRect.height - panelRect.height, newPosition.y))
-    
-    setDebugPosition({ x: clampedX, y: clampedY })
-  }, [isDragging, isEditMode, dragOffset])
-
-  const handleMouseUp = useCallback(() => {
-    if (!isDragging) return
-    setIsDragging(false)
-  }, [isDragging])
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
-      }
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp])
 
   // 편집모드가 해제될 때 설정창 자동 닫기
   useEffect(() => {
@@ -245,19 +181,6 @@ export function OverlayApp() {
       
       console.log('🔧 [위치 조정] 오버레이 크기:', { width: overlayWidth, height: overlayHeight })
       
-      // 디버그 패널 위치 조정
-      const debugPanel = document.querySelector('.debug-info') as HTMLElement
-      if (debugPanel) {
-        const panelRect = debugPanel.getBoundingClientRect()
-        const newDebugX = Math.max(0, Math.min(overlayWidth - panelRect.width, debugPosition.x))
-        const newDebugY = Math.max(0, Math.min(overlayHeight - panelRect.height, debugPosition.y))
-        
-        if (newDebugX !== debugPosition.x || newDebugY !== debugPosition.y) {
-          console.log('🔧 [위치 조정] 디버그 패널:', { from: debugPosition, to: { x: newDebugX, y: newDebugY } })
-          setDebugPosition({ x: newDebugX, y: newDebugY })
-        }
-      }
-      
       // WorkerStatus 위치 조정
       const workerStatusElement = document.querySelector('.worker-status') as HTMLElement
       if (workerStatusElement) {
@@ -275,7 +198,7 @@ export function OverlayApp() {
     // centerPosition이 변경될 때마다 위치 조정 실행
     setTimeout(adjustItemPositions, 100) // DOM 업데이트 후 실행하기 위해 지연
     
-  }, [centerPosition, debugPosition, workerPosition])
+  }, [centerPosition, workerPosition])
 
   // 윈도우 크기에 따른 body 크기 동적 조정
   useEffect(() => {
@@ -297,8 +220,6 @@ export function OverlayApp() {
     console.log('🔧 [Body 크기 조정]', { width, height })
   }, [centerPosition])
 
-  // 개발 환경에서만 디버그 정보 표시 (현재 비활성화)
-  const showDebugInfo = false // process.env.NODE_ENV === 'development'
 
   return (
     <div 
@@ -444,93 +365,6 @@ export function OverlayApp() {
         ) : null
       })()}
 
-      {/* 디버그 정보 (개발 환경에서만) */}
-      {showDebugInfo && (
-        <div 
-          className={`debug-info ${isEditMode ? 'cursor-move' : ''}`}
-          style={{
-            position: 'absolute',
-            top: `${debugPosition.y}px`,
-            left: `${debugPosition.x}px`,
-            cursor: isEditMode ? 'move' : 'default',
-          background: 'rgba(0,0,0,0.9)',
-          color: '#00ff00',
-          padding: '12px',
-          fontSize: '11px',
-          borderRadius: '6px',
-          fontFamily: 'monospace',
-          border: `2px solid ${isEditMode ? '#0099ff' : connectionStatus === 'connected' ? '#00ff00' : connectionStatus === 'connecting' ? '#ffaa00' : '#ff0000'}`,
-          zIndex: 10000,
-          maxWidth: '320px',
-          minWidth: '280px',
-          transition: isDragging ? 'none' : 'all 0.2s ease',
-          boxShadow: isEditMode ? '0 4px 20px rgba(0, 153, 255, 0.3)' : 'none'
-        }}
-          onMouseDown={handleMouseDown}
-        >
-          {isEditMode && (
-            <div style={{ 
-              marginBottom: '8px', 
-              padding: '4px 8px',
-              backgroundColor: 'rgba(0, 153, 255, 0.2)',
-              borderRadius: '4px',
-              fontSize: '10px',
-              textAlign: 'center',
-              color: '#0099ff'
-            }}>
-              📝 편집 모드 - 드래그하여 위치 조정
-            </div>
-          )}
-          <div><strong>🔗 Connection Status:</strong></div>
-          <div style={{ color: connectionStatus === 'connected' ? '#00ff00' : connectionStatus === 'connecting' ? '#ffaa00' : '#ff0000' }}>
-            {connectionStatus === 'connected' ? '✅ Connected' : connectionStatus === 'connecting' ? '🔄 Connecting...' : '❌ Disconnected'}
-          </div>
-          <br />
-          
-          {centerPosition ? (
-            <>
-              <div><strong>🎯 Center Position:</strong></div>
-              <div>X: {centerPosition.x.toFixed(1)}, Y: {centerPosition.y.toFixed(1)}</div>
-              <br />
-              <div><strong>🖼️ Game Area:</strong></div>
-              <div>Size: {centerPosition.gameAreaBounds.width} × {centerPosition.gameAreaBounds.height}</div>
-              <div>Position: ({centerPosition.gameAreaBounds.x}, {centerPosition.gameAreaBounds.y})</div>
-              <br />
-            </>
-          ) : (
-            <>
-              <div><strong>⚠️ No Position Data</strong></div>
-              <div style={{ color: '#ffaa00' }}>Waiting for StarcUp.Core data...</div>
-              <br />
-            </>
-          )}
-          
-          <div><strong>⏰ Status:</strong></div>
-          <div>Overlay: {isVisible ? '👁️ Visible' : '🙈 Hidden'}</div>
-          <div>Game Status: 
-            <span style={{ 
-              color: gameStatus === 'playing' ? '#00ff00' : 
-                    gameStatus === 'waiting' ? '#ffaa00' : '#ff0000' 
-            }}>
-              {gameStatus === 'playing' ? '🎮 Playing' : 
-               gameStatus === 'waiting' ? '⏳ Waiting' : '🔚 Ended'}
-            </span>
-          </div>
-          <div>Last Update: {lastUpdateTime ? lastUpdateTime.toLocaleTimeString() : 'Never'}</div>
-          <div>Current Time: {new Date().toLocaleTimeString()}</div>
-          <br />
-          <div><strong>📊 Performance:</strong></div>
-          <div>Updates: {updateCount}</div>
-          <div>FPS: {frameRate > 0 ? `~${frameRate}` : 'N/A'}</div>
-          <div>Throttling: 16ms (60fps target)</div>
-          <div>Debounce Delay: 50ms (last event guarantee)</div>
-          <div>Last Event: {lastEventType || 'N/A'}</div>
-          <br />
-          <div><strong>👷 WorkerManager Events:</strong></div>
-          <div>Last Event: {lastWorkerEvent || 'None'}</div>
-          <div>Has Worker Data: {workerStatus ? '✅ Yes' : '❌ No'}</div>
-        </div>
-      )}
 
       {/* 위치 정보가 없을 때 안내 */}
       {!centerPosition && (
@@ -568,9 +402,6 @@ const overlayStyles = `
     pointer-events: none;
   }
 
-  .debug-info {
-    transition: opacity 0.3s ease;
-  }
 
   .edit-mode-backdrop {
     backdrop-filter: blur(8px) saturate(1.2);
