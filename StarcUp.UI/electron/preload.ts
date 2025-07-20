@@ -47,6 +47,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // 리스너 정리 함수 반환
     return () => ipcRenderer.off('update-center-position', listener)
   },
+
+  // WorkerManager 이벤트 리스너들
+  onWorkerStatusChanged: (callback: (data: any) => void) => {
+    const listener = (_event: any, data: any) => callback(data)
+    ipcRenderer.on('worker-status-changed', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('worker-status-changed', listener)
+  },
+
+  onGasBuildingAlert: (callback: () => void) => {
+    const listener = (_event: any, data: any) => callback()
+    ipcRenderer.on('gas-building-alert', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('gas-building-alert', listener)
+  },
+
+  onWorkerPresetChanged: (callback: (data: any) => void) => {
+    const listener = (_event: any, data: any) => callback(data)
+    ipcRenderer.on('worker-preset-changed', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('worker-preset-changed', listener)
+  },
 })
 
 // --------- Expose Core API to the Renderer process ---------
@@ -54,6 +79,10 @@ contextBridge.exposeInMainWorld('coreAPI', {
   startDetection: () => ipcRenderer.invoke('core:start-detection'),
   stopDetection: () => ipcRenderer.invoke('core:stop-detection'),
   getGameStatus: () => ipcRenderer.invoke('core:get-game-status'),
+  
+  // 프리셋 관련 API
+  sendPresetInit: (message: any) => ipcRenderer.invoke('core:send-preset-init', message),
+  sendPresetUpdate: (message: any) => ipcRenderer.invoke('core:send-preset-update', message),
   
   // 게임 상태 변경 이벤트 리스너
   onGameStatusChanged: (callback: (data: { status: string }) => void) => {

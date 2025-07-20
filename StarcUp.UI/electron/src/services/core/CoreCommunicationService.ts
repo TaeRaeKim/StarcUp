@@ -1,7 +1,8 @@
 import { ICoreCommunicationService, INamedPipeService, ICommandRegistry } from './interfaces'
-import { ICoreCommand, ICoreResponse, WindowPositionData, WindowPositionEvent } from '../types'
+import { ICoreCommand, ICoreResponse, WindowPositionData, WindowPositionEvent, WorkerStatusChangedEvent, GasBuildingAlertEvent, WorkerPresetChangedEvent } from '../types'
 import { NamedPipeService } from './NamedPipeService'
 import { CommandRegistry } from './CommandRegistry'
+import { Commands, Events } from './NamedPipeProtocol'
 
 export class CoreCommunicationService implements ICoreCommunicationService {
   private namedPipeService: INamedPipeService
@@ -10,6 +11,11 @@ export class CoreCommunicationService implements ICoreCommunicationService {
   private gameDetectedCallback: ((gameInfo: any) => void) | null = null
   private gameEndedCallback: (() => void) | null = null
   private windowPositionChangedCallback: ((data: WindowPositionData) => void) | null = null
+  
+  // WorkerManager 이벤트 콜백들
+  private workerStatusChangedCallback: ((data: WorkerStatusChangedEvent) => void) | null = null
+  private gasBuildingAlertCallback: (() => void) | null = null
+  private workerPresetChangedCallback: ((data: WorkerPresetChangedEvent) => void) | null = null
   
   constructor(namedPipeService?: INamedPipeService) {
     this.namedPipeService = namedPipeService || new NamedPipeService()
@@ -42,6 +48,21 @@ export class CoreCommunicationService implements ICoreCommunicationService {
   
   async getPlayerInfo(): Promise<ICoreResponse> {
     return await this.sendCommand({ type: 'game:player:info', payload: {} })
+  }
+  
+  // 프리셋 관련
+  async sendPresetInit(message: any): Promise<ICoreResponse> {
+    return await this.sendCommand({ 
+      type: 'preset:init', 
+      payload: message 
+    })
+  }
+  
+  async sendPresetUpdate(message: any): Promise<ICoreResponse> {
+    return await this.sendCommand({ 
+      type: 'preset:update', 
+      payload: message 
+    })
   }
   
   // 확장 가능한 명령 시스템
@@ -84,17 +105,17 @@ export class CoreCommunicationService implements ICoreCommunicationService {
     // 기본 명령어들 등록 (ping은 NamedPipeService에서 직접 처리)
     this.commandRegistry.register({
       name: 'game:detect:start',
-      handler: async () => await this.namedPipeService.sendCommand('start-game-detect')
+      handler: async () => await this.namedPipeService.sendCommand(Commands.StartGameDetect)
     })
     
     this.commandRegistry.register({
       name: 'game:detect:stop',
-      handler: async () => await this.namedPipeService.sendCommand('stop-game-detect')
+      handler: async () => await this.namedPipeService.sendCommand(Commands.StopGameDetect)
     })
     
     this.commandRegistry.register({
       name: 'game:status',
-      handler: async () => await this.namedPipeService.sendCommand('get-game-status')
+      handler: async () => await this.namedPipeService.sendCommand(Commands.GetGameStatus)
     })
     
     this.commandRegistry.register({
@@ -102,14 +123,31 @@ export class CoreCommunicationService implements ICoreCommunicationService {
       requestValidator: (data): data is { playerId?: number } => 
         data.playerId === undefined || typeof data.playerId === 'number',
       handler: async (req) => {
-        const args = req.playerId ? [req.playerId.toString()] : []
-        return await this.namedPipeService.sendCommand('get-unit-counts', args)
+        // 새로운 프로토콜: payload에 직접 데이터 전송
+        return await this.namedPipeService.sendCommand(Commands.GetUnitCounts, req.playerId ? { playerId: req.playerId } : undefined)
       }
     })
     
     this.commandRegistry.register({
       name: 'game:player:info',
-      handler: async () => await this.namedPipeService.sendCommand('get-player-info')
+      handler: async () => await this.namedPipeService.sendCommand(Commands.GetPlayerInfo)
+    })
+    
+    // 프리셋 관련 명령
+    this.commandRegistry.register({
+      name: 'preset:init',
+      handler: async (req: any) => {
+        // 새로운 프로토콜: payload에 직접 데이터 전송
+        return await this.namedPipeService.sendCommand(Commands.PresetInit, req)
+      }
+    })
+    
+    this.commandRegistry.register({
+      name: 'preset:update',
+      handler: async (req: any) => {
+        // 새로운 프로토콜: payload에 직접 데이터 전송
+        return await this.namedPipeService.sendCommand(Commands.PresetUpdate, req)
+      }
     })
     
     console.log('✅ 기본 Core 명령어 등록 완료')
@@ -168,6 +206,25 @@ export class CoreCommunicationService implements ICoreCommunicationService {
       }
     })
 
+    // WorkerManager 이벤트 핸들러들
+    this.namedPipeService.onEvent(Events.WorkerStatusChanged, (data: WorkerStatusChangedEvent) => {
+      if (this.workerStatusChangedCallback) {
+        this.workerStatusChangedCallback(data)
+      }
+    })
+
+    this.namedPipeService.onEvent(Events.GasBuildingAlert, (data: GasBuildingAlertEvent) => {
+      if (this.gasBuildingAlertCallback) {
+        this.gasBuildingAlertCallback()
+      }
+    })
+
+    this.namedPipeService.onEvent(Events.WorkerPresetChanged, (data: WorkerPresetChangedEvent) => {
+      if (this.workerPresetChangedCallback) {
+        this.workerPresetChangedCallback(data)
+      }
+    })
+
     console.log('✅ Core 이벤트 핸들러 설정 완료')
   }
 
@@ -209,6 +266,31 @@ export class CoreCommunicationService implements ICoreCommunicationService {
   // 윈도우 위치 변경 콜백 제거
   offWindowPositionChanged(): void {
     this.windowPositionChangedCallback = null
+  }
+
+  // WorkerManager 이벤트 콜백 등록/해제 메서드들
+  onWorkerStatusChanged(callback: (data: WorkerStatusChangedEvent) => void): void {
+    this.workerStatusChangedCallback = callback
+  }
+
+  offWorkerStatusChanged(): void {
+    this.workerStatusChangedCallback = null
+  }
+
+  onGasBuildingAlert(callback: () => void): void {
+    this.gasBuildingAlertCallback = callback
+  }
+
+  offGasBuildingAlert(): void {
+    this.gasBuildingAlertCallback = null
+  }
+
+  onWorkerPresetChanged(callback: (data: WorkerPresetChangedEvent) => void): void {
+    this.workerPresetChangedCallback = callback
+  }
+
+  offWorkerPresetChanged(): void {
+    this.workerPresetChangedCallback = null
   }
   
 }

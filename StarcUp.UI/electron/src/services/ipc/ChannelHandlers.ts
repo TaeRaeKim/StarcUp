@@ -71,6 +71,15 @@ export class ChannelHandlers {
       await this.coreService.getUnitCounts(data.playerId)
     )
 
+    // 프리셋 관련 핸들러
+    this.ipcService.registerHandler('core:send-preset-init', async (data) => 
+      await this.coreService.sendPresetInit(data)
+    )
+
+    this.ipcService.registerHandler('core:send-preset-update', async (data) => 
+      await this.coreService.sendPresetUpdate(data)
+    )
+
     console.log('📡 Core IPC 핸들러 등록 완료')
   }
 

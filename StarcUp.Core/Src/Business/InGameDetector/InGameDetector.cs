@@ -156,7 +156,6 @@ namespace StarcUp.Business.InGameDetector
         private void OnProcessConnect(object sender, ProcessEventArgs e)
         {
             Console.WriteLine($"InGameMonitoring: 프로세스 연결됨 (PID: {e.ProcessId})");
-            _memoryService.DebugAllModules();
             StartMonitoring(e.ProcessId);
         }
 

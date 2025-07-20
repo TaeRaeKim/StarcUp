@@ -12,7 +12,7 @@ namespace StarcUp.Business.Profile
     [Flags]
     public enum WorkerPresetEnum : byte
     {
-        None = 0b0000_0000,        // 0s
+        None = 0b0000_0000,        // 0
         Default = 0b0000_0001,        // 1
         IncludeProduction = 0b0000_0010,  // 2
         Idle = 0b0000_0100,       // 4
@@ -184,22 +184,39 @@ namespace StarcUp.Business.Profile
             switch (eventType)
             {
                 case WorkerEventType.TotalCountChanged:
-                    TotalCountChanged?.Invoke(this, eventArgs);
+                    if (IsWorkerStateSet(WorkerPresetEnum.Default))
+                    {
+                        TotalCountChanged?.Invoke(this, eventArgs);
+                    }
                     break;
                 case WorkerEventType.ProductionCompleted:
-                    ProductionCompleted?.Invoke(this, eventArgs);
+                    if (IsWorkerStateSet(WorkerPresetEnum.DetectProduction))
+                    {
+                        ProductionCompleted?.Invoke(this, eventArgs);
+                    }
                     break;
                 case WorkerEventType.WorkerDied:
-                    WorkerDied?.Invoke(this, eventArgs);
+                    if (IsWorkerStateSet(WorkerPresetEnum.DetectDeath))
+                    {
+                        WorkerDied?.Invoke(this, eventArgs);
+                    }
                     break;
                 case WorkerEventType.IdleCountChanged:
-                    IdleCountChanged?.Invoke(this, eventArgs);
+                    if (IsWorkerStateSet(WorkerPresetEnum.Idle))
+                    {
+                        IdleCountChanged?.Invoke(this, eventArgs);
+                    }
                     break;
             }
         }
 
         private void RaiseGasBuildingAlert(GasBuildingState state)
         {
+            if (!IsWorkerStateSet(WorkerPresetEnum.CheckGas))
+            {
+                return;
+            }
+
             var eventArgs = new GasBuildingEventArgs
             {
                 PlayerId = LocalPlayerId,

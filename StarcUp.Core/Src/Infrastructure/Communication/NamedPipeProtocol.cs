@@ -122,6 +122,10 @@ namespace StarcUp.Infrastructure.Communication
             public const string GetGameStatus = "get-game-status";
             public const string GetUnitCounts = "get-unit-counts";
             public const string GetPlayerInfo = "get-player-info";
+            
+            // 프리셋 관련 명령
+            public const string PresetInit = "preset-init";
+            public const string PresetUpdate = "preset-update";
         }
 
         /// <summary>
@@ -129,9 +133,15 @@ namespace StarcUp.Infrastructure.Communication
         /// </summary>
         public static class Events
         {
+            // 게임 프로세스 관련 이벤트
             public const string GameDetected = "game-detected";
             public const string GameEnded = "game-ended";
             public const string GameStatusChanged = "game-status-changed";
+            
+            // WorkerManager 관련 이벤트
+            public const string WorkerStatusChanged = "worker-status-changed";
+            public const string GasBuildingAlert = "gas-building-alert";
+            public const string WorkerPresetChanged = "worker-preset-changed";
         }
     }
 }

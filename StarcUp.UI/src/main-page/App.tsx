@@ -7,6 +7,12 @@ import { UnitDetailSettings } from "@/components/UnitDetailSettings";
 import { UpgradeDetailSettings } from "@/components/UpgradeDetailSettings";
 import { BuildOrderDetailSettings } from "@/components/BuildOrderDetailSettings";
 import { DevelopmentModal } from "@/components/DevelopmentModal";
+import { 
+  calculateWorkerSettingsMask, 
+  type PresetInitMessage, 
+  type WorkerPreset,
+  type WorkerSettings 
+} from "../utils/presetUtils";
 
 // 게임 상태 타입 정의
 type GameStatus = 'playing' | 'waiting' | 'error';
@@ -39,8 +45,8 @@ interface Preset {
 const initialPresets: Preset[] = [
   {
     id: "preset1",
-    name: "공발질-8겟뽕",
-    description: "공중 발업 질럿 러쉬 + 8마리 겟뽕",
+    name: "Default Preset",
+    description: "아직 프리셋 구현 안됨",
     featureStates: [true, false, false, false, false], // 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
     selectedRace: 'protoss'
   },
@@ -120,6 +126,51 @@ export default function App() {
 
   // 자동 overlay 관리는 이제 메인 프로세스에서 처리됩니다
 
+  // 프리셋 초기화 함수 (Named Pipe 연결 후 호출)
+  const sendPresetInit = async () => {
+    try {
+      // 현재 일꾼 설정을 기본값으로 구성 (실제로는 저장된 설정을 불러와야 함)
+      const currentWorkerSettings: WorkerSettings = {
+        workerCountDisplay: true,           // 일꾼 수 출력 기본 활성화
+        includeProducingWorkers: false,     // 생산 중인 일꾼 수 포함 기본 비활성화
+        idleWorkerDisplay: true,            // 유휴 일꾼 수 출력 기본 활성화
+        workerProductionDetection: true,    // 일꾼 생산 감지 기본 활성화
+        workerDeathDetection: true,         // 일꾼 사망 감지 기본 활성화
+        gasWorkerCheck: true                // 가스 일꾼 체크 기본 활성화
+      };
+
+      const workerMask = calculateWorkerSettingsMask(currentWorkerSettings);
+      
+      const initMessage: PresetInitMessage = {
+        type: 'preset-init',
+        timestamp: Date.now(),
+        presets: {
+          worker: {
+            enabled: currentPreset.featureStates[0], // 일꾼 기능 활성화 여부
+            settingsMask: workerMask
+          } as WorkerPreset
+          // 향후 다른 프리셋들도 여기에 추가
+        }
+      };
+
+      console.log('🚀 프리셋 초기화 메시지 전송:', initMessage);
+      
+      if (window.coreAPI?.sendPresetInit) {
+        const response = await window.coreAPI.sendPresetInit(initMessage);
+        
+        if (response?.success) {
+          console.log('✅ 프리셋 초기화 성공:', response.data);
+        } else {
+          console.error('❌ 프리셋 초기화 실패:', response?.error);
+        }
+      } else {
+        console.warn('⚠️ coreAPI.sendPresetInit 함수가 사용 불가능합니다');
+      }
+    } catch (error) {
+      console.error('💥 프리셋 초기화 중 오류 발생:', error);
+    }
+  };
+
   const toggleOverlay = async () => {
     const newState = !isActive;
     
@@ -133,6 +184,10 @@ export default function App() {
         const response = await window.coreAPI?.startDetection();
         if (response?.success) {
           console.log('Core 게임 감지 시작됨:', response.data);
+          
+          // Core 연결 성공 후 프리셋 초기화 메시지 전송
+          await sendPresetInit();
+          
           // 자동 overlay 관리가 메인 프로세스에서 처리됩니다
         } else {
           console.error('Core 게임 감지 시작 실패:', response?.error);

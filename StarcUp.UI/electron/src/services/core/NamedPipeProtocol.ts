@@ -107,18 +107,18 @@ export class NamedPipeProtocol {
   }
 
   /**
-   * 메시지 타입 확인 헬퍼 (숫자/문자열 모두 지원)
+   * 메시지 타입 확인 헬퍼
    */
   static isRequest(message: any): message is RequestMessage {
-    return (message.type === MessageType.Request || message.type === 0) && typeof message.command === 'string'
+    return message.type === MessageType.Request && typeof message.command === 'string'
   }
 
   static isResponse(message: any): message is ResponseMessage {
-    return (message.type === MessageType.Response || message.type === 1) && typeof message.requestId === 'string'
+    return message.type === MessageType.Response && typeof message.requestId === 'string'
   }
 
   static isEvent(message: any): message is EventMessage {
-    return (message.type === MessageType.Event || message.type === 2) && typeof message.event === 'string'
+    return message.type === MessageType.Event && typeof message.event === 'string'
   }
 }
 
@@ -132,13 +132,23 @@ export const Commands = {
   GetGameStatus: 'get-game-status',
   GetUnitCounts: 'get-unit-counts',
   GetPlayerInfo: 'get-player-info',
+  
+  // 프리셋 관련 명령
+  PresetInit: 'preset-init',
+  PresetUpdate: 'preset-update'
 } as const
 
 /**
  * 지원되는 이벤트 목록
  */
 export const Events = {
+  // 게임 프로세스 관련 이벤트
   GameDetected: 'game-detected',
   GameEnded: 'game-ended',
   GameStatusChanged: 'game-status-changed',
+  
+  // WorkerManager 관련 이벤트
+  WorkerStatusChanged: 'worker-status-changed',
+  GasBuildingAlert: 'gas-building-alert',
+  WorkerPresetChanged: 'worker-preset-changed'
 } as const
