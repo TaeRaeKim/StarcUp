@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { CenterPositionData } from '../../electron/src/services/types'
+import { WorkerStatus } from './components/WorkerStatus'
+import { OverlaySettingsPanel, type OverlaySettings } from './components/OverlaySettings'
 
 export function OverlayApp() {
   const [centerPosition, setCenterPosition] = useState<CenterPositionData | null>(null)
@@ -13,22 +15,41 @@ export function OverlayApp() {
   // WorkerManager 이벤트 상태
   const [workerStatus, setWorkerStatus] = useState<any>(null)
   const [lastWorkerEvent, setLastWorkerEvent] = useState<string | null>(null)
+  const [gameStatus, setGameStatus] = useState<string>('waiting') // 'waiting', 'playing', 'game-ended'
   const [isEditMode, setIsEditMode] = useState(false)
   const [debugPosition, setDebugPosition] = useState({ x: 10, y: 10 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [workerPosition, setWorkerPosition] = useState({ x: 50, y: 50 })
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  
+  // 오버레이 설정 상태
+  const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>({
+    showWorkerStatus: true,
+    showBuildOrder: false,
+    showUnitCount: false,
+    showUpgradeProgress: false,
+    showPopulationWarning: false,
+    opacity: 90
+  })
 
   // 기본 위치로 리셋하는 함수 (오버레이 컨테이너 기준)
   const resetToCenter = () => {
     const overlayContainer = document.querySelector('.overlay-container') as HTMLElement
-    if (overlayContainer) {
+    const debugPanel = document.querySelector('.debug-info') as HTMLElement
+    
+    if (overlayContainer && debugPanel) {
       const containerRect = overlayContainer.getBoundingClientRect()
-      const centerX = containerRect.width / 2 - 160 // 패널 너비의 절반 정도
-      const centerY = containerRect.height / 2 - 100 // 패널 높이의 절반 정도
+      const panelRect = debugPanel.getBoundingClientRect()
+      
+      // 실제 패널 크기를 기반으로 한 정확한 중앙 계산
+      const centerX = (containerRect.width - panelRect.width) / 2
+      const centerY = (containerRect.height - panelRect.height) / 2
+      
       setDebugPosition({ x: centerX, y: centerY })
       console.log('🎯 디버그 패널 위치 중앙으로 리셋:', { x: centerX, y: centerY })
     } else {
-      console.warn('⚠️ 오버레이 컨테이너를 찾을 수 없습니다')
+      console.warn('⚠️ 오버레이 컨테이너 또는 디버그 패널을 찾을 수 없습니다')
     }
   }
 
@@ -113,14 +134,26 @@ export function OverlayApp() {
   useEffect(() => {
     if (typeof window !== 'undefined' && window.electronAPI) {
       const electronAPI = window.electronAPI as any
+      
+      // 편집 모드 토글 이벤트 리스너
       if (electronAPI.onToggleEditMode) {
         console.log('🎯 편집 모드 IPC 리스너 등록')
-        const unsubscribe = electronAPI.onToggleEditMode((data: { isEditMode: boolean }) => {
+        const unsubscribeEditMode = electronAPI.onToggleEditMode((data: { isEditMode: boolean }) => {
           console.log('🎯 편집 모드 토글 IPC 이벤트 수신:', data.isEditMode)
           setIsEditMode(data.isEditMode)
         })
         
-        return unsubscribe
+        // 게임 상태 변경 이벤트 리스너 추가 (coreAPI에서 가져오기)
+        const coreAPI = (window as any).coreAPI
+        const unsubscribeGameStatus = coreAPI && coreAPI.onGameStatusChanged && coreAPI.onGameStatusChanged((data: { status: string }) => {
+          console.log('🎮 [Overlay] 게임 상태 변경:', data.status, '| 현재 workerStatus:', workerStatus ? 'EXISTS' : 'NULL')
+          setGameStatus(data.status)
+        })
+        
+        return () => {
+          unsubscribeEditMode()
+          if (unsubscribeGameStatus) unsubscribeGameStatus()
+        }
       } else {
         console.warn('⚠️ onToggleEditMode 메서드를 찾을 수 없습니다')
       }
@@ -136,28 +169,43 @@ export function OverlayApp() {
     e.preventDefault()
     setIsDragging(true)
     
-    const rect = (e.target as HTMLElement).getBoundingClientRect()
-    setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    })
+    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement
+    const debugPanel = document.querySelector('.debug-info') as HTMLElement
+    
+    if (overlayContainer && debugPanel) {
+      const containerRect = overlayContainer.getBoundingClientRect()
+      const panelRect = debugPanel.getBoundingClientRect()
+      
+      // 컨테이너 기준으로 현재 패널 위치 계산
+      const currentPanelX = panelRect.left - containerRect.left
+      const currentPanelY = panelRect.top - containerRect.top
+      
+      // 마우스 클릭 위치에서 패널 좌상단까지의 오프셋
+      setDragOffset({
+        x: e.clientX - containerRect.left - currentPanelX,
+        y: e.clientY - containerRect.top - currentPanelY
+      })
+    }
   }
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !isEditMode) return
     
     const overlayContainer = document.querySelector('.overlay-container') as HTMLElement
-    if (!overlayContainer) return
+    const debugPanel = document.querySelector('.debug-info') as HTMLElement
+    if (!overlayContainer || !debugPanel) return
     
     const containerRect = overlayContainer.getBoundingClientRect()
+    const panelRect = debugPanel.getBoundingClientRect()
+    
     const newPosition = {
       x: e.clientX - containerRect.left - dragOffset.x,
       y: e.clientY - containerRect.top - dragOffset.y
     }
     
-    // 오버레이 컨테이너 경계 제한
-    const clampedX = Math.max(0, Math.min(containerRect.width - 320, newPosition.x))
-    const clampedY = Math.max(0, Math.min(containerRect.height - 200, newPosition.y))
+    // 실제 패널 크기를 기반으로 한 경계 제한
+    const clampedX = Math.max(0, Math.min(containerRect.width - panelRect.width, newPosition.x))
+    const clampedY = Math.max(0, Math.min(containerRect.height - panelRect.height, newPosition.y))
     
     setDebugPosition({ x: clampedX, y: clampedY })
   }, [isDragging, isEditMode, dragOffset])
@@ -179,11 +227,80 @@ export function OverlayApp() {
     }
   }, [isDragging, handleMouseMove, handleMouseUp])
 
-  // 개발 환경에서만 디버그 정보 표시
-  const showDebugInfo = process.env.NODE_ENV === 'development'
+  // 윈도우 위치/크기 변경 감지 및 아이템 위치 조정 (window-position-changed 이벤트 기반)
+  useEffect(() => {
+    if (!centerPosition) return
+
+    const adjustItemPositions = () => {
+      // 오버레이 윈도우의 실제 크기 (게임 영역 크기)
+      const overlayWidth = centerPosition.gameAreaBounds.width
+      const overlayHeight = centerPosition.gameAreaBounds.height
+      
+      console.log('🔧 [위치 조정] 오버레이 크기:', { width: overlayWidth, height: overlayHeight })
+      
+      // 디버그 패널 위치 조정
+      const debugPanel = document.querySelector('.debug-info') as HTMLElement
+      if (debugPanel) {
+        const panelRect = debugPanel.getBoundingClientRect()
+        const newDebugX = Math.max(0, Math.min(overlayWidth - panelRect.width, debugPosition.x))
+        const newDebugY = Math.max(0, Math.min(overlayHeight - panelRect.height, debugPosition.y))
+        
+        if (newDebugX !== debugPosition.x || newDebugY !== debugPosition.y) {
+          console.log('🔧 [위치 조정] 디버그 패널:', { from: debugPosition, to: { x: newDebugX, y: newDebugY } })
+          setDebugPosition({ x: newDebugX, y: newDebugY })
+        }
+      }
+      
+      // WorkerStatus 위치 조정
+      const workerStatusElement = document.querySelector('.worker-status') as HTMLElement
+      if (workerStatusElement) {
+        const workerRect = workerStatusElement.getBoundingClientRect()
+        const newWorkerX = Math.max(0, Math.min(overlayWidth - workerRect.width, workerPosition.x))
+        const newWorkerY = Math.max(0, Math.min(overlayHeight - workerRect.height, workerPosition.y))
+        
+        if (newWorkerX !== workerPosition.x || newWorkerY !== workerPosition.y) {
+          console.log('🔧 [위치 조정] WorkerStatus:', { from: workerPosition, to: { x: newWorkerX, y: newWorkerY } })
+          setWorkerPosition({ x: newWorkerX, y: newWorkerY })
+        }
+      }
+    }
+
+    // centerPosition이 변경될 때마다 위치 조정 실행
+    setTimeout(adjustItemPositions, 100) // DOM 업데이트 후 실행하기 위해 지연
+    
+  }, [centerPosition, debugPosition, workerPosition])
+
+  // 윈도우 크기에 따른 body 크기 동적 조정
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+
+    let dynamicBodyStyleElement = document.getElementById('dynamic-body-styles') as HTMLStyleElement
+    
+    if (!dynamicBodyStyleElement) {
+      dynamicBodyStyleElement = document.createElement('style')
+      dynamicBodyStyleElement.id = 'dynamic-body-styles'
+      document.head.appendChild(dynamicBodyStyleElement)
+    }
+
+    const width = centerPosition?.gameAreaBounds.width
+    const height = centerPosition?.gameAreaBounds.height
+    
+    dynamicBodyStyleElement.textContent = createDynamicBodyStyles(width, height)
+    
+    console.log('🔧 [Body 크기 조정]', { width, height })
+  }, [centerPosition])
+
+  // 개발 환경에서만 디버그 정보 표시 (현재 비활성화)
+  const showDebugInfo = false // process.env.NODE_ENV === 'development'
 
   return (
-    <div className="overlay-container">
+    <div 
+      className="overlay-container"
+      style={{
+        width: centerPosition ? `${centerPosition.gameAreaBounds.width}px` : '100vw',
+        height: centerPosition ? `${centerPosition.gameAreaBounds.height}px` : '100vh'
+      }}
+    >
       {/* 편집 모드 배경 효과 - 시각적 집중을 위한 오버레이 */}
       {isEditMode && (
         <div 
@@ -266,7 +383,58 @@ export function OverlayApp() {
         </div>
       )}
 
-      
+      {/* 오버레이 설정 버튼 - 우측 상단 고정 */}
+      <button
+        onClick={() => setIsSettingsOpen(true)}
+        style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          width: '40px',
+          height: '40px',
+          borderRadius: '50%',
+          border: 'none',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          color: 'white',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '18px',
+          zIndex: 15000,
+          transition: 'all 0.2s ease',
+          pointerEvents: 'auto',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = 'rgba(0, 153, 255, 0.8)'
+          e.currentTarget.style.transform = 'scale(1.1)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'
+          e.currentTarget.style.transform = 'scale(1)'
+        }}
+      >
+        ⚙️
+      </button>
+
+      {/* 일꾼 상태 오버레이 - InGame 상태일 때만 표시 */}
+      {(() => {
+        const shouldShow = gameStatus === 'playing' && workerStatus && overlaySettings.showWorkerStatus
+        return shouldShow ? (
+          <WorkerStatus
+            totalWorkers={workerStatus.totalWorkers || 0}
+            idleWorkers={workerStatus.idleWorkers || 0}
+            activeWorkers={workerStatus.activeWorkers || 0}
+            productionWorkers={workerStatus.productionWorkers || 0}
+            calculatedTotal={workerStatus.calculatedTotal || 0}
+            position={workerPosition}
+            isEditMode={isEditMode}
+            onPositionChange={setWorkerPosition}
+          />
+        ) : null
+      })()}
+
       {/* 디버그 정보 (개발 환경에서만) */}
       {showDebugInfo && (
         <div 
@@ -330,6 +498,15 @@ export function OverlayApp() {
           
           <div><strong>⏰ Status:</strong></div>
           <div>Overlay: {isVisible ? '👁️ Visible' : '🙈 Hidden'}</div>
+          <div>Game Status: 
+            <span style={{ 
+              color: gameStatus === 'playing' ? '#00ff00' : 
+                    gameStatus === 'waiting' ? '#ffaa00' : '#ff0000' 
+            }}>
+              {gameStatus === 'playing' ? '🎮 Playing' : 
+               gameStatus === 'waiting' ? '⏳ Waiting' : '🔚 Ended'}
+            </span>
+          </div>
           <div>Last Update: {lastUpdateTime ? lastUpdateTime.toLocaleTimeString() : 'Never'}</div>
           <div>Current Time: {new Date().toLocaleTimeString()}</div>
           <br />
@@ -342,13 +519,7 @@ export function OverlayApp() {
           <br />
           <div><strong>👷 WorkerManager Events:</strong></div>
           <div>Last Event: {lastWorkerEvent || 'None'}</div>
-          {workerStatus && (
-            <>
-              <div>Total: {workerStatus.totalWorkers} / Calc: {workerStatus.calculatedTotal}</div>
-              <div>Idle: {workerStatus.idleWorkers} / Prod: {workerStatus.productionWorkers}</div>
-              <div>Active: {workerStatus.activeWorkers}</div>
-            </>
-          )}
+          <div>Has Worker Data: {workerStatus ? '✅ Yes' : '❌ No'}</div>
         </div>
       )}
 
@@ -367,6 +538,14 @@ export function OverlayApp() {
           스타크래프트 윈도우 위치를 대기 중...
         </div>
       )}
+
+      {/* 오버레이 설정 패널 */}
+      <OverlaySettingsPanel
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={overlaySettings}
+        onSettingsChange={setOverlaySettings}
+      />
     </div>
   )
 }
@@ -374,8 +553,6 @@ export function OverlayApp() {
 // 전역 스타일
 const overlayStyles = `
   .overlay-container {
-    width: 100vw;
-    height: 100vh;
     position: relative;
     overflow: hidden;
     background: transparent;
@@ -389,6 +566,24 @@ const overlayStyles = `
   .edit-mode-backdrop {
     backdrop-filter: blur(8px) saturate(1.2);
     -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  }
+`
+
+// 동적 body 크기 조정 스타일
+const createDynamicBodyStyles = (width?: number, height?: number) => `
+  html, body {
+    width: ${width ? `${width}px` : '100vw'} !important;
+    height: ${height ? `${height}px` : '100vh'} !important;
+    background: transparent;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+  }
+
+  #root {
+    width: ${width ? `${width}px` : '100vw'} !important;
+    height: ${height ? `${height}px` : '100vh'} !important;
+    background: transparent;
   }
 `
 

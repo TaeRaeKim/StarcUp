@@ -152,7 +152,10 @@ export class ServiceContainer implements IServiceContainer {
     coreService.onGameStatusChanged((status: string) => {
       const isInGame = status === 'playing'
       overlayAutoManager.updateInGameStatus(isInGame)
-      this.resolve<IWindowManager>('windowManager').sendToMainWindow('game-status-changed', { status })
+      const windowManager = this.resolve<IWindowManager>('windowManager')
+      windowManager.sendToMainWindow('game-status-changed', { status })
+      // 오버레이 윈도우에도 게임 상태 변경 이벤트 전송
+      windowManager.sendToOverlayWindow('game-status-changed', { status })
     })
 
     // Foreground 상태 변경을 OverlayAutoManager로 전달
