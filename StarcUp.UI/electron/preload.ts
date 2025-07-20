@@ -55,6 +55,10 @@ contextBridge.exposeInMainWorld('coreAPI', {
   stopDetection: () => ipcRenderer.invoke('core:stop-detection'),
   getGameStatus: () => ipcRenderer.invoke('core:get-game-status'),
   
+  // 프리셋 관련 API
+  sendPresetInit: (message: any) => ipcRenderer.invoke('core:send-preset-init', message),
+  sendPresetUpdate: (message: any) => ipcRenderer.invoke('core:send-preset-update', message),
+  
   // 게임 상태 변경 이벤트 리스너
   onGameStatusChanged: (callback: (data: { status: string }) => void) => {
     const listener = (_event: any, data: { status: string }) => callback(data)

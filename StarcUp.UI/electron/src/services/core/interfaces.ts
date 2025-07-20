@@ -32,6 +32,10 @@ export interface ICoreCommunicationService {
   getUnitCounts(playerId?: number): Promise<ICoreResponse>
   getPlayerInfo(): Promise<ICoreResponse>
   
+  // 프리셋 관련
+  sendPresetInit(message: any): Promise<ICoreResponse>
+  sendPresetUpdate(message: any): Promise<ICoreResponse>
+  
   // 확장 가능한 명령 시스템
   sendCommand<T>(command: ICoreCommand): Promise<ICoreResponse<T>>
   

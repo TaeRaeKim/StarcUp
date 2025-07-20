@@ -44,6 +44,21 @@ export class CoreCommunicationService implements ICoreCommunicationService {
     return await this.sendCommand({ type: 'game:player:info', payload: {} })
   }
   
+  // 프리셋 관련
+  async sendPresetInit(message: any): Promise<ICoreResponse> {
+    return await this.sendCommand({ 
+      type: 'preset:init', 
+      payload: message 
+    })
+  }
+  
+  async sendPresetUpdate(message: any): Promise<ICoreResponse> {
+    return await this.sendCommand({ 
+      type: 'preset:update', 
+      payload: message 
+    })
+  }
+  
   // 확장 가능한 명령 시스템
   async sendCommand<T>(command: ICoreCommand): Promise<ICoreResponse<T>> {
     return await this.commandRegistry.execute(command.type, command.payload)
@@ -110,6 +125,23 @@ export class CoreCommunicationService implements ICoreCommunicationService {
     this.commandRegistry.register({
       name: 'game:player:info',
       handler: async () => await this.namedPipeService.sendCommand('get-player-info')
+    })
+    
+    // 프리셋 관련 명령
+    this.commandRegistry.register({
+      name: 'preset:init',
+      handler: async (req: any) => {
+        // Core에서 기대하는 형식으로 변환하여 전송
+        return await this.namedPipeService.sendCommand('preset-init', [JSON.stringify(req)])
+      }
+    })
+    
+    this.commandRegistry.register({
+      name: 'preset:update',
+      handler: async (req: any) => {
+        // Core에서 기대하는 형식으로 변환하여 전송
+        return await this.namedPipeService.sendCommand('preset-update', [JSON.stringify(req)])
+      }
     })
     
     console.log('✅ 기본 Core 명령어 등록 완료')
