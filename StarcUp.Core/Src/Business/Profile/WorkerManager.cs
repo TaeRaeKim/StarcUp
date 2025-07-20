@@ -184,22 +184,39 @@ namespace StarcUp.Business.Profile
             switch (eventType)
             {
                 case WorkerEventType.TotalCountChanged:
-                    TotalCountChanged?.Invoke(this, eventArgs);
+                    if (IsWorkerStateSet(WorkerPresetEnum.Default))
+                    {
+                        TotalCountChanged?.Invoke(this, eventArgs);
+                    }
                     break;
                 case WorkerEventType.ProductionCompleted:
-                    ProductionCompleted?.Invoke(this, eventArgs);
+                    if (IsWorkerStateSet(WorkerPresetEnum.DetectProduction))
+                    {
+                        ProductionCompleted?.Invoke(this, eventArgs);
+                    }
                     break;
                 case WorkerEventType.WorkerDied:
-                    WorkerDied?.Invoke(this, eventArgs);
+                    if (IsWorkerStateSet(WorkerPresetEnum.DetectDeath))
+                    {
+                        WorkerDied?.Invoke(this, eventArgs);
+                    }
                     break;
                 case WorkerEventType.IdleCountChanged:
-                    IdleCountChanged?.Invoke(this, eventArgs);
+                    if (IsWorkerStateSet(WorkerPresetEnum.Idle))
+                    {
+                        IdleCountChanged?.Invoke(this, eventArgs);
+                    }
                     break;
             }
         }
 
         private void RaiseGasBuildingAlert(GasBuildingState state)
         {
+            if (!IsWorkerStateSet(WorkerPresetEnum.CheckGas))
+            {
+                return;
+            }
+
             var eventArgs = new GasBuildingEventArgs
             {
                 PlayerId = LocalPlayerId,
