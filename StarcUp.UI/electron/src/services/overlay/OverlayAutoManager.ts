@@ -89,10 +89,10 @@ export class OverlayAutoManager implements IOverlayAutoManager {
       return
     }
 
-    const shouldShowOverlay = this.isInGame && this.isStarcraftInForeground
+    const shouldShowOverlay = this.isStarcraftInForeground
 
     if (shouldShowOverlay) {
-      //console.log('✅ 조건 만족 - overlay 표시 (InGame + Foreground)')
+      //console.log('✅ 조건 만족 - overlay 표시 (Foreground)')
       this.windowManager.showOverlay()
       
       // 오버레이 표시 시 현재 스타크래프트 위치로 동기화
@@ -100,7 +100,7 @@ export class OverlayAutoManager implements IOverlayAutoManager {
         this.syncOverlayPosition(this.currentStarCraftPosition)
       }
     } else {
-      //console.log(`❌ 조건 불만족 - overlay 숨김 (InGame: ${this.isInGame}, Foreground: ${this.isStarcraftInForeground})`)
+      //console.log(`❌ 조건 불만족 - overlay 숨김 (Foreground: ${this.isStarcraftInForeground})`)
       this.windowManager.hideOverlay()
     }
   }
@@ -116,7 +116,7 @@ export class OverlayAutoManager implements IOverlayAutoManager {
     // 자동 모드가 활성화되어 있으면 오버레이 표시 여부 확인 후 동기화
     if (this.isAutoModeEnabled) {
       // 오버레이가 표시되어야 하는 상황인지 확인
-      const shouldShowOverlay = this.isInGame && this.isStarcraftInForeground
+      const shouldShowOverlay = this.isStarcraftInForeground
       
       if (shouldShowOverlay) {
         this.windowManager.showOverlay()
