@@ -139,7 +139,7 @@ export function WorkerStatus({
             lineHeight: '1'
           }}
         >
-          {totalWorkers}
+          {calculatedTotal}
         </span>
         
         {idleWorkers > 0 && (
@@ -165,7 +165,7 @@ export function WorkerStatus({
             marginLeft: '4px'
           }}
         >
-          A:{activeWorkers} P:{productionWorkers}
+          A:{totalWorkers} P:{productionWorkers}
         </div>
       )}
     </div>
