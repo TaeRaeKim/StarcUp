@@ -1,0 +1,151 @@
+/* 오버레이 컨테이너 기본 스타일 */
+.overlay-container {
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* 편집 모드 배경 효과 */
+.edit-mode-backdrop {
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+}
+
+/* WorkerStatus 기본 스타일 */
+.worker-status {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.85);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+  min-width: 5.5em;
+  z-index: 1000;
+  cursor: default;
+  transition: all 0.2s ease;
+  pointer-events: auto;
+  user-select: none;
+}
+
+/* 편집 모드 스타일 */
+.worker-status.edit-mode {
+  border: 1px solid rgba(0, 153, 255, 0.5);
+  z-index: 1001;
+  cursor: move;
+  box-shadow: 0 4px 20px rgba(0, 153, 255, 0.3);
+}
+
+/* 드래그 중일 때 */
+.worker-status.dragging {
+  transition: none;
+}
+
+/* 생산 완료 이펙트 (파란색) */
+.worker-status.spawn-effect {
+  animation: spawnCounterEffect 0.8s ease-out;
+  border-color: #2196F3 !important;
+  color: #2196F3 !important;
+  box-shadow: 
+    0 0 30px rgba(33, 150, 243, 0.8),
+    inset 0 0 20px rgba(33, 150, 243, 0.2) !important;
+}
+
+@keyframes spawnCounterEffect {
+  0% {
+    filter: brightness(1);
+    background: rgba(0, 0, 0, 0.85);
+  }
+  20% {
+    filter: brightness(1.5);
+    border-color: #64B5F6;
+    background: 
+      linear-gradient(rgba(33, 150, 243, 0.2), rgba(33, 150, 243, 0.2)),
+      rgba(0, 0, 0, 0.85);
+    background-blend-mode: multiply;
+    box-shadow: 
+      0 0 40px rgba(33, 150, 243, 1),
+      inset 0 0 25px rgba(33, 150, 243, 0.4);
+  }
+  40% {
+    filter: brightness(1.3);
+    background: 
+      linear-gradient(rgba(33, 150, 243, 0.15), rgba(33, 150, 243, 0.15)),
+      rgba(0, 0, 0, 0.85);
+    background-blend-mode: multiply;
+  }
+  60% {
+    filter: brightness(1.1);
+    background: 
+      linear-gradient(rgba(33, 150, 243, 0.1), rgba(33, 150, 243, 0.1)),
+      rgba(0, 0, 0, 0.85);
+    background-blend-mode: multiply;
+  }
+  100% {
+    filter: brightness(1);
+    background: rgba(0, 0, 0, 0.85);
+  }
+}
+
+/* 일꾼 사망 이펙트 (빨간색) */
+.worker-status.death-effect {
+  animation: deathCounterEffect 0.6s ease-out;
+  border-color: #f44336 !important;
+  color: #f44336 !important;
+  box-shadow: 
+    0 0 25px rgba(244, 67, 54, 0.8),
+    inset 0 0 15px rgba(244, 67, 54, 0.3) !important;
+}
+
+/* 사망 효과 시 모든 텍스트 색상을 빨간색으로 강제 변경 */
+.worker-status.death-effect * {
+  color: #f44336 !important;
+}
+
+@keyframes deathCounterEffect {
+  0% {
+    filter: brightness(1);
+    background: rgba(0, 0, 0, 0.85);
+  }
+  10% {
+    filter: brightness(1.8) saturate(1.5);
+    border-color: #FF5722;
+    background: 
+      linear-gradient(rgba(244, 67, 54, 0.2), rgba(244, 67, 54, 0.2)),
+      rgba(0, 0, 0, 0.85);
+    background-blend-mode: multiply;
+  }
+  20% {
+    filter: brightness(1.6);
+    background: 
+      linear-gradient(rgba(244, 67, 54, 0.15), rgba(244, 67, 54, 0.15)),
+      rgba(0, 0, 0, 0.85);
+    background-blend-mode: multiply;
+  }
+  30% {
+    filter: brightness(1.4);
+    background: 
+      linear-gradient(rgba(244, 67, 54, 0.1), rgba(244, 67, 54, 0.1)),
+      rgba(0, 0, 0, 0.85);
+    background-blend-mode: multiply;
+  }
+  40% {
+    filter: brightness(1.2);
+    background: 
+      linear-gradient(rgba(244, 67, 54, 0.05), rgba(244, 67, 54, 0.05)),
+      rgba(0, 0, 0, 0.85);
+    background-blend-mode: multiply;
+  }
+  50% {
+    filter: brightness(1.1);
+  }
+  60% {
+    filter: brightness(1.05);
+  }
+  100% {
+    filter: brightness(1);
+    background: rgba(0, 0, 0, 0.85);
+  }
+}
