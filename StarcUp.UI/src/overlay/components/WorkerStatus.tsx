@@ -128,7 +128,7 @@ export const WorkerStatus = forwardRef<WorkerStatusRef, WorkerStatusProps>(({
         style={{
           width: '27px',
           height: '27px',
-          backgroundColor: '#FFB800',
+          backgroundColor: 'transparent',
           borderRadius: '3px',
           display: 'flex',
           alignItems: 'center',
