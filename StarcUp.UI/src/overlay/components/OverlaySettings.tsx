@@ -1,4 +1,5 @@
 import React from 'react'
+import { Eye, EyeOff, Palette, Construction, X } from 'lucide-react'
 
 interface OverlaySettings {
   showWorkerStatus: boolean
@@ -7,6 +8,9 @@ interface OverlaySettings {
   showUpgradeProgress: boolean
   showPopulationWarning: boolean
   opacity: number
+  unitIconStyle: 'default' | 'white' | 'yellow' | 'hd'
+  upgradeIconStyle: 'default' | 'white' | 'yellow'
+  teamColor: string
 }
 
 interface OverlaySettingsPanelProps {
@@ -58,6 +62,75 @@ function Switch({ checked, onCheckedChange, disabled = false }: {
     </button>
   )
 }
+
+// 라디오 그룹 컴포넌트
+function RadioGroup({ value, onValueChange, children }: {
+  value: string
+  onValueChange: (value: string) => void
+  children: React.ReactNode
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {children}
+    </div>
+  )
+}
+
+// 라디오 버튼 아이템 컴포넌트
+function RadioGroupItem({ value, id, checked, onChange }: {
+  value: string
+  id: string
+  checked: boolean
+  onChange: (value: string) => void
+}) {
+  return (
+    <input
+      type="radio"
+      id={id}
+      value={value}
+      checked={checked}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        width: '16px',
+        height: '16px',
+        accentColor: '#0099ff'
+      }}
+    />
+  )
+}
+
+// 라벨 컴포넌트
+function Label({ htmlFor, children, style }: {
+  htmlFor: string
+  children: React.ReactNode
+  style?: React.CSSProperties
+}) {
+  return (
+    <label
+      htmlFor={htmlFor}
+      style={{
+        fontSize: '12px',
+        color: '#ffffff',
+        cursor: 'pointer',
+        ...style
+      }}
+    >
+      {children}
+    </label>
+  )
+}
+
+// 팀 컬러 데이터
+const TEAM_COLORS = [
+  { hex: '#F40404', name: 'Red' },
+  { hex: '#0C48CC', name: 'Blue' },
+  { hex: '#2CB494', name: 'Teal' },
+  { hex: '#88409C', name: 'Purple' },
+  { hex: '#F88C14', name: 'Orange' },
+  { hex: '#703014', name: 'Brown' },
+  { hex: '#CCE0D0', name: 'White' },
+  { hex: '#FCFC38', name: 'Yellow' }
+]
 
 // 슬라이더 컴포넌트
 function Slider({ value, onValueChange, min = 0, max = 100, step = 1 }: {
@@ -121,7 +194,7 @@ function Slider({ value, onValueChange, min = 0, max = 100, step = 1 }: {
 export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChange }: OverlaySettingsPanelProps) {
   if (!isOpen) return null
 
-  const handleSettingChange = (key: keyof OverlaySettings, value: boolean | number) => {
+  const handleSettingChange = (key: keyof OverlaySettings, value: boolean | number | string) => {
     onSettingsChange({
       ...settings,
       [key]: value
@@ -206,7 +279,7 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
               e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)'
             }}
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -230,9 +303,10 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
                   <span style={{ fontSize: '14px', color: '#ffffff' }}>
                     일꾼 상태
                   </span>
-                  <span style={{ fontSize: '12px', color: '#00ff00' }}>
-                    {settings.showWorkerStatus ? '👁️' : '🙈'}
-                  </span>
+                  {settings.showWorkerStatus ? 
+                    <Eye className="w-4 h-4" style={{ color: '#00ff88' }} /> : 
+                    <EyeOff className="w-4 h-4" style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
+                  }
                 </div>
                 <Switch
                   checked={settings.showWorkerStatus}
@@ -245,9 +319,7 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
                   <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.5)' }}>
                     빌드 오더
                   </span>
-                  <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)' }}>
-                    🚧
-                  </span>
+                  <Construction className="w-4 h-4" style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
                 </div>
                 <Switch
                   checked={settings.showBuildOrder}
@@ -261,9 +333,7 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
                   <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.5)' }}>
                     유닛 수
                   </span>
-                  <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)' }}>
-                    🚧
-                  </span>
+                  <Construction className="w-4 h-4" style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
                 </div>
                 <Switch
                   checked={settings.showUnitCount}
@@ -277,9 +347,7 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
                   <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.5)' }}>
                     업그레이드 진행도
                   </span>
-                  <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)' }}>
-                    🚧
-                  </span>
+                  <Construction className="w-4 h-4" style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
                 </div>
                 <Switch
                   checked={settings.showUpgradeProgress}
@@ -293,15 +361,185 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
                   <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.5)' }}>
                     인구 경고
                   </span>
-                  <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)' }}>
-                    🚧
-                  </span>
+                  <Construction className="w-4 h-4" style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
                 </div>
                 <Switch
                   checked={settings.showPopulationWarning}
                   onCheckedChange={(checked) => handleSettingChange('showPopulationWarning', checked)}
                   disabled={true}
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* 아이콘 설정 */}
+          <div>
+            <h3 style={{
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#ffffff',
+              marginBottom: '16px',
+              margin: '0 0 16px 0'
+            }}>
+              아이콘 설정
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* 유닛 아이콘 설정 */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <Palette className="w-4 h-4" style={{ color: '#0099ff' }} />
+                  <span style={{
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    color: '#ffffff'
+                  }}>
+                    유닛 아이콘
+                  </span>
+                </div>
+                <RadioGroup
+                  value={settings.unitIconStyle}
+                  onValueChange={(value) => handleSettingChange('unitIconStyle', value)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <RadioGroupItem 
+                      value="default" 
+                      id="unit-default" 
+                      checked={settings.unitIconStyle === 'default'}
+                      onChange={(value) => handleSettingChange('unitIconStyle', value)}
+                    />
+                    <Label htmlFor="unit-default">Default</Label>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <RadioGroupItem 
+                      value="white" 
+                      id="unit-white" 
+                      checked={settings.unitIconStyle === 'white'}
+                      onChange={(value) => handleSettingChange('unitIconStyle', value)}
+                    />
+                    <Label htmlFor="unit-white">White</Label>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <RadioGroupItem 
+                      value="yellow" 
+                      id="unit-yellow" 
+                      checked={settings.unitIconStyle === 'yellow'}
+                      onChange={(value) => handleSettingChange('unitIconStyle', value)}
+                    />
+                    <Label htmlFor="unit-yellow">Warm Yellow</Label>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <RadioGroupItem 
+                      value="hd" 
+                      id="unit-hd" 
+                      checked={settings.unitIconStyle === 'hd'}
+                      onChange={(value) => handleSettingChange('unitIconStyle', value)}
+                    />
+                    <Label htmlFor="unit-hd">HD (Team Color)</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* HD 모드 팀 컬러 선택 */}
+              {settings.unitIconStyle === 'hd' && (
+                <div>
+                  <span style={{
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    color: '#ffffff',
+                    display: 'block',
+                    marginBottom: '12px'
+                  }}>
+                    팀 컬러 선택
+                  </span>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(4, 1fr)', 
+                    gap: '8px' 
+                  }}>
+                    {TEAM_COLORS.map((color) => (
+                      <button
+                        key={color.hex}
+                        onClick={() => handleSettingChange('teamColor', color.hex)}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '4px',
+                          border: `2px solid ${settings.teamColor === color.hex ? '#0099ff' : 'rgba(255, 255, 255, 0.2)'}`,
+                          backgroundColor: color.hex,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          boxShadow: settings.teamColor === color.hex ? '0 0 8px rgba(0, 153, 255, 0.4)' : 'none',
+                          transform: settings.teamColor === color.hex ? 'scale(1.1)' : 'scale(1)'
+                        }}
+                        title={color.name}
+                        onMouseEnter={(e) => {
+                          if (settings.teamColor !== color.hex) {
+                            e.currentTarget.style.transform = 'scale(1.05)'
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = settings.teamColor === color.hex ? 'scale(1.1)' : 'scale(1)'
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <p style={{
+                    fontSize: '11px',
+                    color: 'rgba(255, 255, 255, 0.5)',
+                    lineHeight: '1.4',
+                    marginTop: '8px',
+                    margin: '8px 0 0 0'
+                  }}>
+                    선택한 색상: {TEAM_COLORS.find(c => c.hex === settings.teamColor)?.name || 'Unknown'}
+                  </p>
+                </div>
+              )}
+
+              {/* 업그레이드 아이콘 설정 */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <Palette className="w-4 h-4" style={{ color: '#ff8800' }} />
+                  <span style={{
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    color: '#ffffff'
+                  }}>
+                    업그레이드 아이콘
+                  </span>
+                </div>
+                <RadioGroup
+                  value={settings.upgradeIconStyle}
+                  onValueChange={(value) => handleSettingChange('upgradeIconStyle', value)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <RadioGroupItem 
+                      value="default" 
+                      id="upgrade-default" 
+                      checked={settings.upgradeIconStyle === 'default'}
+                      onChange={(value) => handleSettingChange('upgradeIconStyle', value)}
+                    />
+                    <Label htmlFor="upgrade-default">Default</Label>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <RadioGroupItem 
+                      value="white" 
+                      id="upgrade-white" 
+                      checked={settings.upgradeIconStyle === 'white'}
+                      onChange={(value) => handleSettingChange('upgradeIconStyle', value)}
+                    />
+                    <Label htmlFor="upgrade-white">White</Label>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <RadioGroupItem 
+                      value="yellow" 
+                      id="upgrade-yellow" 
+                      checked={settings.upgradeIconStyle === 'yellow'}
+                      onChange={(value) => handleSettingChange('upgradeIconStyle', value)}
+                    />
+                    <Label htmlFor="upgrade-yellow">Warm Yellow</Label>
+                  </div>
+                </RadioGroup>
               </div>
             </div>
           </div>
@@ -358,6 +596,11 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
               <strong style={{ color: '#ffffff' }}>편집 모드:</strong> Shift + Tab 키를 눌러 오버레이 위치를 드래그로 조정할 수 있습니다.
               <br /><br />
               <strong style={{ color: '#ffffff' }}>🚧 개발 중:</strong> 빌드 오더, 유닛 수, 업그레이드 진행도, 인구 경고 기능은 현재 개발 중입니다.
+              <br /><br />
+              <strong style={{ color: '#ffffff' }}>아이콘 효과:</strong>
+              <br />• <strong>White:</strong> 선명한 흰색 효과 (그레이스케일 + 밝기 증가)
+              <br />• <strong>Warm Yellow:</strong> 따뜻한 황금빛 효과
+              <br />• <strong>HD (Team Color):</strong> 실시간 팀 컬러 합성 (8가지 색상)
             </p>
           </div>
         </div>

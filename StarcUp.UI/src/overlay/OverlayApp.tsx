@@ -3,6 +3,7 @@ import { CenterPositionData } from '../../electron/src/services/types'
 import { WorkerStatus, type WorkerStatusRef } from './components/WorkerStatus'
 import { OverlaySettingsPanel, type OverlaySettings } from './components/OverlaySettings'
 import { type EffectType } from './hooks/useEffectSystem'
+import './styles/OverlayApp.css'
 
 export function OverlayApp() {
   const [centerPosition, setCenterPosition] = useState<CenterPositionData | null>(null)
@@ -29,7 +30,10 @@ export function OverlayApp() {
     showUnitCount: false,
     showUpgradeProgress: false,
     showPopulationWarning: false,
-    opacity: 90
+    opacity: 90,
+    unitIconStyle: 'default',
+    upgradeIconStyle: 'default',
+    teamColor: '#0099FF'
   })
 
   // 기본 위치로 리셋하는 함수 (오버레이 컨테이너 기준)
@@ -372,6 +376,8 @@ export function OverlayApp() {
             position={workerPosition}
             isEditMode={isEditMode}
             onPositionChange={setWorkerPosition}
+            unitIconStyle={overlaySettings.unitIconStyle}
+            teamColor={overlaySettings.teamColor}
           />
         ) : null
       })()}
@@ -404,102 +410,6 @@ export function OverlayApp() {
   )
 }
 
-// 전역 스타일
-const overlayStyles = `
-  .overlay-container {
-    position: relative;
-    overflow: hidden;
-    background: transparent;
-    pointer-events: none;
-  }
-
-  .edit-mode-backdrop {
-    backdrop-filter: blur(8px) saturate(1.2);
-    -webkit-backdrop-filter: blur(8px) saturate(1.2);
-  }
-
-  /* 생산 완료 이펙트 (파란색) */
-  .worker-status.spawn-effect {
-    animation: spawnCounterEffect 0.8s ease-out;
-    border-color: #2196F3 !important;
-    color: #2196F3;
-    box-shadow: 
-      0 0 30px rgba(33, 150, 243, 0.8),
-      inset 0 0 20px rgba(33, 150, 243, 0.2);
-  }
-
-  @keyframes spawnCounterEffect {
-    0% {
-      filter: brightness(1);
-    }
-    20% {
-      filter: brightness(1.5);
-      border-color: #64B5F6;
-      box-shadow: 
-        0 0 40px rgba(33, 150, 243, 1),
-        inset 0 0 25px rgba(33, 150, 243, 0.4);
-    }
-    40% {
-      filter: brightness(1.3);
-    }
-    60% {
-      filter: brightness(1.1);
-    }
-    100% {
-      filter: brightness(1);
-    }
-  }
-
-  /* 일꾼 사망 이펙트 (빨간색) */
-  .worker-status.death-effect {
-    animation: deathCounterEffect 0.6s ease-out;
-    border-color: #f44336 !important;
-    color: #f44336 !important;
-    box-shadow: 
-      0 0 25px rgba(244, 67, 54, 0.8),
-      inset 0 0 15px rgba(244, 67, 54, 0.3);
-  }
-
-  /* 사망 효과 시 모든 텍스트 색상을 빨간색으로 강제 변경 */
-  .worker-status.death-effect * {
-    color: #f44336 !important;
-  }
-
-  /* 사망 효과 시 아이콘 배경색을 빨간색으로 변경 */
-  .worker-status.death-effect > div:first-child {
-    background-color: #f44336 !important;
-  }
-
-  @keyframes deathCounterEffect {
-    0% {
-      filter: brightness(1);
-    }
-    10% {
-      filter: brightness(1.8) saturate(1.5);
-      border-color: #FF5722 !important;
-      background: rgba(244, 67, 54, 0.2) !important;
-    }
-    20% {
-      filter: brightness(1.6);
-    }
-    30% {
-      filter: brightness(1.4);
-    }
-    40% {
-      filter: brightness(1.2);
-    }
-    50% {
-      filter: brightness(1.1);
-    }
-    60% {
-      filter: brightness(1.05);
-    }
-    100% {
-      filter: brightness(1);
-      background: rgba(0, 0, 0, 0.85) !important;
-    }
-  }
-`
 
 // 동적 body 크기 조정 스타일
 const createDynamicBodyStyles = (width?: number, height?: number) => `
@@ -519,9 +429,3 @@ const createDynamicBodyStyles = (width?: number, height?: number) => `
   }
 `
 
-// 스타일 주입
-if (typeof document !== 'undefined') {
-  const styleElement = document.createElement('style')
-  styleElement.textContent = overlayStyles
-  document.head.appendChild(styleElement)
-}
