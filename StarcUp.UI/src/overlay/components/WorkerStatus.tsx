@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
+import { useEffectSystem, type EffectType } from '../hooks/useEffectSystem'
 
 interface WorkerStatusProps {
   totalWorkers: number
   idleWorkers: number
-  activeWorkers: number
   productionWorkers: number
   calculatedTotal: number
   position: { x: number; y: number }
@@ -11,18 +11,30 @@ interface WorkerStatusProps {
   onPositionChange?: (position: { x: number; y: number }) => void
 }
 
-export function WorkerStatus({
+export interface WorkerStatusRef {
+  triggerEffect: (effectType: EffectType) => void
+}
+
+export const WorkerStatus = forwardRef<WorkerStatusRef, WorkerStatusProps>(({
   totalWorkers,
   idleWorkers,
-  activeWorkers,
   productionWorkers,
   calculatedTotal,
   position,
   isEditMode,
   onPositionChange
-}: WorkerStatusProps) {
+}, ref) => {
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const workerStatusRef = useRef<HTMLDivElement>(null)
+  const { triggerEffect } = useEffectSystem()
+
+  // ref를 통해 외부에서 효과를 트리거할 수 있도록 노출
+  useImperativeHandle(ref, () => ({
+    triggerEffect: (effectType: EffectType) => {
+      triggerEffect(workerStatusRef.current, effectType)
+    }
+  }), [triggerEffect])
 
   // 드래그 시작
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -85,6 +97,7 @@ export function WorkerStatus({
 
   return (
     <div
+      ref={workerStatusRef}
       className="worker-status"
       onMouseDown={handleMouseDown}
       style={{
@@ -170,4 +183,4 @@ export function WorkerStatus({
       )}
     </div>
   )
-}
+})

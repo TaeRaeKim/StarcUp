@@ -704,12 +704,11 @@ namespace StarcUp.Business.Communication
         {
             var eventData = new
             {
+                eventType = e.EventType.ToString(),
                 totalWorkers = e.TotalWorkers,
                 calculatedTotal = e.CalculatedTotalWorkers,
                 idleWorkers = e.IdleWorkers,
-                productionWorkers = e.ProductionWorkers,
-                activeWorkers = e.ActiveWorkers,
-                eventType = e.EventType.ToString()          
+                productionWorkers = e.ProductionWorkers
             };
 
             _pipeClient.SendEvent(NamedPipeProtocol.Events.WorkerStatusChanged, eventData);

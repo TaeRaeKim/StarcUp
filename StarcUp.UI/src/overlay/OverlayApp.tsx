@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { CenterPositionData } from '../../electron/src/services/types'
-import { WorkerStatus } from './components/WorkerStatus'
+import { WorkerStatus, type WorkerStatusRef } from './components/WorkerStatus'
 import { OverlaySettingsPanel, type OverlaySettings } from './components/OverlaySettings'
+import { type EffectType } from './hooks/useEffectSystem'
 
 export function OverlayApp() {
   const [centerPosition, setCenterPosition] = useState<CenterPositionData | null>(null)
@@ -19,6 +20,7 @@ export function OverlayApp() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [workerPosition, setWorkerPosition] = useState({ x: 50, y: 50 })
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const workerStatusRef = useRef<WorkerStatusRef>(null)
   
   // 오버레이 설정 상태
   const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>({
@@ -93,6 +95,15 @@ export function OverlayApp() {
         console.log('👷 [Overlay] 일꾼 상태 변경:', data)
         setWorkerStatus(data)
         setLastWorkerEvent('status-changed')
+        
+        // eventType에 따른 효과 트리거
+        if (data.eventType && workerStatusRef.current) {
+          const effectType = data.eventType as EffectType
+          if (effectType === 'ProductionCompleted' || effectType === 'WorkerDied') {
+            console.log(`✨ [Overlay] ${effectType} 효과 트리거`)
+            workerStatusRef.current.triggerEffect(effectType)
+          }
+        }
       })
 
       const removeGasAlertListener = electronAPI.onGasBuildingAlert && electronAPI.onGasBuildingAlert(() => {
@@ -353,9 +364,9 @@ export function OverlayApp() {
         const shouldShow = gameStatus === 'playing' && workerStatus && overlaySettings.showWorkerStatus
         return shouldShow ? (
           <WorkerStatus
+            ref={workerStatusRef}
             totalWorkers={workerStatus.totalWorkers || 0}
             idleWorkers={workerStatus.idleWorkers || 0}
-            activeWorkers={workerStatus.activeWorkers || 0}
             productionWorkers={workerStatus.productionWorkers || 0}
             calculatedTotal={workerStatus.calculatedTotal || 0}
             position={workerPosition}
@@ -402,10 +413,81 @@ const overlayStyles = `
     pointer-events: none;
   }
 
-
   .edit-mode-backdrop {
     backdrop-filter: blur(8px) saturate(1.2);
     -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  }
+
+  /* 생산 완료 이펙트 (파란색) */
+  .worker-status.spawn-effect {
+    animation: spawnCounterEffect 0.8s ease-out;
+    border-color: #2196F3 !important;
+    color: #2196F3;
+    box-shadow: 
+      0 0 30px rgba(33, 150, 243, 0.8),
+      inset 0 0 20px rgba(33, 150, 243, 0.2);
+  }
+
+  @keyframes spawnCounterEffect {
+    0% {
+      filter: brightness(1);
+    }
+    20% {
+      filter: brightness(1.5);
+      border-color: #64B5F6;
+      box-shadow: 
+        0 0 40px rgba(33, 150, 243, 1),
+        inset 0 0 25px rgba(33, 150, 243, 0.4);
+    }
+    40% {
+      filter: brightness(1.3);
+    }
+    60% {
+      filter: brightness(1.1);
+    }
+    100% {
+      filter: brightness(1);
+    }
+  }
+
+  /* 일꾼 사망 이펙트 (빨간색) */
+  .worker-status.death-effect {
+    animation: deathCounterEffect 0.6s ease-out;
+    border-color: #f44336 !important;
+    color: #f44336;
+    box-shadow: 
+      0 0 25px rgba(244, 67, 54, 0.8),
+      inset 0 0 15px rgba(244, 67, 54, 0.3);
+  }
+
+  @keyframes deathCounterEffect {
+    0% {
+      filter: brightness(1);
+    }
+    10% {
+      filter: brightness(1.8) saturate(1.5);
+      border-color: #FF5722;
+      background: rgba(244, 67, 54, 0.2) !important;
+    }
+    20% {
+      filter: brightness(1.6);
+    }
+    30% {
+      filter: brightness(1.4);
+    }
+    40% {
+      filter: brightness(1.2);
+    }
+    50% {
+      filter: brightness(1.1);
+    }
+    60% {
+      filter: brightness(1.05);
+    }
+    100% {
+      filter: brightness(1);
+      background: rgba(0, 0, 0, 0.85) !important;
+    }
   }
 `
 
