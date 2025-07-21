@@ -454,10 +454,20 @@ const overlayStyles = `
   .worker-status.death-effect {
     animation: deathCounterEffect 0.6s ease-out;
     border-color: #f44336 !important;
-    color: #f44336;
+    color: #f44336 !important;
     box-shadow: 
       0 0 25px rgba(244, 67, 54, 0.8),
       inset 0 0 15px rgba(244, 67, 54, 0.3);
+  }
+
+  /* 사망 효과 시 모든 텍스트 색상을 빨간색으로 강제 변경 */
+  .worker-status.death-effect * {
+    color: #f44336 !important;
+  }
+
+  /* 사망 효과 시 아이콘 배경색을 빨간색으로 변경 */
+  .worker-status.death-effect > div:first-child {
+    background-color: #f44336 !important;
   }
 
   @keyframes deathCounterEffect {
@@ -466,7 +476,7 @@ const overlayStyles = `
     }
     10% {
       filter: brightness(1.8) saturate(1.5);
-      border-color: #FF5722;
+      border-color: #FF5722 !important;
       background: rgba(244, 67, 54, 0.2) !important;
     }
     20% {
