@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>유닛 수 오버레이 이펙트 예제</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), 
+                        url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            font-family: 'Arial', sans-serif;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+            text-shadow: 0 0 10px #4CAF50;
+            margin-bottom: 30px;
+        }
+
+        .game-area {
+            position: relative;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #333;
+            border-radius: 10px;
+            height: 500px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        /* 유닛 수 오버레이 스타일 */
+        .unit-counter {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 15px 25px;
+            border-radius: 30px;
+            border: 0px solid #2196F3;
+            font-size: 20px;
+            font-weight: bold;
+            z-index: 1000;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 20px rgba(33, 150, 243, 0.3);
+            min-width: 150px;
+            text-align: center;
+        }
+
+        /* 생산 완료 이펙트 - 파란색 베이스 */
+        .unit-counter.spawn-effect {
+            animation: spawnCounterEffect 0.8s ease-out;
+            border: 0px solid #2196F3;
+            color: #2196F3;
+            box-shadow: 
+                0 0 30px rgba(33, 150, 243, 0.8),
+                inset 0 0 20px rgba(33, 150, 243, 0.2);
+        }
+
+        /* 사망 이펙트 - 피격/쉐이크 */
+        .unit-counter.death-effect {
+            animation: deathCounterEffect 0.6s ease-out;
+            border: 0px solid #f44336;
+            color: #f44336;
+            box-shadow: 
+                0 0 25px rgba(244, 67, 54, 0.8),
+                inset 0 0 15px rgba(244, 67, 54, 0.3);
+        }
+
+        /* 생산 완료 애니메이션 */
+        @keyframes spawnCounterEffect {
+            0% {
+                filter: brightness(1);
+            }
+            20% {
+                filter: brightness(1.5);
+                box-shadow: 
+                    0 0 40px rgba(33, 150, 243, 1),
+                    inset 0 0 25px rgba(33, 150, 243, 0.4);
+            }
+            40% {
+                filter: brightness(1.3);
+            }
+            60% {
+                filter: brightness(1.1);
+            }
+            100% {
+                filter: brightness(1);
+            }
+        }
+
+        /* 사망/피격 애니메이션 */
+        @keyframes deathCounterEffect {
+            0% {
+                filter: brightness(1);
+                background: rgba(0, 0, 0, 0.75);
+            }
+            10% {
+                filter: brightness(1.8) saturate(1.5);
+                background: 
+                    linear-gradient(rgba(244, 67, 54, 0.2), rgba(244, 67, 54, 0.2)),
+                    rgba(0, 0, 0, 0.75);
+                background-blend-mode: multiply;
+            }
+            20% {
+                filter: brightness(1.6);
+                background: 
+                    linear-gradient(rgba(244, 67, 54, 0.15), rgba(244, 67, 54, 0.15)),
+                    rgba(0, 0, 0, 0.75);
+                background-blend-mode: multiply;
+            }
+            30% {
+                filter: brightness(1.4);
+                background: 
+                    linear-gradient(rgba(244, 67, 54, 0.1), rgba(244, 67, 54, 0.1)),
+                    rgba(0, 0, 0, 0.75);
+                background-blend-mode: multiply;
+            }
+            40% {
+                filter: brightness(1.2);
+                background: 
+                    linear-gradient(rgba(244, 67, 54, 0.05), rgba(244, 67, 54, 0.05)),
+                    rgba(0, 0, 0, 0.75);
+                background-blend-mode: multiply;
+            }
+            50% {
+                filter: brightness(1.1);
+            }
+            60% {
+                filter: brightness(1.05);
+            }
+            100% {
+                filter: brightness(1);
+                background: rgba(0, 0, 0, 0.75);
+            }
+        }
+
+        /* 숫자 변화 애니메이션 */
+        .counter-number {
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .counter-number.increase {
+            animation: numberIncrease 0.5s ease-out;
+        }
+
+        .counter-number.decrease {
+            animation: numberDecrease 0.5s ease-out;
+        }
+
+        @keyframes numberIncrease {
+            0% {
+                transform: scale(1);
+                color: inherit;
+            }
+            50% {
+                transform: scale(1.3);
+                color: #64B5F6;
+                text-shadow: 0 0 10px #2196F3;
+            }
+            100% {
+                transform: scale(1);
+                color: inherit;
+            }
+        }
+
+        @keyframes numberDecrease {
+            0% {
+                transform: scale(1);
+                color: inherit;
+            }
+            50% {
+                transform: scale(0.8);
+                color: #FF5722;
+                text-shadow: 0 0 10px #f44336;
+            }
+            100% {
+                transform: scale(1);
+                color: inherit;
+            }
+        }
+
+        /* 유닛 스타일 */
+        .unit {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        .unit:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px #4CAF50;
+        }
+
+        /* 컨트롤 버튼들 */
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .effect-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .effect-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .spawn-btn {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .spawn-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.5);
+        }
+
+        .effect-spawn-btn {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+            box-shadow: 0 2px 10px rgba(33, 150, 243, 0.3);
+        }
+
+        .effect-spawn-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.5);
+        }
+
+        .effect-death-btn {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            color: white;
+            box-shadow: 0 2px 10px rgba(244, 67, 54, 0.3);
+        }
+
+        .effect-death-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.5);
+        }
+
+        .kill-btn {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            color: white;
+            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.3);
+        }
+
+        .kill-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(244, 67, 54, 0.5);
+        }
+
+        .multi-btn {
+            background: linear-gradient(45deg, #9C27B0, #7B1FA2);
+            color: white;
+            box-shadow: 0 4px 15px rgba(156, 39, 176, 0.3);
+        }
+
+        .multi-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(156, 39, 176, 0.5);
+        }
+
+        .clear-btn {
+            background: linear-gradient(45deg, #FF9800, #F57C00);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
+        }
+
+        .clear-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 152, 0, 0.5);
+        }
+
+        .info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .info h3 {
+            color: #4CAF50;
+            margin-top: 0;
+        }
+
+        .info ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .info li {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            border-left: 3px solid #4CAF50;
+        }
+
+        .effect-demo {
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px solid #4CAF50;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .effect-demo h4 {
+            color: #81C784;
+            margin: 0 0 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 유닛 수 오버레이 이펙트 시스템</h1>
+        
+        <div class="effect-controls">
+            <button class="effect-btn effect-spawn-btn" onclick="testSpawnEffect()">🔵 생산 이펙트 테스트</button>
+            <button class="effect-btn effect-death-btn" onclick="testDeathEffect()">🔴 사망 이펙트 테스트</button>
+        </div>
+        
+        <div class="controls">
+            <button class="btn spawn-btn" onclick="spawnUnit()">유닛 생산 (+1)</button>
+            <button class="btn spawn-btn" onclick="spawnMultipleUnits()">연속 생산 (+5)</button>
+            <button class="btn kill-btn" onclick="killRandomUnit()">랜덤 사망 (-1)</button>
+            <button class="btn kill-btn" onclick="killMultipleUnits()">연속 사망 (-3)</button>
+            <button class="btn clear-btn" onclick="clearAllUnits()">전체 제거</button>
+        </div>
+
+        <div class="game-area" id="gameArea">
+            <div class="unit-counter" id="unitCounter">
+                유닛 수: <span class="counter-number" id="counterNumber">0</span>
+            </div>
+        </div>
+
+        <div class="info">
+            <h3>🎯 오버레이 이펙트 종류</h3>
+            
+            <div class="effect-demo">
+                <h4>🔵 생산 완료 이펙트 (파란색 베이스)</h4>
+                <ul>
+                    <li><strong>파란색 글로우:</strong> 테두리와 그림자가 파란색으로 밝아짐</li>
+                    <li><strong>밝기 증가:</strong> 오버레이가 점진적으로 밝아짐</li>
+                    <li><strong>숫자 강조:</strong> 증가하는 숫자가 파란색으로 크게 표시</li>
+                    <li><strong>부드러운 전환:</strong> 성공적인 느낌의 부드러운 애니메이션</li>
+                </ul>
+            </div>
+
+            <div class="effect-demo">
+                <h4>🔴 사망/피격 이펙트</h4>
+                <ul>
+                    <li><strong>빨간색 플래시:</strong> 순간적으로 빨간색으로 변함</li>
+                    <li><strong>밝기 변화:</strong> 급격한 밝기 변화로 피격 느낌</li>
+                    <li><strong>색상 포화:</strong> 채도가 높아져서 충격적인 느낌</li>
+                    <li><strong>빠른 회복:</strong> 빠르게 원래 상태로 돌아옴</li>
+                </ul>
+            </div>
+
+            <h3>🎮 테스트 방법</h3>
+            <ul>
+                <li><strong>🔵 생산 이펙트 테스트:</strong> 숫자 변화 없이 파란색 이펙트만 확인</li>
+                <li><strong>🔴 사망 이펙트 테스트:</strong> 숫자 변화 없이 빨간색 이펙트만 확인</li>
+                <li><strong>생산 버튼:</strong> 단일/연속 생산으로 실제 게임 상황 테스트</li>
+                <li><strong>사망 버튼:</strong> 단일/연속 사망으로 실제 게임 상황 테스트</li>
+                <li><strong>유닛 클릭:</strong> 개별 유닛을 클릭해서 사망 이펙트 테스트</li>
+                <li><strong>연속 효과:</strong> 빠르게 연속으로 버튼을 눌러 이펙트 중첩 확인</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let unitCount = 0;
+        let unitId = 0;
+        let effectInProgress = false;
+
+        const unitCounter = document.getElementById('unitCounter');
+        const counterNumber = document.getElementById('counterNumber');
+
+        function testSpawnEffect() {
+            // 숫자 변화 없이 이펙트만 테스트
+            triggerSpawnEffect();
+        }
+
+        function testDeathEffect() {
+            // 숫자 변화 없이 이펙트만 테스트
+            triggerDeathEffect();
+        }
+
+        function updateCounter(isIncrease = null) {
+            counterNumber.textContent = unitCount;
+            
+            // 숫자 변화 애니메이션
+            if (isIncrease === true) {
+                counterNumber.className = 'counter-number increase';
+            } else if (isIncrease === false) {
+                counterNumber.className = 'counter-number decrease';
+            }
+            
+            // 애니메이션 클래스 제거
+            setTimeout(() => {
+                counterNumber.className = 'counter-number';
+            }, 500);
+        }
+
+        function triggerSpawnEffect() {
+            // 기존 이펙트 클래스 제거
+            unitCounter.classList.remove('spawn-effect', 'death-effect');
+            
+            // 약간의 딜레이 후 새 이펙트 적용
+            setTimeout(() => {
+                unitCounter.classList.add('spawn-effect');
+                
+                // 이펙트 완료 후 클래스 제거
+                setTimeout(() => {
+                    unitCounter.classList.remove('spawn-effect');
+                }, 800);
+            }, 10);
+        }
+
+        function triggerDeathEffect() {
+            // 기존 이펙트 클래스 제거
+            unitCounter.classList.remove('spawn-effect', 'death-effect');
+            
+            // 약간의 딜레이 후 새 이펙트 적용
+            setTimeout(() => {
+                unitCounter.classList.add('death-effect');
+                
+                // 이펙트 완료 후 클래스 제거
+                setTimeout(() => {
+                    unitCounter.classList.remove('death-effect');
+                }, 600);
+            }, 10);
+        }
+
+        function getRandomPosition() {
+            const gameArea = document.getElementById('gameArea');
+            const rect = gameArea.getBoundingClientRect();
+            return {
+                x: Math.random() * (rect.width - 60) + 20,
+                y: Math.random() * (rect.height - 100) + 80
+            };
+        }
+
+        function spawnUnit() {
+            const position = getRandomPosition();
+            const gameArea = document.getElementById('gameArea');
+            
+            const unit = document.createElement('div');
+            unit.className = 'unit';
+            unit.id = 'unit_' + unitId++;
+            unit.textContent = '🛡️';
+            unit.style.left = position.x + 'px';
+            unit.style.top = position.y + 'px';
+            
+            unit.addEventListener('click', function() {
+                killUnit(unit);
+            });
+            
+            gameArea.appendChild(unit);
+            unitCount++;
+            updateCounter(true);
+            triggerSpawnEffect();
+        }
+
+        function killUnit(unit) {
+            if (unit && unit.parentNode) {
+                unit.parentNode.removeChild(unit);
+                unitCount--;
+                updateCounter(false);
+                triggerDeathEffect();
+            }
+        }
+
+        function killRandomUnit() {
+            const units = document.querySelectorAll('.unit');
+            if (units.length > 0) {
+                const randomUnit = units[Math.floor(Math.random() * units.length)];
+                killUnit(randomUnit);
+            }
+        }
+
+        function spawnMultipleUnits() {
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    spawnUnit();
+                }, i * 200);
+            }
+        }
+
+        function killMultipleUnits() {
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    killRandomUnit();
+                }, i * 300);
+            }
+        }
+
+        function clearAllUnits() {
+            const units = document.querySelectorAll('.unit');
+            units.forEach((unit, index) => {
+                setTimeout(() => {
+                    killUnit(unit);
+                }, index * 100);
+            });
+        }
+
+        // 초기 유닛 생성
+        setTimeout(() => {
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => spawnUnit(), i * 400);
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

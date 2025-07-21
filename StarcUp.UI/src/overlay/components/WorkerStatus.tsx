@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import { useEffectSystem, type EffectType } from '../hooks/useEffectSystem'
+import { getIconStyle } from '../utils/iconUtils'
+import { HDIcon } from './HDIcon'
 
 interface WorkerStatusProps {
   totalWorkers: number
@@ -9,6 +11,8 @@ interface WorkerStatusProps {
   position: { x: number; y: number }
   isEditMode: boolean
   onPositionChange?: (position: { x: number; y: number }) => void
+  unitIconStyle?: 'default' | 'white' | 'yellow' | 'hd'
+  teamColor?: string
 }
 
 export interface WorkerStatusRef {
@@ -22,7 +26,9 @@ export const WorkerStatus = forwardRef<WorkerStatusRef, WorkerStatusProps>(({
   calculatedTotal,
   position,
   isEditMode,
-  onPositionChange
+  onPositionChange,
+  unitIconStyle = 'default',
+  teamColor = '#0099FF'
 }, ref) => {
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
@@ -98,48 +104,35 @@ export const WorkerStatus = forwardRef<WorkerStatusRef, WorkerStatusProps>(({
   return (
     <div
       ref={workerStatusRef}
-      className="worker-status"
+      className={`worker-status ${isEditMode ? 'edit-mode' : ''} ${isDragging ? 'dragging' : ''}`}
       onMouseDown={handleMouseDown}
       style={{
-        position: 'absolute',
         left: `${position.x}px`,
-        top: `${position.y}px`,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
-        border: isEditMode ? '1px solid rgba(0, 153, 255, 0.5)' : 'none',
-        borderRadius: '6px',
-        padding: '8px 12px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        width: 'auto', // 컨텐츠에 맞게 자동 조정
-        minWidth: '5.5em', // '99 (3)' 텍스트가 들어갈 수 있는 최소 크기 (폰트 크기 기반)
-        zIndex: isEditMode ? 1001 : 1000,
-        cursor: isEditMode ? 'move' : 'default',
-        transition: isDragging ? 'none' : 'all 0.2s ease',
-        boxShadow: isEditMode 
-          ? '0 4px 20px rgba(0, 153, 255, 0.3)' 
-          : 'none',
-        pointerEvents: 'auto',
-        userSelect: 'none'
+        top: `${position.y}px`
       }}
     >
       {/* 일꾼 아이콘 */}
-      <div
-        style={{
-          width: '27px',
-          height: '27px',
-          backgroundColor: 'transparent',
-          borderRadius: '3px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '14px',
-          fontWeight: 'bold',
-          color: '#000',
-          flexShrink: 0
-        }}
-      >
-        👷
+      <div style={getIconStyle(unitIconStyle, teamColor)}>
+        {unitIconStyle === 'hd' ? (
+          <HDIcon
+            diffuseSrc="/resources/HD/Protoss/Units/ProtossProbe_diffuse.png"
+            teamColorSrc="/resources/HD/Protoss/Units/ProtossProbe_teamcolor.png"
+            teamColor={teamColor}
+            width={27}
+            height={27}
+            alt="Protoss Probe HD"
+          />
+        ) : (
+          <img 
+            src="/resources/Icon/Protoss/Units/ProtossProbe.png"
+            alt="Protoss Probe" 
+            style={{ 
+              width: '27px', 
+              height: '27px',
+              imageRendering: 'pixelated'
+            }} 
+          />
+        )}
       </div>
 
       {/* 일꾼 수 정보 */}
