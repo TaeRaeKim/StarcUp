@@ -36,8 +36,10 @@ namespace StarcUp.Business.Profile.Models
         public bool IsProductionCompleted(WorkerStatistics other)
         {
             if (other == null) return false;
-            return TotalWorkers == other.TotalWorkers && 
-                   ProductionWorkers < other.ProductionWorkers;
+            return (TotalWorkers == other.TotalWorkers &&
+                   ProductionWorkers < other.ProductionWorkers) ||
+                     (TotalWorkers > other.TotalWorkers &&
+                     ProductionWorkers == other.ProductionWorkers && ProductionWorkers > 0);
         }
 
         public bool IsWorkerDied(WorkerStatistics other)

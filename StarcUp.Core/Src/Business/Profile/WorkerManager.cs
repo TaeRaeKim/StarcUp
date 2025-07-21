@@ -147,39 +147,39 @@ namespace StarcUp.Business.Profile
             var current = _currentStats;
             var previous = _previousStats;
 
-            // 1. 단순 증가 감지 (게임시작, 마인드컨트롤)
-            if (current.IsSimpleIncrease(previous))
+            // 1. 생산 완료 감지
+            if (current.IsProductionCompleted(previous))
             {
-                RaiseWorkerEvent(WorkerEventType.WorkerStatusChanged, current, previous);
+                // 프리셋에 따라 이벤트 타입 결정
+                var eventType = IsWorkerStateSet(WorkerPresetEnum.DetectProduction)
+                    ? WorkerEventType.ProductionCompleted
+                    : WorkerEventType.WorkerStatusChanged;
+
+                RaiseWorkerEvent(eventType, current, previous);
             }
-            // 2. 생산 시작 감지
+            // 2. 생산 취소 감지
+            else if (current.IsProductionCanceled(previous))
+            {
+                RaiseWorkerEvent(WorkerEventType.ProductionCanceled, current, previous);
+            }
+            // 3. 첫 생산 시작 감지 (예약생성은 불리지 않음)
             else if (current.IsProductionStarted(previous))
             {
                 RaiseWorkerEvent(WorkerEventType.ProductionStarted, current, previous);
             }
-            // 3. 생산 완료 감지
-            else if (current.IsProductionCompleted(previous))
+            // 4. 단순 증가 감지 (게임시작, 마인드컨트롤?)
+            else if (current.IsSimpleIncrease(previous))
             {
-                // 프리셋에 따라 이벤트 타입 결정
-                var eventType = IsWorkerStateSet(WorkerPresetEnum.DetectProduction) 
-                    ? WorkerEventType.ProductionCompleted 
-                    : WorkerEventType.WorkerStatusChanged;
-                    
-                RaiseWorkerEvent(eventType, current, previous);
-            }
-            // 4. 생산 취소 감지
-            else if (current.IsProductionCanceled(previous))
-            {
-                RaiseWorkerEvent(WorkerEventType.ProductionCanceled, current, previous);
+                RaiseWorkerEvent(WorkerEventType.WorkerStatusChanged, current, previous);
             }
             // 5. 일꾼 사망 감지
             else if (current.IsWorkerDied(previous))
             {
                 // 프리셋에 따라 이벤트 타입 결정
-                var eventType = IsWorkerStateSet(WorkerPresetEnum.DetectDeath) 
-                    ? WorkerEventType.WorkerDied 
+                var eventType = IsWorkerStateSet(WorkerPresetEnum.DetectDeath)
+                    ? WorkerEventType.WorkerDied
                     : WorkerEventType.WorkerStatusChanged;
-                    
+
                 RaiseWorkerEvent(eventType, current, previous);
             }
 
