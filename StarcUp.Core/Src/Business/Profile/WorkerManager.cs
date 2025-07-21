@@ -27,10 +27,13 @@ namespace StarcUp.Business.Profile
         private WorkerStatistics _previousStats;
         private readonly Dictionary<int, GasBuildingState> _gasBuildingStates;
         private readonly object _lock = new object();
+        
+        private List<Unit> _cachedWorkers;
 
-        // 5가지 이벤트
-        public event EventHandler<WorkerEventArgs> TotalCountChanged;
+        public event EventHandler<WorkerEventArgs> WorkerStatusChanged;
+        public event EventHandler<WorkerEventArgs> ProductionStarted;
         public event EventHandler<WorkerEventArgs> ProductionCompleted;
+        public event EventHandler<WorkerEventArgs> ProductionCanceled;
         public event EventHandler<WorkerEventArgs> WorkerDied;
         public event EventHandler<WorkerEventArgs> IdleCountChanged;
         public event EventHandler<GasBuildingEventArgs> GasBuildingAlert;
@@ -58,7 +61,7 @@ namespace StarcUp.Business.Profile
         {
             if (units == null) return;
 
-            var newStats = CalculateWorkerStatistics(units);
+            var newStats = CalculateWorkerStatisticsFromUnits(units);
 
             lock (_lock)
             {
@@ -108,14 +111,21 @@ namespace StarcUp.Business.Profile
             }
         }
 
-        private WorkerStatistics CalculateWorkerStatistics(IEnumerable<Unit> units)
+        private WorkerStatistics CalculateWorkerStatisticsFromUnits(IEnumerable<Unit> units)
         {
             var workers = units.Where(u => u.IsWorker).ToList();
             
+            // worker 데이터 캐시 (프리셋 변경 시 재계산용)
+            _cachedWorkers = workers;
+            
+            return CalculateWorkerStatistics(workers);
+        }
+
+        private WorkerStatistics CalculateWorkerStatistics(List<Unit> workers)
+        {
             var totalWorkers = workers.Count;
             var idleWorkers = workers.Count(w => ((ActionIndex)w.ActionIndex).IsIdle());
-            var productionWorkers = workers.Count(w => w.ActionIndex == 23); // 생산 중
-            var activeWorkers = workers.Count(w => !((ActionIndex)w.ActionIndex).IsIdle());
+            var productionWorkers = workers.Count(w => ((ActionIndex)w.ActionIndex).IsInProduction());
 
             // 프리셋 적용하여 계산된 총 개수 구하기
             var calculatedTotal = IsWorkerStateSet(WorkerPresetEnum.IncludeProduction)
@@ -127,7 +137,6 @@ namespace StarcUp.Business.Profile
                 TotalWorkers = totalWorkers,
                 IdleWorkers = idleWorkers,
                 ProductionWorkers = productionWorkers,
-                ActiveWorkers = activeWorkers,
                 CalculatedTotalWorkers = calculatedTotal,
                 LastUpdated = DateTime.Now
             };
@@ -138,25 +147,43 @@ namespace StarcUp.Business.Profile
             var current = _currentStats;
             var previous = _previousStats;
 
-            // 1. 총 일꾼 개수 변경 (프리셋 고려)
-            if (current.HasTotalCountChanged(previous))
+            // 1. 단순 증가 감지 (게임시작, 마인드컨트롤)
+            if (current.IsSimpleIncrease(previous))
             {
-                RaiseWorkerEvent(WorkerEventType.TotalCountChanged, current, previous);
+                RaiseWorkerEvent(WorkerEventType.WorkerStatusChanged, current, previous);
+            }
+            // 2. 생산 시작 감지
+            else if (current.IsProductionStarted(previous))
+            {
+                RaiseWorkerEvent(WorkerEventType.ProductionStarted, current, previous);
+            }
+            // 3. 생산 완료 감지
+            else if (current.IsProductionCompleted(previous))
+            {
+                // 프리셋에 따라 이벤트 타입 결정
+                var eventType = IsWorkerStateSet(WorkerPresetEnum.DetectProduction) 
+                    ? WorkerEventType.ProductionCompleted 
+                    : WorkerEventType.WorkerStatusChanged;
+                    
+                RaiseWorkerEvent(eventType, current, previous);
+            }
+            // 4. 생산 취소 감지
+            else if (current.IsProductionCanceled(previous))
+            {
+                RaiseWorkerEvent(WorkerEventType.ProductionCanceled, current, previous);
+            }
+            // 5. 일꾼 사망 감지
+            else if (current.IsWorkerDied(previous))
+            {
+                // 프리셋에 따라 이벤트 타입 결정
+                var eventType = IsWorkerStateSet(WorkerPresetEnum.DetectDeath) 
+                    ? WorkerEventType.WorkerDied 
+                    : WorkerEventType.WorkerStatusChanged;
+                    
+                RaiseWorkerEvent(eventType, current, previous);
             }
 
-            // 2. 생산 완료
-            if (current.IsProductionCompleted(previous))
-            {
-                RaiseWorkerEvent(WorkerEventType.ProductionCompleted, current, previous);
-            }
-
-            // 3. 일꾼 사망
-            if (current.IsWorkerDied(previous))
-            {
-                RaiseWorkerEvent(WorkerEventType.WorkerDied, current, previous);
-            }
-
-            // 4. 유휴 일꾼 개수 변경
+            // 6. 유휴 일꾼 개수 변경 (기존 로직 유지)
             if (current.HasIdleCountChanged(previous))
             {
                 RaiseWorkerEvent(WorkerEventType.IdleCountChanged, current, previous);
@@ -176,30 +203,26 @@ namespace StarcUp.Business.Profile
                 PreviousIdleWorkers = previous.IdleWorkers,
                 ProductionWorkers = current.ProductionWorkers,
                 PreviousProductionWorkers = previous.ProductionWorkers,
-                ActiveWorkers = current.ActiveWorkers,
                 Timestamp = DateTime.Now,
                 EventType = eventType
             };
 
             switch (eventType)
             {
-                case WorkerEventType.TotalCountChanged:
-                    if (IsWorkerStateSet(WorkerPresetEnum.Default))
-                    {
-                        TotalCountChanged?.Invoke(this, eventArgs);
-                    }
+                case WorkerEventType.WorkerStatusChanged:
+                    WorkerStatusChanged?.Invoke(this, eventArgs);
+                    break;
+                case WorkerEventType.ProductionStarted:
+                    ProductionStarted?.Invoke(this, eventArgs);
                     break;
                 case WorkerEventType.ProductionCompleted:
-                    if (IsWorkerStateSet(WorkerPresetEnum.DetectProduction))
-                    {
-                        ProductionCompleted?.Invoke(this, eventArgs);
-                    }
+                    ProductionCompleted?.Invoke(this, eventArgs);
+                    break;
+                case WorkerEventType.ProductionCanceled:
+                    ProductionCanceled?.Invoke(this, eventArgs);
                     break;
                 case WorkerEventType.WorkerDied:
-                    if (IsWorkerStateSet(WorkerPresetEnum.DetectDeath))
-                    {
-                        WorkerDied?.Invoke(this, eventArgs);
-                    }
+                    WorkerDied?.Invoke(this, eventArgs);
                     break;
                 case WorkerEventType.IdleCountChanged:
                     if (IsWorkerStateSet(WorkerPresetEnum.Idle))
@@ -231,45 +254,46 @@ namespace StarcUp.Business.Profile
             GasBuildingAlert?.Invoke(this, eventArgs);
         }
 
-        // 프리셋 관리
-        public void SetWorkerState(WorkerPresetEnum state)
-        {
-            WorkerPreset |= state;
-        }
-
-        public void ClearWorkerState(WorkerPresetEnum state)
-        {
-            WorkerPreset &= ~state;
-        }
-
         public bool IsWorkerStateSet(WorkerPresetEnum state)
         {
             return (WorkerPreset & state) == state;
         }
 
-        // 통계 메서드
-        public double GetWorkerEfficiency()
+        public void InitializeWorkerPreset(WorkerPresetEnum preset)
         {
-            return _currentStats.TotalWorkers > 0 
-                ? (double)_currentStats.ActiveWorkers / _currentStats.TotalWorkers 
-                : 0;
+            Console.WriteLine($"[WorkerManager] ✅ 일꾼 프리셋 초기화: {preset}");
+            WorkerPreset = preset;
+            OnPresetChanged();
         }
 
-        public TimeSpan GetAverageIdleTime()
+        public WorkerPresetEnum UpdateWorkerPreset(WorkerPresetEnum newPreset)
         {
-            // 향후 구현 예정
-            return TimeSpan.Zero;
+            var previousPreset = WorkerPreset;
+            Console.WriteLine($"[WorkerManager] ✅ 일꾼 프리셋 업데이트: {previousPreset} → {newPreset}");
+            WorkerPreset = newPreset;
+            OnPresetChanged();
+            return previousPreset;
         }
-
-        public int GetCalculatedTotalWorkers()
+        
+        private void OnPresetChanged()
         {
-            return _currentStats.CalculatedTotalWorkers;
+            lock (_lock)
+            {
+                if (_cachedWorkers == null || _cachedWorkers.Count == 0) return;
+
+                _previousStats = _currentStats.Clone();
+                _currentStats = CalculateWorkerStatistics(_cachedWorkers);
+
+                RaiseWorkerEvent(WorkerEventType.WorkerStatusChanged, _currentStats, _previousStats);
+            }
         }
 
         public void Dispose()
         {
-            TotalCountChanged = null;
+            WorkerStatusChanged = null;
+            ProductionStarted = null;
             ProductionCompleted = null;
+            ProductionCanceled = null;
             WorkerDied = null;
             IdleCountChanged = null;
             GasBuildingAlert = null;
