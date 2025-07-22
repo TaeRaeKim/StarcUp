@@ -1,15 +1,22 @@
 import { BrowserWindow, app } from 'electron'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { IWindowManager } from './interfaces'
 import { IWindowConfiguration } from '../types'
 import { WINDOW_CONFIG, DEV_TOOLS_CONFIG, OVERLAY_CONFIG } from './WindowConfiguration'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+process.env.APP_ROOT = path.join(__dirname, '..')
+
+
+
+
 // 환경 변수 및 경로 설정
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 // 프로젝트 루트 기준으로 절대 경로 설정
-const PROJECT_ROOT = process.cwd()
-const MAIN_DIST = path.join(PROJECT_ROOT, 'dist-electron')
-const RENDERER_DIST = path.join(PROJECT_ROOT, 'dist')
+//const PROJECT_ROOT = process.cwd()
+const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
+const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 export class WindowManager implements IWindowManager {
   private mainWindow: BrowserWindow | null = null
@@ -29,7 +36,7 @@ export class WindowManager implements IWindowManager {
     
     const preloadPath = path.join(MAIN_DIST, 'preload.mjs')
     console.log(`🔧 Preload 스크립트 경로: ${preloadPath}`)
-    console.log(`🔧 PROJECT_ROOT: ${PROJECT_ROOT}`)
+    console.log(`🔧 APP_ROOT: ${process.env.APP_ROOT}`)
     console.log(`🔧 MAIN_DIST: ${MAIN_DIST}`)
     
     this.mainWindow = new BrowserWindow({
@@ -255,7 +262,7 @@ export class WindowManager implements IWindowManager {
       }
     } else {
       // 프로덕션 환경
-      this.mainWindow.loadFile(path.join(RENDERER_DIST, 'src', 'main-page', 'index.html'))
+      this.mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'src', 'main-page', 'index.html'))
     }
   }
   
@@ -267,7 +274,7 @@ export class WindowManager implements IWindowManager {
       this.overlayWindow.loadURL(path.join(VITE_DEV_SERVER_URL, 'src', 'overlay', 'index.html'))
     } else {
       // 프로덕션 환경
-      this.overlayWindow.loadFile(path.join(RENDERER_DIST, 'src', 'overlay', 'index.html'))
+      this.overlayWindow.loadFile(path.join(__dirname, '..', 'dist', 'src', 'overlay', 'index.html'))
     }
   }
   
