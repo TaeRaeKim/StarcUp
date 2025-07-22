@@ -3,6 +3,11 @@ import { useEffectSystem, type EffectType } from '../hooks/useEffectSystem'
 import { getIconStyle } from '../utils/iconUtils'
 import { HDIcon } from './HDIcon'
 
+// 정적 애셋 import
+import probeIconUrl from '/resources/Icon/Protoss/Units/ProtossProbe.png'
+import probeDiffuseUrl from '/resources/HD/Protoss/Units/ProtossProbe_diffuse.png'
+import probeTeamColorUrl from '/resources/HD/Protoss/Units/ProtossProbe_teamcolor.png'
+
 interface WorkerStatusProps {
   totalWorkers: number
   idleWorkers: number
@@ -115,8 +120,8 @@ export const WorkerStatus = forwardRef<WorkerStatusRef, WorkerStatusProps>(({
       <div style={getIconStyle(unitIconStyle, teamColor)}>
         {unitIconStyle === 'hd' ? (
           <HDIcon
-            diffuseSrc="/resources/HD/Protoss/Units/ProtossProbe_diffuse.png"
-            teamColorSrc="/resources/HD/Protoss/Units/ProtossProbe_teamcolor.png"
+            diffuseSrc={probeDiffuseUrl}
+            teamColorSrc={probeTeamColorUrl}
             teamColor={teamColor}
             width={27}
             height={27}
@@ -124,7 +129,7 @@ export const WorkerStatus = forwardRef<WorkerStatusRef, WorkerStatusProps>(({
           />
         ) : (
           <img 
-            src="/resources/Icon/Protoss/Units/ProtossProbe.png"
+            src={probeIconUrl}
             alt="Protoss Probe" 
             style={{ 
               width: '27px', 

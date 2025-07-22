@@ -111,7 +111,7 @@ export const HDIcon: React.FC<HDIconProps> = ({
         display: isLoading ? 'none' : 'block',
         ...style
       }}
-      alt={alt}
+      title={alt}
     />
   )
 }
