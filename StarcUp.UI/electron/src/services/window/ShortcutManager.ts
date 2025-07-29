@@ -67,7 +67,7 @@ export class ShortcutManager implements IShortcutManager {
       console.warn(`⚠️ 오버레이 단축키 등록 실패: ${OVERLAY_CONFIG.toggleShortcut}`)
     }
 
-    // 오버레이 편집 모드 토글 단축키 등록 (Shift+Tab)
+    // 오버레이 편집 모드 토글 단축키 등록 (Ctrl+Tab)
     const editModeCallback = () => {
       this.isEditMode = !this.isEditMode
       console.log('🎯 오버레이 편집 모드 토글 키 감지:', this.isEditMode ? 'ON' : 'OFF')
@@ -81,11 +81,11 @@ export class ShortcutManager implements IShortcutManager {
       })
     }
     
-    if (globalShortcut.register('Shift+Tab', editModeCallback)) {
-      this.registeredShortcuts.set('Shift+Tab', editModeCallback)
-      console.log('⌨️ 오버레이 편집 모드 단축키 등록: Shift+Tab')
+    if (globalShortcut.register('Ctrl+Tab', editModeCallback)) {
+      this.registeredShortcuts.set('Ctrl+Tab', editModeCallback)
+      console.log('⌨️ 오버레이 편집 모드 단축키 등록: Ctrl+Tab')
     } else {
-      console.warn('⚠️ 오버레이 편집 모드 단축키 등록 실패: Shift+Tab')
+      console.warn('⚠️ 오버레이 편집 모드 단축키 등록 실패: Ctrl+Tab')
     }
   }
 
