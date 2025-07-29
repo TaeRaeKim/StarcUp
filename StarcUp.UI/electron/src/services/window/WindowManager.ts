@@ -80,6 +80,11 @@ export class WindowManager implements IWindowManager {
     this.overlayWindow.setIgnoreMouseEvents(true)
     this.overlayWindow.center()
     
+    // 강력한 최상위 설정 (전체화면 게임 위에 표시)
+    this.overlayWindow.setAlwaysOnTop(true, 'screen-saver')
+    this.overlayWindow.setVisibleOnAllWorkspaces(true)
+    this.overlayWindow.setFullScreenable(false)
+    
     // 오버레이 이벤트 처리
     this.setupOverlayWindowEvents()
     
@@ -158,7 +163,11 @@ export class WindowManager implements IWindowManager {
   
   showOverlay(): void {
     if (this.overlayWindow) {
+      // 최상위 설정 재적용 후 표시
+      this.overlayWindow.setAlwaysOnTop(true, 'screen-saver')
       this.overlayWindow.show()
+      this.overlayWindow.focus()
+      console.log('🎯 오버레이 윈도우 표시 및 최상위 설정 적용')
     }
   }
   
@@ -329,7 +338,16 @@ export class WindowManager implements IWindowManager {
     this.overlayWindow.on('blur', () => {
       // 오버레이가 포커스를 잃으면 다시 최상위로
       if (this.overlayWindow) {
-        this.overlayWindow.setAlwaysOnTop(true)
+        this.overlayWindow.setAlwaysOnTop(true, 'screen-saver')
+        console.log('🔄 오버레이 포커스 복원 - 최상위 재설정')
+      }
+    })
+    
+    this.overlayWindow.on('focus', () => {
+      // 오버레이가 포커스를 받으면 최상위 설정 확인
+      if (this.overlayWindow) {
+        this.overlayWindow.setAlwaysOnTop(true, 'screen-saver')
+        console.log('🎯 오버레이 포커스 - 최상위 설정 확인')
       }
     })
   }
