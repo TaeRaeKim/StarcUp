@@ -11,7 +11,7 @@ import {
   calculateWorkerSettingsMask, 
   type PresetInitMessage, 
   type WorkerPreset,
-  type WorkerSettings 
+  type WorkerSettings as PresetUtilsWorkerSettings
 } from "../utils/presetUtils";
 
 // 게임 상태 타입 정의
@@ -32,45 +32,32 @@ const VIEW_WINDOW_SIZES = {
   'development-progress': { width: 740, height: 840 }  // 700x800 + 40px 여유
 } as const;
 
-// 프리셋 타입 정의
+// 일꾼 설정 인터페이스 (완전한 데이터 보장)
+interface WorkerSettings {
+  workerCountDisplay: boolean;
+  includeProducingWorkers: boolean;
+  idleWorkerDisplay: boolean;
+  workerProductionDetection: boolean;
+  workerDeathDetection: boolean;
+  gasWorkerCheck: boolean;
+}
+
+// 프리셋 타입 정의 (완전한 데이터 보장)
 interface Preset {
   id: string;
   name: string;
   description: string;
   featureStates: boolean[];
   selectedRace: 'protoss' | 'terran' | 'zerg';
+  workerSettings: WorkerSettings;
 }
-
-// 프리셋 데이터 (상태로 관리하여 수정 가능하게 함)
-const initialPresets: Preset[] = [
-  {
-    id: "preset1",
-    name: "Default Preset",
-    description: "아직 프리셋 구현 안됨",
-    featureStates: [true, false, false, false, false], // 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
-    selectedRace: 'protoss'
-  },
-  {
-    id: "preset2", 
-    name: "커공발-운영",
-    description: "커세어 + 공중 발업 운영 빌드",
-    featureStates: [true, false, false, false, false], // 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
-    selectedRace: 'terran'
-  },
-  {
-    id: "preset3",
-    name: "패닼아비터",
-    description: "패스트 다크템플러 + 아비터 전략",
-    featureStates: [true, false, false, false, false], // 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
-    selectedRace: 'protoss'
-  }
-];
 
 export default function App() {
   const [isActive, setIsActive] = useState(false);
   const [gameStatus, setGameStatus] = useState<GameStatus>('error');
   const [currentPresetIndex, setCurrentPresetIndex] = useState(0);
-  const [presets, setPresets] = useState(initialPresets);
+  const [presets, setPresets] = useState<Preset[]>([]);
+  const [presetsLoaded, setPresetsLoaded] = useState(false);
   
   // 현재 뷰 상태 관리 (모달 대신 페이지 전환 방식)
   const [currentView, setCurrentView] = useState<CurrentView>('main');
@@ -124,22 +111,61 @@ export default function App() {
     };
   }, []);
 
+  // 프리셋 자동 로드 (앱 시작 시)
+  useEffect(() => {
+    const loadPresets = async () => {
+      try {
+        console.log('📋 프리셋 자동 로드 시작...');
+        
+        if (!window.electronAPI?.getPresetsWithSelection) {
+          console.warn('⚠️ electronAPI.getPresetsWithSelection이 준비되지 않았습니다');
+          return;
+        }
+
+        const response = await window.electronAPI.getPresetsWithSelection('default-user');
+        
+        if (response.success && response.data) {
+          const { presets: loadedPresets, selectedIndex } = response.data;
+          
+          // IPreset을 UI Preset 형태로 변환
+          const uiPresets: Preset[] = loadedPresets.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            description: p.data.description,
+            featureStates: p.data.featureStates,
+            selectedRace: p.data.selectedRace,
+            workerSettings: p.data.workerSettings
+          }));
+
+          setPresets(uiPresets);
+          setCurrentPresetIndex(selectedIndex);
+          setPresetsLoaded(true);
+          
+          console.log('✅ 프리셋 자동 로드 완료:', {
+            count: uiPresets.length,
+            selected: selectedIndex,
+            selectedName: uiPresets[selectedIndex]?.name
+          });
+        } else {
+          console.warn('⚠️ 프리셋 로드 실패');
+        }
+      } catch (error) {
+        console.error('❌ 프리셋 로드 실패', error);
+      }
+    };
+
+    loadPresets();
+  }, []);
+
   // 자동 overlay 관리는 이제 메인 프로세스에서 처리됩니다
 
   // 프리셋 초기화 함수 (Named Pipe 연결 후 호출)
   const sendPresetInit = async () => {
     try {
-      // 현재 일꾼 설정을 기본값으로 구성 (실제로는 저장된 설정을 불러와야 함)
-      const currentWorkerSettings: WorkerSettings = {
-        workerCountDisplay: true,           // 일꾼 수 출력 기본 활성화
-        includeProducingWorkers: false,     // 생산 중인 일꾼 수 포함 기본 비활성화
-        idleWorkerDisplay: true,            // 유휴 일꾼 수 출력 기본 활성화
-        workerProductionDetection: true,    // 일꾼 생산 감지 기본 활성화
-        workerDeathDetection: true,         // 일꾼 사망 감지 기본 활성화
-        gasWorkerCheck: true                // 가스 일꾼 체크 기본 활성화
-      };
+      // 현재 선택된 프리셋의 일꾼 설정 사용 (완전한 데이터 보장)
+      const currentWorkerSettings: WorkerSettings = currentPreset.workerSettings;
 
-      const workerMask = calculateWorkerSettingsMask(currentWorkerSettings);
+      const workerMask = calculateWorkerSettingsMask(currentWorkerSettings as PresetUtilsWorkerSettings);
       
       const initMessage: PresetInitMessage = {
         type: 'preset-init',
@@ -185,8 +211,12 @@ export default function App() {
         if (response?.success) {
           console.log('Core 게임 감지 시작됨:', response.data);
           
-          // Core 연결 성공 후 프리셋 초기화 메시지 전송
-          await sendPresetInit();
+          // 프리셋 로딩이 완료된 경우에만 프리셋 초기화 메시지 전송
+          if (presetsLoaded && presets.length > 0) {
+            await sendPresetInit();
+          } else {
+            console.warn('⚠️ 프리셋이 아직 로드되지 않아 초기화 메시지 전송을 건너뜁니다');
+          }
           
           // 자동 overlay 관리가 메인 프로세스에서 처리됩니다
         } else {
@@ -229,25 +259,83 @@ export default function App() {
     setCurrentEditingRace(null);
   };
 
-  const handleSavePreset = (updatedPreset: {
+  const handleSavePreset = async (updatedPreset: {
     id: string;
     name: string;
     description: string;
     featureStates: boolean[];
     selectedRace?: 'protoss' | 'terran' | 'zerg';
   }) => {
-    console.log('프리셋 저장 완료:', updatedPreset.name, '종족:', updatedPreset.selectedRace);
-    setPresets(prev => prev.map(preset => 
-      preset.id === updatedPreset.id ? { ...preset, ...updatedPreset } : preset
-    ));
-    // 저장 후 편집 중인 종족 상태 초기화
-    setCurrentEditingRace(null);
+    try {
+      console.log('📝 프리셋 저장 시작:', updatedPreset.name, '종족:', updatedPreset.selectedRace);
+      
+      // 로컬 상태 업데이트
+      setPresets(prev => prev.map(preset => 
+        preset.id === updatedPreset.id ? { ...preset, ...updatedPreset } : preset
+      ));
+      
+      // 파일에 저장
+      if (window.electronAPI?.updatePreset) {
+        const updates = {
+          name: updatedPreset.name,
+          description: updatedPreset.description,
+          featureStates: updatedPreset.featureStates,
+          selectedRace: updatedPreset.selectedRace
+        };
+        
+        const result = await window.electronAPI.updatePreset('default-user', updatedPreset.id, updates);
+        
+        if (result.success) {
+          console.log('✅ 프리셋 파일 저장 완료:', updatedPreset.name);
+        } else {
+          console.error('❌ 프리셋 파일 저장 실패');
+        }
+      } else {
+        console.warn('⚠️ electronAPI가 준비되지 않아 로컬 상태만 업데이트됨');
+      }
+      
+      // 저장 후 편집 중인 종족 상태 초기화
+      setCurrentEditingRace(null);
+    } catch (error) {
+      console.error('❌ 프리셋 저장 중 오류:', error);
+    }
+  };
+
+  // 일꾼 설정 저장 핸들러
+  const handleSaveWorkerSettings = async (presetId: string, workerSettings: WorkerSettings) => {
+    try {
+      console.log('🔧 일꾼 설정 저장:', presetId, workerSettings);
+      
+      // 로컬 상태 업데이트
+      setPresets(prev => prev.map(preset => 
+        preset.id === presetId 
+          ? { ...preset, workerSettings } 
+          : preset
+      ));
+      
+      // 파일에 저장
+      if (window.electronAPI?.updatePreset) {
+        const result = await window.electronAPI.updatePreset('default-user', presetId, {
+          workerSettings
+        });
+        
+        if (result.success) {
+          console.log('✅ 일꾼 설정 파일 저장 완료');
+        } else {
+          console.error('❌ 일꾼 설정 파일 저장 실패');
+        }
+      } else {
+        console.warn('⚠️ electronAPI가 준비되지 않아 로컬 상태만 업데이트됨');
+      }
+    } catch (error) {
+      console.error('❌ 일꾼 설정 저장 중 오류:', error);
+    }
   };
 
   // 뷰 전환 핸들러
   const handleOpenPresetSettings = () => {
     // 프리셋 설정을 열 때 현재 프리셋의 종족으로 편집 상태 초기화
-    setCurrentEditingRace(currentPreset.selectedRace || 'protoss');
+    setCurrentEditingRace(currentPreset.selectedRace);
     setCurrentView('preset-settings');
     changeWindowSize('preset-settings');
   };
@@ -308,6 +396,22 @@ export default function App() {
   const renderCurrentView = () => {
     switch (currentView) {
       case 'main':
+        // preset이 로드되지 않았으면 로딩 화면 표시
+        if (!presetsLoaded || presets.length === 0) {
+          return (
+            <div className="h-screen w-screen flex items-center justify-center" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
+              <div className="text-center">
+                <div className="text-xl mb-4" style={{ color: 'var(--starcraft-green)' }}>
+                  프리셋 로딩 중...
+                </div>
+                <div className="animate-pulse text-sm" style={{ color: 'var(--starcraft-green)' }}>
+                  잠시만 기다려주세요
+                </div>
+              </div>
+            </div>
+          );
+        }
+        
         return (
           <MainInterface
             presets={presets}
@@ -321,6 +425,18 @@ export default function App() {
         );
 
       case 'preset-settings':
+        if (!presetsLoaded || presets.length === 0 || !currentPreset) {
+          return (
+            <div className="h-screen w-screen flex items-center justify-center" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
+              <div className="text-center">
+                <div className="text-xl mb-4" style={{ color: 'var(--starcraft-green)' }}>
+                  프리셋 로딩 중...
+                </div>
+              </div>
+            </div>
+          );
+        }
+        
         return (
           <PresetSettingsModal
             isOpen={true}
@@ -347,10 +463,13 @@ export default function App() {
         );
 
       case 'worker-settings':
+        console.log('🔧 WorkerDetailSettings 렌더링 - currentPreset:', currentPreset);
         return (
           <WorkerDetailSettings
             isOpen={true}
             onClose={handleBackToPresetSettings}
+            currentPreset={currentPreset}
+            onSaveWorkerSettings={handleSaveWorkerSettings}
           />
         );
 
