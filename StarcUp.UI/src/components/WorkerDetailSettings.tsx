@@ -1,26 +1,73 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Users, Wrench, AlertTriangle, Skull, Fuel, Info, Zap, Clock } from 'lucide-react';
-import { 
-  calculateWorkerSettingsMask, 
-  debugWorkerSettings, 
-  type WorkerSettings, 
-  type PresetUpdateMessage, 
-  type WorkerPreset 
+import {
+  calculateWorkerSettingsMask,
+  debugWorkerSettings,
+  type WorkerSettings,
+  type PresetUpdateMessage,
+  type WorkerPreset
 } from '../utils/presetUtils';
 
 interface WorkerDetailSettingsProps {
   isOpen: boolean;
   onClose: () => void;
+  currentPreset?: {
+    id: string;
+    name: string;
+    description: string;
+    workerSettings?: {
+      workerCountDisplay?: boolean;
+      includeProducingWorkers?: boolean;
+      idleWorkerDisplay?: boolean;
+      workerProductionDetection?: boolean;
+      workerDeathDetection?: boolean;
+      gasWorkerCheck?: boolean;
+    };
+  };
+  onSaveWorkerSettings?: (presetId: string, workerSettings: WorkerSettings) => void;
 }
 
-export function WorkerDetailSettings({ isOpen, onClose }: WorkerDetailSettingsProps) {
-  // 일꾼 관련 설정 상태들
-  const [workerCountDisplay, setWorkerCountDisplay] = useState(true);
-  const [idleWorkerDisplay, setIdleWorkerDisplay] = useState(true);
-  const [workerProductionDetection, setWorkerProductionDetection] = useState(true);
-  const [workerDeathDetection, setWorkerDeathDetection] = useState(true);
-  const [gasWorkerCheck, setGasWorkerCheck] = useState(true);
-  const [includeProducingWorkers, setIncludeProducingWorkers] = useState(false);
+export function WorkerDetailSettings({
+  isOpen,
+  onClose,
+  currentPreset,
+  onSaveWorkerSettings
+}: WorkerDetailSettingsProps) {
+  // 일꾼 관련 설정 상태들 (프리셋값으로 초기화)
+  const [workerCountDisplay, setWorkerCountDisplay] = useState(() =>
+    currentPreset?.workerSettings?.workerCountDisplay ?? true
+  );
+  const [idleWorkerDisplay, setIdleWorkerDisplay] = useState(() =>
+    currentPreset?.workerSettings?.idleWorkerDisplay ?? true
+  );
+  const [workerProductionDetection, setWorkerProductionDetection] = useState(() =>
+    currentPreset?.workerSettings?.workerProductionDetection ?? true
+  );
+  const [workerDeathDetection, setWorkerDeathDetection] = useState(() =>
+    currentPreset?.workerSettings?.workerDeathDetection ?? true
+  );
+  const [gasWorkerCheck, setGasWorkerCheck] = useState(() =>
+    currentPreset?.workerSettings?.gasWorkerCheck ?? true
+  );
+  const [includeProducingWorkers, setIncludeProducingWorkers] = useState(() =>
+    currentPreset?.workerSettings?.includeProducingWorkers ?? true
+  );
+
+  // 프리셋 변경 시 일꾼 설정 업데이트
+  useEffect(() => {
+    console.log('🔧 WorkerDetailSettings 프리셋 변경:', currentPreset);
+
+    const settings = currentPreset?.workerSettings;
+    console.log('🔧 일꾼 설정 업데이트:', settings);
+    setWorkerCountDisplay(settings?.workerCountDisplay ?? true);
+    setIncludeProducingWorkers(settings?.includeProducingWorkers ?? true);
+    setIdleWorkerDisplay(settings?.idleWorkerDisplay ?? true);
+    setWorkerProductionDetection(settings?.workerProductionDetection ?? true);
+    setWorkerDeathDetection(settings?.workerDeathDetection ?? true);
+    setGasWorkerCheck(settings?.gasWorkerCheck ?? true);
+
+
+  }, [currentPreset]);
 
   const settingItems = [
     {
@@ -83,13 +130,22 @@ export function WorkerDetailSettings({ isOpen, onClose }: WorkerDetailSettingsPr
       workerDeathDetection,
       gasWorkerCheck
     };
-    
-    // 비트마스크 계산
+
+    console.log('💾 일꾼 설정 저장:', settingsToSave);
+
+    // 프리셋에 일꾼 설정 저장
+    if (currentPreset && onSaveWorkerSettings) {
+      onSaveWorkerSettings(currentPreset.id, settingsToSave);
+    } else {
+      console.warn('⚠️ 프리셋 정보가 없거나 저장 콜백이 없습니다');
+    }
+
+    // 비트마스크 계산 (Core 전송용)
     const workerMask = calculateWorkerSettingsMask(settingsToSave);
-    
+
     // 디버깅 정보 출력
     debugWorkerSettings(settingsToSave);
-    
+
     // Core로 전송할 프리셋 업데이트 메시지 구성
     const updateMessage: PresetUpdateMessage = {
       type: 'preset-update',
@@ -100,13 +156,13 @@ export function WorkerDetailSettings({ isOpen, onClose }: WorkerDetailSettingsPr
         settingsMask: workerMask
       } as WorkerPreset
     };
-    
+
     try {
       // Core API를 통해 프리셋 업데이트 전송
       if (window.coreAPI?.sendPresetUpdate) {
         console.log('🔄 일꾼 프리셋 업데이트 전송:', updateMessage);
         const response = await window.coreAPI.sendPresetUpdate(updateMessage);
-        
+
         if (response?.success) {
           console.log('✅ 일꾼 프리셋 업데이트 성공:', response.data);
         } else {
@@ -118,7 +174,7 @@ export function WorkerDetailSettings({ isOpen, onClose }: WorkerDetailSettingsPr
     } catch (error) {
       console.error('💥 일꾼 프리셋 업데이트 중 오류 발생:', error);
     }
-    
+
     // 설정 창 닫기
     onClose();
   };
@@ -135,16 +191,16 @@ export function WorkerDetailSettings({ isOpen, onClose }: WorkerDetailSettingsPr
       }}
     >
       {/* 전체 화면 컨테이너 */}
-      <div 
+      <div
         className="flex flex-col h-full"
         style={{
           backgroundColor: 'var(--starcraft-bg)'
         }}
       >
         {/* 헤더 */}
-        <div 
+        <div
           className="flex items-center justify-between p-4 border-b draggable-titlebar"
-          style={{ 
+          style={{
             backgroundColor: 'var(--starcraft-bg-secondary)',
             borderBottomColor: 'var(--starcraft-border)'
           }}
@@ -157,22 +213,22 @@ export function WorkerDetailSettings({ isOpen, onClose }: WorkerDetailSettingsPr
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            
-            <Wrench 
-              className="w-6 h-6" 
+
+            <Wrench
+              className="w-6 h-6"
               style={{ color: 'var(--starcraft-green)' }}
             />
             <div>
-              <h1 
+              <h1
                 className="text-xl font-semibold tracking-wide"
-                style={{ 
+                style={{
                   color: 'var(--starcraft-green)',
                   textShadow: '0 0 8px rgba(0, 255, 0, 0.5)'
                 }}
               >
                 일꾼 설정
               </h1>
-              <p 
+              <p
                 className="text-sm opacity-70"
                 style={{ color: 'var(--starcraft-green)' }}
               >
@@ -184,135 +240,133 @@ export function WorkerDetailSettings({ isOpen, onClose }: WorkerDetailSettingsPr
 
         {/* 컨텐츠 - 스크롤 가능 */}
         <div className="flex-1 overflow-y-auto starcraft-scrollbar p-6 space-y-8">
-            {/* 안내 문구 */}
-            <div className="space-y-4">
-              <h2 
-                className="text-lg font-medium tracking-wide flex items-center gap-2"
-                style={{ color: 'var(--starcraft-green)' }}
-              >
-                <Wrench className="w-5 h-5" />
-                일꾼 기능 설정
-              </h2>
-              <div className="flex items-center gap-2">
-                <Info className="w-4 h-4" style={{ color: 'var(--starcraft-blue)' }} />
-                <p className="text-sm opacity-80" style={{ color: 'var(--starcraft-green)' }}>
-                  각 기능을 개별적으로 활성화하거나 비활성화할 수 있습니다
-                </p>
-              </div>
-            </div>
-
-            {/* 설정 항목들 */}
-            <div className="space-y-4">
-
-          {settingItems.map((item) => {
-            const IconComponent = item.icon;
-            return (
-              <div key={item.id} 
-                className="p-4 rounded-lg border transition-all duration-300 hover:border-opacity-80"
-                style={{
-                  backgroundColor: item.state 
-                    ? 'var(--starcraft-bg-active)' 
-                    : 'var(--starcraft-bg-secondary)',
-                  borderColor: item.state 
-                    ? 'var(--starcraft-green)' 
-                    : 'var(--starcraft-inactive-border)'
-                }}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 flex-1">
-                    <div className="p-2 rounded-lg mt-1"
-                      style={{ 
-                        backgroundColor: item.state 
-                          ? 'var(--starcraft-bg-active)' 
-                          : 'var(--starcraft-bg)',
-                        color: item.state 
-                          ? 'var(--starcraft-green)' 
-                          : 'var(--starcraft-inactive-text)'
-                      }}
-                    >
-                      <IconComponent className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium mb-2 tracking-wide"
-                        style={{ 
-                          color: item.state 
-                            ? 'var(--starcraft-green)' 
-                            : 'var(--starcraft-inactive-text)' 
-                        }}
-                      >
-                        {item.title}
-                      </h3>
-                      <p className="text-sm opacity-80 leading-relaxed"
-                        style={{ 
-                          color: item.state 
-                            ? 'var(--starcraft-green)' 
-                            : 'var(--starcraft-inactive-text)' 
-                        }}
-                      >
-                        {item.description}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <button
-                      onClick={() => item.setState(!item.state)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                        item.state 
-                          ? 'focus:ring-green-500' 
-                          : 'focus:ring-gray-500'
-                      }`}
-                      style={{
-                        backgroundColor: item.state 
-                          ? 'var(--starcraft-green)' 
-                          : 'var(--starcraft-inactive-bg)'
-                      }}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full transition-transform duration-300 ${
-                          item.state ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                        style={{
-                          backgroundColor: item.state 
-                            ? 'var(--starcraft-bg)' 
-                            : 'var(--starcraft-inactive-secondary)'
-                        }}
-                      />
-                    </button>
-                  </div>
-                </div>
-                
-                {/* 상태 표시 */}
-
-              </div>
-            );
-          })}
-        </div>
-
-            {/* 하단 정보 */}
-            <div className="p-4 rounded-lg border"
-              style={{
-                backgroundColor: 'var(--starcraft-bg-active)',
-                borderColor: 'var(--starcraft-green)',
-                color: 'var(--starcraft-green)'
-              }}
+          {/* 안내 문구 */}
+          <div className="space-y-4">
+            <h2
+              className="text-lg font-medium tracking-wide flex items-center gap-2"
+              style={{ color: 'var(--starcraft-green)' }}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <Info className="w-4 h-4" />
-                <span className="text-sm font-medium">설정 안내</span>
-              </div>
-              <ul className="text-xs space-y-1 opacity-90 pl-6">
-                <li>• 설정 변경사항은 즉시 적용됩니다</li>
-                <li>• 게임 중에도 실시간으로 설정을 변경할 수 있습니다</li>
-                <li>• 성능에 민감한 기능들은 필요시에만 활성화하세요</li>
-              </ul>
+              <Wrench className="w-5 h-5" />
+              일꾼 기능 설정
+            </h2>
+            <div className="flex items-center gap-2">
+              <Info className="w-4 h-4" style={{ color: 'var(--starcraft-blue)' }} />
+              <p className="text-sm opacity-80" style={{ color: 'var(--starcraft-green)' }}>
+                각 기능을 개별적으로 활성화하거나 비활성화할 수 있습니다
+              </p>
             </div>
+          </div>
+
+          {/* 설정 항목들 */}
+          <div className="space-y-4">
+
+            {settingItems.map((item) => {
+              const IconComponent = item.icon;
+              return (
+                <div key={item.id}
+                  className="p-4 rounded-lg border transition-all duration-300 hover:border-opacity-80"
+                  style={{
+                    backgroundColor: item.state
+                      ? 'var(--starcraft-bg-active)'
+                      : 'var(--starcraft-bg-secondary)',
+                    borderColor: item.state
+                      ? 'var(--starcraft-green)'
+                      : 'var(--starcraft-inactive-border)'
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className="p-2 rounded-lg mt-1"
+                        style={{
+                          backgroundColor: item.state
+                            ? 'var(--starcraft-bg-active)'
+                            : 'var(--starcraft-bg)',
+                          color: item.state
+                            ? 'var(--starcraft-green)'
+                            : 'var(--starcraft-inactive-text)'
+                        }}
+                      >
+                        <IconComponent className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium mb-2 tracking-wide"
+                          style={{
+                            color: item.state
+                              ? 'var(--starcraft-green)'
+                              : 'var(--starcraft-inactive-text)'
+                          }}
+                        >
+                          {item.title}
+                        </h3>
+                        <p className="text-sm opacity-80 leading-relaxed"
+                          style={{
+                            color: item.state
+                              ? 'var(--starcraft-green)'
+                              : 'var(--starcraft-inactive-text)'
+                          }}
+                        >
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => item.setState(!item.state)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 ${item.state
+                            ? 'focus:ring-green-500'
+                            : 'focus:ring-gray-500'
+                          }`}
+                        style={{
+                          backgroundColor: item.state
+                            ? 'var(--starcraft-green)'
+                            : 'var(--starcraft-inactive-bg)'
+                        }}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full transition-transform duration-300 ${item.state ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          style={{
+                            backgroundColor: item.state
+                              ? 'var(--starcraft-bg)'
+                              : 'var(--starcraft-inactive-secondary)'
+                          }}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 상태 표시 */}
+
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 하단 정보 */}
+          <div className="p-4 rounded-lg border"
+            style={{
+              backgroundColor: 'var(--starcraft-bg-active)',
+              borderColor: 'var(--starcraft-green)',
+              color: 'var(--starcraft-green)'
+            }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Info className="w-4 h-4" />
+              <span className="text-sm font-medium">설정 안내</span>
+            </div>
+            <ul className="text-xs space-y-1 opacity-90 pl-6">
+              <li>• 설정 변경사항은 즉시 적용됩니다</li>
+              <li>• 게임 중에도 실시간으로 설정을 변경할 수 있습니다</li>
+              <li>• 성능에 민감한 기능들은 필요시에만 활성화하세요</li>
+            </ul>
+          </div>
         </div>
 
         {/* 하단 버튼 */}
-        <div 
+        <div
           className="flex items-center justify-end p-4 border-t gap-3"
-          style={{ 
+          style={{
             backgroundColor: 'var(--starcraft-bg-secondary)',
             borderTopColor: 'var(--starcraft-border)'
           }}
@@ -327,7 +381,7 @@ export function WorkerDetailSettings({ isOpen, onClose }: WorkerDetailSettingsPr
           >
             취소
           </button>
-          
+
           <button
             onClick={handleSave}
             className="flex items-center gap-2 px-6 py-2 rounded-sm border transition-all duration-300 hover:bg-green-500/20"

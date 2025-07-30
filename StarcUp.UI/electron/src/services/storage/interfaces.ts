@@ -11,6 +11,29 @@ export interface IDataStorageService {
   loadPreset(userId: string, presetId: string): Promise<IPreset | null>
   deletePreset(userId: string, presetId: string): Promise<{ success: boolean }>
   
+  // 프리셋 UI 편의 메서드들
+  updatePreset(userId: string, presetId: string, updates: {
+    name?: string
+    description?: string
+    featureStates?: boolean[]
+    selectedRace?: 'protoss' | 'terran' | 'zerg'
+    workerSettings?: {
+      workerCountDisplay?: boolean
+      includeProducingWorkers?: boolean
+      idleWorkerDisplay?: boolean
+      workerProductionDetection?: boolean
+      workerDeathDetection?: boolean
+      gasWorkerCheck?: boolean
+    }
+  }): Promise<{ success: boolean }>
+  getSelectedPreset(userId: string): Promise<IPreset | null>
+  setSelectedPreset(userId: string, index: number): Promise<{ success: boolean }>
+  getPresetsWithSelection(userId: string): Promise<{
+    presets: IPreset[]
+    selectedIndex: number
+    maxPresets: number
+  }>
+  
   // 게임 히스토리 관리
   saveGameHistory(userId: string, gameData: Omit<IGameHistory, 'id' | 'playedAt'>): Promise<{ success: boolean; id?: string }>
   loadGameHistory(userId: string, limit?: number): Promise<IGameHistory[]>
