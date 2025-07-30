@@ -11,7 +11,7 @@ namespace StarcUp.Business.Units.Runtime.Services
         bool InitializeUnitArrayAddress();
         void InvalidateAddressCache();
         bool LoadAllUnits();
-        bool RefreshUnits();
+        bool UpdateUnits();
 
         IEnumerable<Unit> GetAllUnits();
         IEnumerable<Unit> GetPlayerUnits(int playerId);
