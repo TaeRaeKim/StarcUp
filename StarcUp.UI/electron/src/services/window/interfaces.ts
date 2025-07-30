@@ -67,4 +67,6 @@ export interface IShortcutManager {
   isRegistered(accelerator: string): boolean
   getRegisteredShortcuts(): string[]
   setOverlayAutoManager(overlayAutoManager: import('../overlay/interfaces').IOverlayAutoManager): void
+  getEditMode(): boolean
+  setEditMode(editMode: boolean): void
 }

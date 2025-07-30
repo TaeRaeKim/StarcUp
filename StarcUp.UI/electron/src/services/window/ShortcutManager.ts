@@ -7,6 +7,7 @@ export class ShortcutManager implements IShortcutManager {
   private windowManager: IWindowManager
   private overlayAutoManager: IOverlayAutoManager | null = null
   private registeredShortcuts: Map<string, () => void> = new Map()
+  private isEditMode: boolean = false
 
   constructor(windowManager: IWindowManager) {
     this.windowManager = windowManager
@@ -50,7 +51,7 @@ export class ShortcutManager implements IShortcutManager {
 
   private registerOverlayShortcuts(): void {
     // 오버레이 토글 단축키 등록
-    const callback = () => {
+    const toggleCallback = () => {
       this.windowManager.toggleOverlay()
       
       // 오버레이가 표시되는 경우 저장된 위치 적용
@@ -59,11 +60,32 @@ export class ShortcutManager implements IShortcutManager {
       }
     }
     
-    if (globalShortcut.register(OVERLAY_CONFIG.toggleShortcut, callback)) {
-      this.registeredShortcuts.set(OVERLAY_CONFIG.toggleShortcut, callback)
+    if (globalShortcut.register(OVERLAY_CONFIG.toggleShortcut, toggleCallback)) {
+      this.registeredShortcuts.set(OVERLAY_CONFIG.toggleShortcut, toggleCallback)
       console.log(`⌨️ 오버레이 토글 단축키 등록: ${OVERLAY_CONFIG.toggleShortcut}`)
     } else {
       console.warn(`⚠️ 오버레이 단축키 등록 실패: ${OVERLAY_CONFIG.toggleShortcut}`)
+    }
+
+    // 오버레이 편집 모드 토글 단축키 등록 (Ctrl+Tab)
+    const editModeCallback = () => {
+      this.isEditMode = !this.isEditMode
+      console.log('🎯 오버레이 편집 모드 토글 키 감지:', this.isEditMode ? 'ON' : 'OFF')
+      
+      // 마우스 이벤트 설정: 편집 모드일 때는 클릭 가능, 아닐 때는 무시
+      this.windowManager.setOverlayMouseEvents(!this.isEditMode)
+      
+      // 오버레이에 편집 모드 상태 전달
+      this.windowManager.sendToOverlayWindow('toggle-edit-mode', { 
+        isEditMode: this.isEditMode 
+      })
+    }
+    
+    if (globalShortcut.register('Ctrl+Tab', editModeCallback)) {
+      this.registeredShortcuts.set('Ctrl+Tab', editModeCallback)
+      console.log('⌨️ 오버레이 편집 모드 단축키 등록: Ctrl+Tab')
+    } else {
+      console.warn('⚠️ 오버레이 편집 모드 단축키 등록 실패: Ctrl+Tab')
     }
   }
 
@@ -108,5 +130,22 @@ export class ShortcutManager implements IShortcutManager {
   // 등록된 단축키 목록 조회
   getRegisteredShortcuts(): string[] {
     return Array.from(this.registeredShortcuts.keys())
+  }
+
+  // 편집 모드 상태 조회
+  getEditMode(): boolean {
+    return this.isEditMode
+  }
+
+  // 편집 모드 직접 설정 (필요시 사용)
+  setEditMode(editMode: boolean): void {
+    if (this.isEditMode !== editMode) {
+      this.isEditMode = editMode
+      this.windowManager.setOverlayMouseEvents(!this.isEditMode)
+      this.windowManager.sendToOverlayWindow('toggle-edit-mode', { 
+        isEditMode: this.isEditMode 
+      })
+      console.log('🎯 편집 모드 직접 설정:', this.isEditMode ? 'ON' : 'OFF')
+    }
   }
 }

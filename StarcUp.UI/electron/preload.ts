@@ -72,6 +72,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // 리스너 정리 함수 반환
     return () => ipcRenderer.off('worker-preset-changed', listener)
   },
+
+  // 오버레이 편집 모드 토글 이벤트 리스너
+  onToggleEditMode: (callback: (data: { isEditMode: boolean }) => void) => {
+    const listener = (_event: any, data: { isEditMode: boolean }) => callback(data)
+    ipcRenderer.on('toggle-edit-mode', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('toggle-edit-mode', listener)
+  },
 })
 
 // --------- Expose Core API to the Renderer process ---------

@@ -8,7 +8,6 @@ namespace StarcUp.Business.Profile.Models
         public int TotalWorkers { get; set; }
         public int IdleWorkers { get; set; }
         public int ProductionWorkers { get; set; }
-        public int ActiveWorkers { get; set; }
         public int CalculatedTotalWorkers { get; set; }  // 프리셋 적용된 총 개수
         public DateTime LastUpdated { get; set; }
 
@@ -37,8 +36,10 @@ namespace StarcUp.Business.Profile.Models
         public bool IsProductionCompleted(WorkerStatistics other)
         {
             if (other == null) return false;
-            return TotalWorkers == other.TotalWorkers && 
-                   ProductionWorkers < other.ProductionWorkers;
+            return (TotalWorkers == other.TotalWorkers &&
+                   ProductionWorkers < other.ProductionWorkers) ||
+                     (TotalWorkers > other.TotalWorkers &&
+                     ProductionWorkers == other.ProductionWorkers && ProductionWorkers > 0);
         }
 
         public bool IsWorkerDied(WorkerStatistics other)
@@ -48,6 +49,28 @@ namespace StarcUp.Business.Profile.Models
                    !(ProductionWorkers < other.ProductionWorkers);
         }
 
+        // 새로운 이벤트 감지 메서드들
+        public bool IsSimpleIncrease(WorkerStatistics other)
+        {
+            if (other == null) return false;
+            return TotalWorkers > other.TotalWorkers && 
+                   ProductionWorkers == other.ProductionWorkers;
+        }
+
+        public bool IsProductionStarted(WorkerStatistics other)
+        {
+            if (other == null) return false;
+            return TotalWorkers > other.TotalWorkers && 
+                   ProductionWorkers > other.ProductionWorkers;
+        }
+
+        public bool IsProductionCanceled(WorkerStatistics other)
+        {
+            if (other == null) return false;
+            return TotalWorkers < other.TotalWorkers && 
+                   ProductionWorkers < other.ProductionWorkers;
+        }
+
         public WorkerStatistics Clone()
         {
             return new WorkerStatistics
@@ -55,7 +78,6 @@ namespace StarcUp.Business.Profile.Models
                 TotalWorkers = TotalWorkers,
                 IdleWorkers = IdleWorkers,
                 ProductionWorkers = ProductionWorkers,
-                ActiveWorkers = ActiveWorkers,
                 CalculatedTotalWorkers = CalculatedTotalWorkers,
                 LastUpdated = LastUpdated
             };
