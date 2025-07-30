@@ -24,8 +24,10 @@ namespace StarcUp.Business.Profile
         private readonly IMemoryService _memoryService;
         private readonly IUnitCountService _unitCountService;
 
-        // 이벤트
+        // 이벤트 및 쿨타임 관리
         public event EventHandler<PopulationEventArgs> SupplyAlert;
+        private DateTime _lastSupplyAlertTime = DateTime.MinValue;
+        private readonly TimeSpan _supplyAlertCooldown = TimeSpan.FromSeconds(2); // 2초 쿨타임
 
         // 속성
         public PopulationSettings Settings { get; set; } = new PopulationSettings();
@@ -246,11 +248,23 @@ namespace StarcUp.Business.Profile
         /// <summary>
         /// 인구 부족 경고 이벤트를 발생시킴
         /// UI로 경고 정보를 전송함
+        /// 2초 쿨타임 적용으로 스팸 방지
         /// </summary>
         /// <param name="thresholdValue">경고 기준값</param>
         /// <param name="alertMessage">경고 메시지</param>
         private void RaiseSupplyAlert(int thresholdValue, string alertMessage)
         {
+            var currentTime = DateTime.Now;
+            
+            // 쿨타임 체크 - 마지막 경고 후 2초가 지나지 않았으면 무시
+            if (currentTime - _lastSupplyAlertTime < _supplyAlertCooldown)
+            {
+                return;
+            }
+            
+            // 쿨타임 갱신
+            _lastSupplyAlertTime = currentTime;
+            
             var eventArgs = new PopulationEventArgs(
                 PopulationEventType.SupplyAlert,
                 _currentStats,
