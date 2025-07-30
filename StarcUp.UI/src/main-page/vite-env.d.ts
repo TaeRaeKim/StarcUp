@@ -17,6 +17,16 @@ declare global {
       setWindowPosition: (x: number, y: number) => Promise<any>
       // 오버레이 중앙 위치 업데이트 이벤트 리스너
       onUpdateCenterPosition: (callback: (data: any) => void) => () => void
+      
+      // 프리셋 관리 API
+      savePreset: (userId: string, preset: any) => Promise<any>
+      loadPreset: (userId: string, presetId: string) => Promise<any>
+      getPresets: (userId: string) => Promise<any>
+      deletePreset: (userId: string, presetId: string) => Promise<any>
+      updatePreset: (userId: string, presetId: string, updates: any) => Promise<any>
+      getSelectedPreset: (userId: string) => Promise<any>
+      setSelectedPreset: (userId: string, index: number) => Promise<any>
+      getPresetsWithSelection: (userId: string) => Promise<any>
     }
     coreAPI: {
       startDetection: () => Promise<any>

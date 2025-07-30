@@ -39,6 +39,14 @@ interface Preset {
   description: string;
   featureStates: boolean[];
   selectedRace: 'protoss' | 'terran' | 'zerg';
+  workerSettings?: {
+    workerCountDisplay?: boolean;
+    includeProducingWorkers?: boolean;
+    idleWorkerDisplay?: boolean;
+    workerProductionDetection?: boolean;
+    workerDeathDetection?: boolean;
+    gasWorkerCheck?: boolean;
+  };
 }
 
 // 프리셋 데이터 (상태로 관리하여 수정 가능하게 함)
@@ -71,6 +79,7 @@ export default function App() {
   const [gameStatus, setGameStatus] = useState<GameStatus>('error');
   const [currentPresetIndex, setCurrentPresetIndex] = useState(0);
   const [presets, setPresets] = useState(initialPresets);
+  const [presetsLoaded, setPresetsLoaded] = useState(false);
   
   // 현재 뷰 상태 관리 (모달 대신 페이지 전환 방식)
   const [currentView, setCurrentView] = useState<CurrentView>('main');
@@ -122,6 +131,54 @@ export default function App() {
       console.log('🧹 게임 상태 이벤트 리스너 정리');
       unsubscribe();
     };
+  }, []);
+
+  // 프리셋 자동 로드 (앱 시작 시)
+  useEffect(() => {
+    const loadPresets = async () => {
+      try {
+        console.log('📋 프리셋 자동 로드 시작...');
+        
+        if (!(window.electronAPI as any)?.getPresetsWithSelection) {
+          console.warn('⚠️ electronAPI가 준비되지 않았습니다');
+          return;
+        }
+
+        const response = await (window.electronAPI as any).getPresetsWithSelection('default-user');
+        
+        if (response.success && response.data) {
+          const { presets: loadedPresets, selectedIndex } = response.data;
+          
+          // IPreset을 UI Preset 형태로 변환
+          const uiPresets: Preset[] = loadedPresets.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            description: p.data?.description || '',
+            featureStates: p.data?.featureStates || [true, false, false, false, false],
+            selectedRace: p.data?.selectedRace || 'protoss',
+            workerSettings: p.data?.workerSettings
+          }));
+
+          setPresets(uiPresets);
+          setCurrentPresetIndex(selectedIndex);
+          setPresetsLoaded(true);
+          
+          console.log('✅ 프리셋 자동 로드 완료:', {
+            count: uiPresets.length,
+            selected: selectedIndex,
+            selectedName: uiPresets[selectedIndex]?.name
+          });
+        } else {
+          console.warn('⚠️ 프리셋 로드 실패, 기본 프리셋 사용');
+          setPresetsLoaded(true);
+        }
+      } catch (error) {
+        console.error('❌ 프리셋 자동 로드 실패:', error);
+        setPresetsLoaded(true); // 실패해도 로딩 완료로 처리
+      }
+    };
+
+    loadPresets();
   }, []);
 
   // 자동 overlay 관리는 이제 메인 프로세스에서 처리됩니다
@@ -229,19 +286,77 @@ export default function App() {
     setCurrentEditingRace(null);
   };
 
-  const handleSavePreset = (updatedPreset: {
+  const handleSavePreset = async (updatedPreset: {
     id: string;
     name: string;
     description: string;
     featureStates: boolean[];
     selectedRace?: 'protoss' | 'terran' | 'zerg';
   }) => {
-    console.log('프리셋 저장 완료:', updatedPreset.name, '종족:', updatedPreset.selectedRace);
-    setPresets(prev => prev.map(preset => 
-      preset.id === updatedPreset.id ? { ...preset, ...updatedPreset } : preset
-    ));
-    // 저장 후 편집 중인 종족 상태 초기화
-    setCurrentEditingRace(null);
+    try {
+      console.log('📝 프리셋 저장 시작:', updatedPreset.name, '종족:', updatedPreset.selectedRace);
+      
+      // 로컬 상태 업데이트
+      setPresets(prev => prev.map(preset => 
+        preset.id === updatedPreset.id ? { ...preset, ...updatedPreset } : preset
+      ));
+      
+      // 파일에 저장
+      if ((window.electronAPI as any)?.updatePreset) {
+        const updates = {
+          name: updatedPreset.name,
+          description: updatedPreset.description,
+          featureStates: updatedPreset.featureStates,
+          selectedRace: updatedPreset.selectedRace || 'protoss'
+        };
+        
+        const result = await (window.electronAPI as any).updatePreset('default-user', updatedPreset.id, updates);
+        
+        if (result.success) {
+          console.log('✅ 프리셋 파일 저장 완료:', updatedPreset.name);
+        } else {
+          console.error('❌ 프리셋 파일 저장 실패');
+        }
+      } else {
+        console.warn('⚠️ electronAPI가 준비되지 않아 로컬 상태만 업데이트됨');
+      }
+      
+      // 저장 후 편집 중인 종족 상태 초기화
+      setCurrentEditingRace(null);
+    } catch (error) {
+      console.error('❌ 프리셋 저장 중 오류:', error);
+    }
+  };
+
+  // 일꾼 설정 저장 핸들러
+  const handleSaveWorkerSettings = async (presetId: string, workerSettings: any) => {
+    try {
+      console.log('🔧 일꾼 설정 저장:', presetId, workerSettings);
+      
+      // 로컬 상태 업데이트
+      setPresets(prev => prev.map(preset => 
+        preset.id === presetId 
+          ? { ...preset, workerSettings } 
+          : preset
+      ));
+      
+      // 파일에 저장
+      if ((window.electronAPI as any)?.updatePreset) {
+        const result = await (window.electronAPI as any).updatePreset('default-user', presetId, {
+          workerSettings
+        });
+        
+        if (result.success) {
+          console.log('✅ 일꾼 설정 파일 저장 완료');
+        } else {
+          console.error('❌ 일꾼 설정 파일 저장 실패');
+        }
+      } else {
+        console.warn('⚠️ electronAPI가 준비되지 않아 로컬 상태만 업데이트됨');
+      }
+    } catch (error) {
+      console.error('❌ 일꾼 설정 저장 중 오류:', error);
+    }
   };
 
   // 뷰 전환 핸들러
@@ -347,10 +462,13 @@ export default function App() {
         );
 
       case 'worker-settings':
+        console.log('🔧 WorkerDetailSettings 렌더링 - currentPreset:', currentPreset);
         return (
           <WorkerDetailSettings
             isOpen={true}
             onClose={handleBackToPresetSettings}
+            currentPreset={currentPreset}
+            onSaveWorkerSettings={handleSaveWorkerSettings}
           />
         );
 
