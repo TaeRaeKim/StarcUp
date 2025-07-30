@@ -20,7 +20,7 @@ namespace StarcUp.Business.Units.Runtime.Repositories
             if (_cachedConfig != null)
                 return _cachedConfig;
 
-            var filePath = Path.Combine(_dataPath, "all_race_unit_offsets.json");
+            var filePath = Path.Combine(_dataPath, "offsets.json");
             
             if (!File.Exists(filePath))
                 throw new FileNotFoundException($"유닛 오프셋 파일을 찾을 수 없습니다: {filePath}");
@@ -112,6 +112,43 @@ namespace StarcUp.Business.Units.Runtime.Repositories
         {
             var minOffset = GetMinBufferOffset();
             return absoluteOffset - minOffset;
+        }
+
+        // 종족별 인구수 오프셋 메서드들
+        public int GetTerranSupplyUsedOffset()
+        {
+            var config = LoadConfig();
+            return config.PopulationOffsets.Terran.SupplyUsed;
+        }
+
+        public int GetTerranSupplyMaxOffset()
+        {
+            var config = LoadConfig();
+            return config.PopulationOffsets.Terran.SupplyMax;
+        }
+
+        public int GetZergSupplyUsedOffset()
+        {
+            var config = LoadConfig();
+            return config.PopulationOffsets.Zerg.SupplyUsed;
+        }
+
+        public int GetZergSupplyMaxOffset()
+        {
+            var config = LoadConfig();
+            return config.PopulationOffsets.Zerg.SupplyMax;
+        }
+
+        public int GetProtossSupplyUsedOffset()
+        {
+            var config = LoadConfig();
+            return config.PopulationOffsets.Protoss.SupplyUsed;
+        }
+
+        public int GetProtossSupplyMaxOffset()
+        {
+            var config = LoadConfig();
+            return config.PopulationOffsets.Protoss.SupplyMax;
         }
 
         public void ClearCache()

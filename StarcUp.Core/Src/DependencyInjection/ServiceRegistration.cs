@@ -44,7 +44,8 @@ namespace StarcUp.DependencyInjection
             container.RegisterSingleton<IMemoryService>(
                 c => new MemoryService(
                     c.Resolve<IGameDetector>(),
-                    c.Resolve<IMemoryReader>()));
+                    c.Resolve<IMemoryReader>(),
+                    c.Resolve<UnitOffsetRepository>()));
 
             // InGameStateMonitor
             container.RegisterSingleton<IInGameDetector>(
@@ -75,6 +76,12 @@ namespace StarcUp.DependencyInjection
             container.RegisterSingleton<IWorkerManager>(
                 c => new WorkerManager());
 
+            // Population Management Services
+            container.RegisterSingleton<IPopulationManager>(
+                c => new PopulationManager(
+                    c.Resolve<IMemoryService>(),
+                    c.Resolve<IUnitCountService>()));
+
             // Communication Services
             container.RegisterSingleton<INamedPipeClient>(
                 c => new NamedPipeClient());
@@ -95,7 +102,8 @@ namespace StarcUp.DependencyInjection
                     c.Resolve<IUnitService>(),
                     c.Resolve<IMemoryService>(),
                     c.Resolve<IUnitCountService>(),
-                    c.Resolve<IWorkerManager>()));
+                    c.Resolve<IWorkerManager>(),
+                    c.Resolve<IPopulationManager>()));
 
             Console.WriteLine("✅ 서비스 등록 완료:");
             Console.WriteLine("   📖 MemoryReader - 통합된 메모리 읽기 서비스");
@@ -113,6 +121,7 @@ namespace StarcUp.DependencyInjection
             Console.WriteLine("   🔗 NamedPipeClient - Named Pipe 통신 클라이언트");
             Console.WriteLine("   📡 CommunicationService - UI 통신 관리 서비스");
             Console.WriteLine("   👷 WorkerManager - 일꾼 관리 및 이벤트 서비스");
+            Console.WriteLine("   👥 PopulationManager - 인구수 관리 및 경고 서비스");
             Console.WriteLine("   🎯 GameManager - 게임 관리 서비스 (자동 유닛 데이터 로딩)");
         }
     }

@@ -24,18 +24,21 @@ namespace StarcUp.Business.Game
         private readonly IMemoryService _memoryService;
         private readonly IUnitCountService _unitCountService;
         private readonly IWorkerManager _workerManager;
+        private readonly IPopulationManager _populationManager;
         private readonly Timer _unitDataTimer;
         private readonly Timer _gameDataTimer;
         private readonly Timer _unitCountTimer;
+        private readonly Timer _populationTimer;
         private bool _isGameActive;
         private bool _disposed;
-        public GameManager(IInGameDetector inGameDetector, IUnitService unitService, IMemoryService memoryService, IUnitCountService unitCountService, IWorkerManager workerManager)
+        public GameManager(IInGameDetector inGameDetector, IUnitService unitService, IMemoryService memoryService, IUnitCountService unitCountService, IWorkerManager workerManager, IPopulationManager populationManager)
         {
             _inGameDetector = inGameDetector ?? throw new ArgumentNullException(nameof(inGameDetector));
             _unitService = unitService ?? throw new ArgumentNullException(nameof(unitService));
             _memoryService = memoryService ?? throw new ArgumentNullException(nameof(memoryService));
             _unitCountService = unitCountService ?? throw new ArgumentNullException(nameof(unitCountService));
             _workerManager = workerManager ?? throw new ArgumentNullException(nameof(workerManager));
+            _populationManager = populationManager ?? throw new ArgumentNullException(nameof(populationManager));
                         
             _unitDataTimer = new Timer(100); // 1초에 10번 (100ms 간격)
             _unitDataTimer.Elapsed += OnUnitDataTimerElapsed;
@@ -48,6 +51,10 @@ namespace StarcUp.Business.Game
             _unitCountTimer = new Timer(500); // 0.5초마다 (500ms 간격)
             _unitCountTimer.Elapsed += OnUnitCountTimerElapsed;
             _unitCountTimer.AutoReset = true;
+            
+            _populationTimer = new Timer(200); // 0.2초마다 (200ms 간격)
+            _populationTimer.Elapsed += OnPopulationTimerElapsed;
+            _populationTimer.AutoReset = true;
             
             _inGameDetector.InGameStateChanged += OnInGameStateChanged;
         }
@@ -100,11 +107,19 @@ namespace StarcUp.Business.Game
             // WorkerManager 초기화
             _workerManager.Initialize(LocalGameData.LocalPlayerIndex);
 
+            // PopulationManager 초기화
+            _populationManager.Initialize(LocalGameData.LocalPlayerIndex, LocalGameData.LocalPlayerRace);
+            
+            // 테스트용 기본 설정 적용
+            InitializeTestPopulationSettings();
+            Console.WriteLine("GameManager: PopulationManager 초기화 완료");
+
             // 타이머 시작
             _isGameActive = true;
             _unitDataTimer.Start();
             _gameDataTimer.Start();
             _unitCountTimer.Start();
+            _populationTimer.Start();
             Console.WriteLine("GameManager: 게임 초기화 완료");            
         }
         public void GameExit()
@@ -118,6 +133,7 @@ namespace StarcUp.Business.Game
             _unitDataTimer.Stop();
             _gameDataTimer.Stop();
             _unitCountTimer.Stop();
+            _populationTimer.Stop();
             
             // UnitCountService 정지
             _unitCountService?.Stop();
@@ -214,6 +230,21 @@ namespace StarcUp.Business.Game
             }
         }
         
+        private void OnPopulationTimerElapsed(object? sender, ElapsedEventArgs e)
+        {
+            if (_isGameActive && !_disposed)
+            {
+                try
+                {
+                    _populationManager.UpdatePopulationData();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"GameManager: PopulationManager 업데이트 중 오류 발생 - {ex.Message}");
+                }
+            }
+        }
+        
         
         private void LoadLocalPlayerIndex()
         {
@@ -224,8 +255,12 @@ namespace StarcUp.Business.Game
                 {
                     var localGameData = LocalGameData;
                     localGameData.LocalPlayerIndex = localPlayerIndex;
+                    
+                    // 종족 정보도 함께 로드
+                    localGameData.LocalPlayerRace = _memoryService.ReadPlayerRace(localPlayerIndex);
+                    
                     LocalGameData = localGameData;
-                    Console.WriteLine($"GameManager: LocalPlayerIndex 설정 완료 - {localPlayerIndex}");
+                    Console.WriteLine($"GameManager: LocalPlayerIndex 설정 완료 - {localPlayerIndex}, 종족: {localGameData.LocalPlayerRace}");
                 }
                 else
                 {
@@ -237,6 +272,7 @@ namespace StarcUp.Business.Game
                 Console.WriteLine($"GameManager: LocalPlayerIndex 로드 중 오류 발생 - {ex.Message}");
             }
         }
+
         
         private void LoadGameData()
         {
@@ -303,6 +339,9 @@ namespace StarcUp.Business.Game
             _unitCountTimer?.Stop();
             _unitCountTimer?.Dispose();
             
+            _populationTimer?.Stop();
+            _populationTimer?.Dispose();
+            
             if (_inGameDetector != null)
             {
                 _inGameDetector.InGameStateChanged -= OnInGameStateChanged;
@@ -313,8 +352,124 @@ namespace StarcUp.Business.Game
                 _workerManager.Dispose();
             }
             
+            if (_populationManager != null)
+            {
+                _populationManager.Dispose();
+            }
+            
             _disposed = true;
             Console.WriteLine("GameManager: 리소스 정리 완료");
+        }
+
+        /// <summary>
+        /// 테스트용 PopulationManager 기본 설정 초기화
+        /// 모드 A와 모드 B 모두 테스트할 수 있도록 설정
+        /// </summary>
+        private void InitializeTestPopulationSettings()
+        {
+            // 모드 A (고정값 기반) 테스트 설정
+            var fixedModeSettings = new StarcUp.Business.Profile.Models.PopulationSettings
+            {
+                Mode = StarcUp.Business.Profile.Models.PopulationMode.Fixed,
+                FixedSettings = new StarcUp.Business.Profile.Models.FixedModeSettings
+                {
+                    ThresholdValue = 2, // 여유분이 4 이하일 때 경고
+                    TimeLimit = new StarcUp.Business.Profile.Models.TimeLimitSettings
+                    {
+                        Enabled = true,
+                        Minutes = 0,
+                        Seconds = 0 // 2분 후부터 경고 활성화
+                    }
+                }
+            };
+
+            // 필요시 모드 B로 전환할 수 있도록 모드 B 설정도 준비
+            var buildingModeSettings = new StarcUp.Business.Profile.Models.PopulationSettings
+            {
+                Mode = StarcUp.Business.Profile.Models.PopulationMode.Building,
+                BuildingSettings = new StarcUp.Business.Profile.Models.BuildingModeSettings
+                {
+                    Race = LocalGameData.LocalPlayerRace,
+                    TrackedBuildings = GetDefaultTrackedBuildings(LocalGameData.LocalPlayerRace)
+                }
+            };
+            
+            _populationManager.InitializePopulationSettings(buildingModeSettings);
+            Console.WriteLine("GameManager: 모드 A (고정값 기반) 테스트 설정 적용됨 - 기준값: 4, 시간제한: 2분");
+
+
+            Console.WriteLine($"GameManager: 모드 B (건물 기반) 설정도 준비됨 - 종족: {LocalGameData.LocalPlayerRace}");
+        }
+
+        /// <summary>
+        /// 종족별 기본 추적 건물 설정 생성
+        /// </summary>
+        private List<StarcUp.Business.Profile.Models.TrackedBuilding> GetDefaultTrackedBuildings(RaceType race)
+        {
+            var buildings = new List<StarcUp.Business.Profile.Models.TrackedBuilding>();
+
+            switch (race)
+            {
+                case RaceType.Terran:
+                    buildings.Add(new StarcUp.Business.Profile.Models.TrackedBuilding
+                    {
+                        BuildingType = UnitType.TerranBarracks,
+                        Name = "배럭",
+                        Multiplier = 1,
+                        Enabled = true
+                    });
+                    buildings.Add(new StarcUp.Business.Profile.Models.TrackedBuilding
+                    {
+                        BuildingType = UnitType.TerranFactory,
+                        Name = "팩토리",
+                        Multiplier = 6,
+                        Enabled = false
+                    });
+                    buildings.Add(new StarcUp.Business.Profile.Models.TrackedBuilding
+                    {
+                        BuildingType = UnitType.TerranStarport,
+                        Name = "스타포트",
+                        Multiplier = 4,
+                        Enabled = false
+                    });
+                    break;
+
+                case RaceType.Protoss:
+                    buildings.Add(new StarcUp.Business.Profile.Models.TrackedBuilding
+                    {
+                        BuildingType = UnitType.ProtossGateway,
+                        Name = "게이트웨이",
+                        Multiplier = 2,
+                        Enabled = true
+                    });
+                    buildings.Add(new StarcUp.Business.Profile.Models.TrackedBuilding
+                    {
+                        BuildingType = UnitType.ProtossRoboticsFacility,
+                        Name = "로보틱스 퍼실리티",
+                        Multiplier = 6,
+                        Enabled = false
+                    });
+                    buildings.Add(new StarcUp.Business.Profile.Models.TrackedBuilding
+                    {
+                        BuildingType = UnitType.ProtossStargate,
+                        Name = "스타게이트",
+                        Multiplier = 4,
+                        Enabled = false
+                    });
+                    break;
+
+                case RaceType.Zerg:
+                    buildings.Add(new StarcUp.Business.Profile.Models.TrackedBuilding
+                    {
+                        BuildingType = UnitType.ZergHatchery,
+                        Name = "해처리",
+                        Multiplier = 1,
+                        Enabled = true
+                    });
+                    break;
+            }
+
+            return buildings;
         }
     }
 }
