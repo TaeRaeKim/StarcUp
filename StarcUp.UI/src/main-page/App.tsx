@@ -396,6 +396,22 @@ export default function App() {
   const renderCurrentView = () => {
     switch (currentView) {
       case 'main':
+        // preset이 로드되지 않았으면 로딩 화면 표시
+        if (!presetsLoaded || presets.length === 0) {
+          return (
+            <div className="h-screen w-screen flex items-center justify-center" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
+              <div className="text-center">
+                <div className="text-xl mb-4" style={{ color: 'var(--starcraft-green)' }}>
+                  프리셋 로딩 중...
+                </div>
+                <div className="animate-pulse text-sm" style={{ color: 'var(--starcraft-green)' }}>
+                  잠시만 기다려주세요
+                </div>
+              </div>
+            </div>
+          );
+        }
+        
         return (
           <MainInterface
             presets={presets}
@@ -409,6 +425,18 @@ export default function App() {
         );
 
       case 'preset-settings':
+        if (!presetsLoaded || presets.length === 0 || !currentPreset) {
+          return (
+            <div className="h-screen w-screen flex items-center justify-center" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
+              <div className="text-center">
+                <div className="text-xl mb-4" style={{ color: 'var(--starcraft-green)' }}>
+                  프리셋 로딩 중...
+                </div>
+              </div>
+            </div>
+          );
+        }
+        
         return (
           <PresetSettingsModal
             isOpen={true}
