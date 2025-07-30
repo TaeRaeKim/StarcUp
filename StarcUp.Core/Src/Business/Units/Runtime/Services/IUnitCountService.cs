@@ -26,7 +26,7 @@ namespace StarcUp.Business.Units.Runtime.Services
         /// 수동으로 데이터 새로고침
         /// </summary>
         /// <returns>새로고침 성공 여부</returns>
-        bool RefreshData();
+        bool UpdateData();
 
         /// <summary>
         /// 특정 유닛의 카운트 조회

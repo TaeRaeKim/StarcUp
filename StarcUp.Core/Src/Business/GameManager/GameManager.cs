@@ -25,10 +25,7 @@ namespace StarcUp.Business.Game
         private readonly IUnitCountService _unitCountService;
         private readonly IWorkerManager _workerManager;
         private readonly IPopulationManager _populationManager;
-        private readonly Timer _unitDataTimer;
-        private readonly Timer _gameDataTimer;
-        private readonly Timer _unitCountTimer;
-        private readonly Timer _populationTimer;
+        private readonly Timer _updateTimer;
         private bool _isGameActive;
         private bool _disposed;
         public GameManager(IInGameDetector inGameDetector, IUnitService unitService, IMemoryService memoryService, IUnitCountService unitCountService, IWorkerManager workerManager, IPopulationManager populationManager)
@@ -40,21 +37,10 @@ namespace StarcUp.Business.Game
             _workerManager = workerManager ?? throw new ArgumentNullException(nameof(workerManager));
             _populationManager = populationManager ?? throw new ArgumentNullException(nameof(populationManager));
                         
-            _unitDataTimer = new Timer(100); // 1초에 10번 (100ms 간격)
-            _unitDataTimer.Elapsed += OnUnitDataTimerElapsed;
-            _unitDataTimer.AutoReset = true;
-            
-            _gameDataTimer = new Timer(100); // 0.5초마다 (500ms 간격)
-            _gameDataTimer.Elapsed += OnGameDataTimerElapsed;
-            _gameDataTimer.AutoReset = true;
-            
-            _unitCountTimer = new Timer(500); // 0.5초마다 (500ms 간격)
-            _unitCountTimer.Elapsed += OnUnitCountTimerElapsed;
-            _unitCountTimer.AutoReset = true;
-            
-            _populationTimer = new Timer(200); // 0.2초마다 (200ms 간격)
-            _populationTimer.Elapsed += OnPopulationTimerElapsed;
-            _populationTimer.AutoReset = true;
+            // 24fps = 약 41.67ms, 안전하게 42ms로 설정
+            _updateTimer = new Timer(42); // 24fps (42ms 간격)
+            _updateTimer.Elapsed += OnUpdateTimerElapsed;
+            _updateTimer.AutoReset = true;
             
             _inGameDetector.InGameStateChanged += OnInGameStateChanged;
         }
@@ -71,6 +57,7 @@ namespace StarcUp.Business.Game
             new Player { PlayerIndex = 6 },
             new Player { PlayerIndex = 7 }
         };
+
         public nint[] StartUnitAddressFromIndex { get; private set; } = Array.Empty<nint>();
         public nint StartUnitAddress { get; private set; } = 0;
         public void GameInit()
@@ -114,12 +101,9 @@ namespace StarcUp.Business.Game
             InitializeTestPopulationSettings();
             Console.WriteLine("GameManager: PopulationManager 초기화 완료");
 
-            // 타이머 시작
+            // 통합 타이머 시작
             _isGameActive = true;
-            _unitDataTimer.Start();
-            _gameDataTimer.Start();
-            _unitCountTimer.Start();
-            _populationTimer.Start();
+            _updateTimer.Start();
             Console.WriteLine("GameManager: 게임 초기화 완료");            
         }
         public void GameExit()
@@ -130,10 +114,7 @@ namespace StarcUp.Business.Game
             Console.WriteLine("GameManager: 게임 종료 시작");
             
             _isGameActive = false;
-            _unitDataTimer.Stop();
-            _gameDataTimer.Stop();
-            _unitCountTimer.Stop();
-            _populationTimer.Stop();
+            _updateTimer.Stop();
             
             // UnitCountService 정지
             _unitCountService?.Stop();
@@ -159,21 +140,34 @@ namespace StarcUp.Business.Game
             }
         }
         
-        private void OnUnitDataTimerElapsed(object? sender, ElapsedEventArgs e)
+        /// <summary>
+        /// 통합 업데이트 함수 - 24fps (42ms 간격)로 모든 작업 실행
+        /// </summary>
+        private void OnUpdateTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-            if (_isGameActive && !_disposed)
+            if (!_isGameActive || _disposed) return;
+
+            try
             {
-                LoadUnitsData(); // 전체 Unit을 Buffer 방식으로 로드
-                UpdateUnitData(); // Unit Count를 Buffer 방식으로 로드
+                // 모든 작업을 24fps로 실행
+                UpdateUnitService();
+                UpdateUnitCountService();
+                LoadGameData();
+                UpdatePopulationData();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"GameManager: Update 중 오류 발생 - {ex.Message}");
             }
         }
         
-        private void LoadUnitsData()
+        private void UpdateUnitService()
         {
             try
             {
-                _unitService.RefreshUnits();
-                var units = _unitService.GetPlayerUnits(LocalGameData.LocalPlayerIndex);
+                _unitService.UpdateUnits();
+                Players[LocalGameData.LocalPlayerIndex].UpdateUnits();
+                var units = Players[LocalGameData.LocalPlayerIndex].GetPlayerUnits();
                 
                 // WorkerManager에 일꾼 데이터 업데이트
                 var workers = units.Where(u => u.IsWorker);
@@ -189,17 +183,16 @@ namespace StarcUp.Business.Game
             }
         }
 
-        private void UpdateUnitData()
+        private void UpdateUnitCountService()
         {
             try
             {
                 // UnitCountService 데이터 새로고침
-                if (!_unitCountService.RefreshData())
+                if (!_unitCountService.UpdateData())
                 {
                     Console.WriteLine("GameManager: UnitCountService 데이터 새로고침 실패");
                     return;
                 }
-
                 // Players[LocalGameData.LocalPlayerIndex].UpdateUnits();
                 // Console.WriteLine($"GameManager: 플레이어 {LocalGameData.LocalPlayerIndex} 유닛 데이터 업데이트 완료");
                 // Players[LocalGameData.LocalPlayerIndex].GetAllUnitCounts(true).ForEach(unitCount =>
@@ -214,34 +207,18 @@ namespace StarcUp.Business.Game
             }
         }
         
-        private void OnGameDataTimerElapsed(object? sender, ElapsedEventArgs e)
+        /// <summary>
+        /// PopulationManager 업데이트 래퍼 함수
+        /// </summary>
+        private void UpdatePopulationData()
         {
-            if (_isGameActive && !_disposed)
+            try
             {
-                LoadGameData();
+                _populationManager.UpdatePopulationData();
             }
-        }
-        
-        private void OnUnitCountTimerElapsed(object? sender, ElapsedEventArgs e)
-        {
-            if (_isGameActive && !_disposed)
+            catch (Exception ex)
             {
-                // UnitCount 관련 로직이 필요하면 여기에 추가
-            }
-        }
-        
-        private void OnPopulationTimerElapsed(object? sender, ElapsedEventArgs e)
-        {
-            if (_isGameActive && !_disposed)
-            {
-                try
-                {
-                    _populationManager.UpdatePopulationData();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"GameManager: PopulationManager 업데이트 중 오류 발생 - {ex.Message}");
-                }
+                Console.WriteLine($"GameManager: PopulationManager 업데이트 중 오류 발생 - {ex.Message}");
             }
         }
         
@@ -330,17 +307,8 @@ namespace StarcUp.Business.Game
             if (_disposed)
                 return;
                 
-            _unitDataTimer?.Stop();
-            _unitDataTimer?.Dispose();
-            
-            _gameDataTimer?.Stop();
-            _gameDataTimer?.Dispose();
-            
-            _unitCountTimer?.Stop();
-            _unitCountTimer?.Dispose();
-            
-            _populationTimer?.Stop();
-            _populationTimer?.Dispose();
+            _updateTimer?.Stop();
+            _updateTimer?.Dispose();
             
             if (_inGameDetector != null)
             {
