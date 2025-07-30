@@ -82,8 +82,10 @@ namespace StarcUp.Business.Communication
                 _windowManager.WindowSizeChanged += OnWindowSizeChanged;
 
                 // WorkerManager 이벤트 구독
-                _workerManager.TotalCountChanged += OnWorkerTotalCountChanged;
-                _workerManager.ProductionCompleted += OnWorkerProductionCompleted;
+                _workerManager.WorkerStatusChanged += OnWorkerStatusChanged;
+                _workerManager.ProductionStarted += OnProductionStarted;
+                _workerManager.ProductionCompleted += OnProductionCompleted;
+                _workerManager.ProductionCanceled += OnProductionCanceled;
                 _workerManager.WorkerDied += OnWorkerDied;
                 _workerManager.IdleCountChanged += OnWorkerIdleCountChanged;
                 _workerManager.GasBuildingAlert += OnGasBuildingAlert;
@@ -150,8 +152,10 @@ namespace StarcUp.Business.Communication
                 _windowManager.WindowSizeChanged -= OnWindowSizeChanged;
                 
                 // WorkerManager 이벤트 구독 해제
-                _workerManager.TotalCountChanged -= OnWorkerTotalCountChanged;
-                _workerManager.ProductionCompleted -= OnWorkerProductionCompleted;
+                _workerManager.WorkerStatusChanged -= OnWorkerStatusChanged;
+                _workerManager.ProductionStarted -= OnProductionStarted;
+                _workerManager.ProductionCompleted -= OnProductionCompleted;
+                _workerManager.ProductionCanceled -= OnProductionCanceled;
                 _workerManager.WorkerDied -= OnWorkerDied;
                 _workerManager.IdleCountChanged -= OnWorkerIdleCountChanged;
                 _workerManager.GasBuildingAlert -= OnGasBuildingAlert;
@@ -484,14 +488,11 @@ namespace StarcUp.Business.Communication
                 // 일꾼 프리셋 처리
                 if (initData.Presets?.Worker != null)
                 {
-                    var previousPreset = _workerManager.WorkerPreset;
                     var workerPreset = (WorkerPresetEnum)initData.Presets.Worker.SettingsMask;
-                    _workerManager.WorkerPreset = workerPreset;
-                    
-                    Console.WriteLine($"✅ 일꾼 프리셋 초기화: {workerPreset}");
+                    _workerManager.InitializeWorkerPreset(workerPreset);
                     
                     // 프리셋 변경 이벤트 전송
-                    SendWorkerPresetChangedEvent(previousPreset, workerPreset, true);
+                    SendWorkerPresetChangedEvent(workerPreset, true);
                 }
                 
                 // 향후 다른 프리셋들도 여기서 처리...
@@ -542,14 +543,11 @@ namespace StarcUp.Business.Communication
                 switch (updateData.PresetType?.ToLower())
                 {
                     case "worker":
-                        var previousPreset = _workerManager.WorkerPreset;
                         var workerPreset = (WorkerPresetEnum)updateData.Data.SettingsMask;
-                        _workerManager.WorkerPreset = workerPreset;
-                        
-                        Console.WriteLine($"✅ 일꾼 프리셋 업데이트: {previousPreset} → {workerPreset}");
+                        _workerManager.UpdateWorkerPreset(workerPreset);
                         
                         // 프리셋 변경 이벤트 전송
-                        SendWorkerPresetChangedEvent(previousPreset, workerPreset, true);
+                        SendWorkerPresetChangedEvent(workerPreset, true);
                         break;
                         
                     case "population":
@@ -585,40 +583,62 @@ namespace StarcUp.Business.Communication
         }
 
         /// <summary>
-        /// 일꾼 총 개수 변경 이벤트 처리
+        /// 일꾼 상태 변경 이벤트 처리 (단순 증가, 프리셋 Off 시 사용)
         /// </summary>
-        private void OnWorkerTotalCountChanged(object sender, WorkerEventArgs e)
+        private void OnWorkerStatusChanged(object sender, WorkerEventArgs e)
         {
             try
             {
-                // Default 프리셋이 설정된 경우에만 전송
-                if (!_workerManager.IsWorkerStateSet(WorkerPresetEnum.Default))
-                    return;
-
                 SendWorkerStatusEvent(e);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 일꾼 총 개수 변경 이벤트 전송 실패: {ex.Message}");
+                Console.WriteLine($"❌ 일꾼 상태 변경 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 일꾼 생산 시작 이벤트 처리
+        /// </summary>
+        private void OnProductionStarted(object sender, WorkerEventArgs e)
+        {
+            try
+            {
+                SendWorkerStatusEvent(e);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 일꾼 생산 시작 이벤트 전송 실패: {ex.Message}");
             }
         }
 
         /// <summary>
         /// 일꾼 생산 완료 이벤트 처리
         /// </summary>
-        private void OnWorkerProductionCompleted(object sender, WorkerEventArgs e)
+        private void OnProductionCompleted(object sender, WorkerEventArgs e)
         {
             try
             {
-                // DetectProduction 프리셋이 설정된 경우에만 전송
-                if (!_workerManager.IsWorkerStateSet(WorkerPresetEnum.DetectProduction))
-                    return;
-
                 SendWorkerStatusEvent(e);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ 일꾼 생산 완료 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 일꾼 생산 취소 이벤트 처리
+        /// </summary>
+        private void OnProductionCanceled(object sender, WorkerEventArgs e)
+        {
+            try
+            {
+                SendWorkerStatusEvent(e);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 일꾼 생산 취소 이벤트 전송 실패: {ex.Message}");
             }
         }
 
@@ -629,10 +649,6 @@ namespace StarcUp.Business.Communication
         {
             try
             {
-                // DetectDeath 프리셋이 설정된 경우에만 전송
-                if (!_workerManager.IsWorkerStateSet(WorkerPresetEnum.DetectDeath))
-                    return;
-
                 SendWorkerStatusEvent(e);
             }
             catch (Exception ex)
@@ -688,11 +704,11 @@ namespace StarcUp.Business.Communication
         {
             var eventData = new
             {
+                eventType = e.EventType.ToString(),
                 totalWorkers = e.TotalWorkers,
                 calculatedTotal = e.CalculatedTotalWorkers,
                 idleWorkers = e.IdleWorkers,
-                productionWorkers = e.ProductionWorkers,
-                activeWorkers = e.ActiveWorkers
+                productionWorkers = e.ProductionWorkers
             };
 
             _pipeClient.SendEvent(NamedPipeProtocol.Events.WorkerStatusChanged, eventData);
@@ -701,18 +717,13 @@ namespace StarcUp.Business.Communication
         /// <summary>
         /// 일꾼 프리셋 변경 이벤트 전송
         /// </summary>
-        private void SendWorkerPresetChangedEvent(WorkerPresetEnum previousPreset, WorkerPresetEnum currentPreset, bool success = true)
+        private void SendWorkerPresetChangedEvent(WorkerPresetEnum currentPreset, bool success = true)
         {
             try
             {
                 var eventData = new
                 {
                     success = success,
-                    previousPreset = new
-                    {
-                        mask = (int)previousPreset,
-                        flags = GetWorkerPresetFlags(previousPreset)
-                    },
                     currentPreset = new
                     {
                         mask = (int)currentPreset,

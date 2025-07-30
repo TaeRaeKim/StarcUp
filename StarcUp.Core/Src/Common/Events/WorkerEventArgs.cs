@@ -31,8 +31,10 @@ namespace StarcUp.Common.Events
 
     public enum WorkerEventType
     {
-        TotalCountChanged,    // 총 일꾼 개수 변경 (프리셋 고려)
+        WorkerStatusChanged,  // 일반적인 일꾼 상태 변경 (단순 증가, 프리셋 Off 시 사용)
+        ProductionStarted,    // 일꾼 생산 시작
         ProductionCompleted,  // 일꾼 생산 완료
+        ProductionCanceled,   // 일꾼 생산 취소
         WorkerDied,          // 일꾼 사망
         IdleCountChanged,    // 유휴 일꾼 개수 변경
         GasBuildingAlert     // 가스 건물 채취 중단 알림

@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { CenterPositionData } from '../../electron/src/services/types'
+import { WorkerStatus, type WorkerStatusRef } from './components/WorkerStatus'
+import { OverlaySettingsPanel, type OverlaySettings } from './components/OverlaySettings'
+import { type EffectType } from './hooks/useEffectSystem'
+import './styles/OverlayApp.css'
 
 export function OverlayApp() {
   const [centerPosition, setCenterPosition] = useState<CenterPositionData | null>(null)
@@ -13,6 +17,47 @@ export function OverlayApp() {
   // WorkerManager 이벤트 상태
   const [workerStatus, setWorkerStatus] = useState<any>(null)
   const [lastWorkerEvent, setLastWorkerEvent] = useState<string | null>(null)
+  const [gameStatus, setGameStatus] = useState<string>('waiting') // 'waiting', 'playing', 'game-ended'
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [workerPosition, setWorkerPosition] = useState({ x: 50, y: 50 })
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const workerStatusRef = useRef<WorkerStatusRef>(null)
+  
+  // 오버레이 설정 상태
+  const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>({
+    showWorkerStatus: true,
+    showBuildOrder: false,
+    showUnitCount: false,
+    showUpgradeProgress: false,
+    showPopulationWarning: false,
+    opacity: 90,
+    unitIconStyle: 'default',
+    upgradeIconStyle: 'default',
+    teamColor: '#0099FF'
+  })
+
+  // 기본 위치로 리셋하는 함수 (오버레이 컨테이너 기준)
+  const resetToCenter = () => {
+    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement
+    
+    if (!overlayContainer) {
+      console.warn('⚠️ 오버레이 컨테이너를 찾을 수 없습니다')
+      return
+    }
+    
+    const containerRect = overlayContainer.getBoundingClientRect()
+    
+    // WorkerStatus 위치 리셋
+    const workerStatusElement = document.querySelector('.worker-status') as HTMLElement
+    if (workerStatusElement) {
+      const workerRect = workerStatusElement.getBoundingClientRect()
+      const centerX = (containerRect.width - workerRect.width) / 2
+      const centerY = (containerRect.height - workerRect.height) / 2
+      
+      setWorkerPosition({ x: centerX, y: centerY })
+      console.log('🎯 WorkerStatus 위치 중앙으로 리셋:', { x: centerX, y: centerY })
+    }
+  }
 
   useEffect(() => {
     // Electron API가 사용 가능한지 확인
@@ -54,6 +99,15 @@ export function OverlayApp() {
         console.log('👷 [Overlay] 일꾼 상태 변경:', data)
         setWorkerStatus(data)
         setLastWorkerEvent('status-changed')
+        
+        // eventType에 따른 효과 트리거
+        if (data.eventType && workerStatusRef.current) {
+          const effectType = data.eventType as EffectType
+          if (effectType === 'ProductionCompleted' || effectType === 'WorkerDied') {
+            console.log(`✨ [Overlay] ${effectType} 효과 트리거`)
+            workerStatusRef.current.triggerEffect(effectType)
+          }
+        }
       })
 
       const removeGasAlertListener = electronAPI.onGasBuildingAlert && electronAPI.onGasBuildingAlert(() => {
@@ -91,98 +145,243 @@ export function OverlayApp() {
     return () => clearInterval(interval)
   }, [lastUpdateTime])
 
-  // 개발 환경에서만 디버그 정보 표시
-  const showDebugInfo = process.env.NODE_ENV === 'development'
+  // Electron IPC를 통한 편집 모드 토글
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      const electronAPI = window.electronAPI as any
+      
+      // 편집 모드 토글 이벤트 리스너
+      if (electronAPI.onToggleEditMode) {
+        console.log('🎯 편집 모드 IPC 리스너 등록')
+        const unsubscribeEditMode = electronAPI.onToggleEditMode((data: { isEditMode: boolean }) => {
+          console.log('🎯 편집 모드 토글 IPC 이벤트 수신:', data.isEditMode)
+          setIsEditMode(data.isEditMode)
+        })
+        
+        // 게임 상태 변경 이벤트 리스너 추가 (coreAPI에서 가져오기)
+        const coreAPI = (window as any).coreAPI
+        const unsubscribeGameStatus = coreAPI && coreAPI.onGameStatusChanged && coreAPI.onGameStatusChanged((data: { status: string }) => {
+          console.log('🎮 [Overlay] 게임 상태 변경:', data.status, '| 현재 workerStatus:', workerStatus ? 'EXISTS' : 'NULL')
+          setGameStatus(data.status)
+        })
+        
+        return () => {
+          unsubscribeEditMode()
+          if (unsubscribeGameStatus) unsubscribeGameStatus()
+        }
+      } else {
+        console.warn('⚠️ onToggleEditMode 메서드를 찾을 수 없습니다')
+      }
+    } else {
+      console.warn('⚠️ Electron API를 찾을 수 없습니다')
+    }
+  }, [])
+
+
+  // 편집모드가 해제될 때 설정창 자동 닫기
+  useEffect(() => {
+    if (!isEditMode && isSettingsOpen) {
+      setIsSettingsOpen(false)
+    }
+  }, [isEditMode, isSettingsOpen])
+
+  // 윈도우 위치/크기 변경 감지 및 아이템 위치 조정 (window-position-changed 이벤트 기반)
+  useEffect(() => {
+    if (!centerPosition) return
+
+    const adjustItemPositions = () => {
+      // 오버레이 윈도우의 실제 크기 (게임 영역 크기)
+      const overlayWidth = centerPosition.gameAreaBounds.width
+      const overlayHeight = centerPosition.gameAreaBounds.height
+      
+      console.log('🔧 [위치 조정] 오버레이 크기:', { width: overlayWidth, height: overlayHeight })
+      
+      // WorkerStatus 위치 조정
+      const workerStatusElement = document.querySelector('.worker-status') as HTMLElement
+      if (workerStatusElement) {
+        const workerRect = workerStatusElement.getBoundingClientRect()
+        const newWorkerX = Math.max(0, Math.min(overlayWidth - workerRect.width, workerPosition.x))
+        const newWorkerY = Math.max(0, Math.min(overlayHeight - workerRect.height, workerPosition.y))
+        
+        if (newWorkerX !== workerPosition.x || newWorkerY !== workerPosition.y) {
+          console.log('🔧 [위치 조정] WorkerStatus:', { from: workerPosition, to: { x: newWorkerX, y: newWorkerY } })
+          setWorkerPosition({ x: newWorkerX, y: newWorkerY })
+        }
+      }
+    }
+
+    // centerPosition이 변경될 때마다 위치 조정 실행
+    setTimeout(adjustItemPositions, 100) // DOM 업데이트 후 실행하기 위해 지연
+    
+  }, [centerPosition, workerPosition])
+
+  // 윈도우 크기에 따른 body 크기 동적 조정
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+
+    let dynamicBodyStyleElement = document.getElementById('dynamic-body-styles') as HTMLStyleElement
+    
+    if (!dynamicBodyStyleElement) {
+      dynamicBodyStyleElement = document.createElement('style')
+      dynamicBodyStyleElement.id = 'dynamic-body-styles'
+      document.head.appendChild(dynamicBodyStyleElement)
+    }
+
+    const width = centerPosition?.gameAreaBounds.width
+    const height = centerPosition?.gameAreaBounds.height
+    
+    dynamicBodyStyleElement.textContent = createDynamicBodyStyles(width, height)
+    
+    console.log('🔧 [Body 크기 조정]', { width, height })
+  }, [centerPosition])
+
 
   return (
-    <div className="overlay-container">
-      {/* Hello World 중앙 배치 */}
-      {isVisible && centerPosition && (
+    <div 
+      className="overlay-container"
+      style={{
+        width: centerPosition ? `${centerPosition.gameAreaBounds.width}px` : '100vw',
+        height: centerPosition ? `${centerPosition.gameAreaBounds.height}px` : '100vh'
+      }}
+    >
+      {/* 편집 모드 배경 효과 - 시각적 집중을 위한 오버레이 */}
+      {isEditMode && (
         <div 
-          className="hello-world"
+          className="edit-mode-backdrop"
           style={{
             position: 'absolute',
-            left: `${centerPosition.x}px`,
-            top: `${centerPosition.y}px`,
-            transform: 'translate(-50%, -50%)',
-            color: 'white',
-            fontSize: '32px',
-            fontWeight: 'bold',
-            textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
-            zIndex: 9999,
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: `
+              radial-gradient(ellipse at center, 
+                rgba(0, 0, 0, 0.2) 0%, 
+                rgba(0, 0, 0, 0.6) 70%, 
+                rgba(0, 0, 0, 0.8) 100%
+              ),
+              linear-gradient(
+                45deg,
+                rgba(0, 153, 255, 0.05) 0%,
+                transparent 50%,
+                rgba(0, 153, 255, 0.05) 100%
+              )
+            `,
             pointerEvents: 'none',
-            userSelect: 'none',
-            fontFamily: 'Arial, sans-serif'
+            zIndex: 100,
+            transition: 'all 0.3s ease-out',
+            boxShadow: 'inset 0 0 100px rgba(0, 153, 255, 0.2)',
+            filter: 'saturate(1.1)'
+          }}
+        />
+      )}
+
+      {/* 편집 모드 상태 표시 헤더 */}
+      {isEditMode && (
+        <div 
+          className="edit-mode-header"
+          style={{
+            position: 'absolute',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: '#0099ff',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: '0 4px 20px rgba(0, 153, 255, 0.4)',
+            zIndex: 15000,
+            fontSize: '14px',
+            fontWeight: '600',
+            transition: 'all 0.3s ease-out',
+            pointerEvents: 'auto'  // 헤더는 클릭 가능하도록
           }}
         >
-          Hello World
+          <span>편집 모드 활성화</span>
+          <button
+            onClick={resetToCenter}
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              border: 'none',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              pointerEvents: 'auto'  // 버튼 클릭 가능
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'
+            }}
+          >
+            모두 리셋
+          </button>
         </div>
       )}
-      
-      {/* 디버그 정보 (개발 환경에서만) */}
-      {showDebugInfo && (
-        <div className="debug-info" style={{
-          position: 'absolute',
-          top: '10px',
-          left: '10px',
-          background: 'rgba(0,0,0,0.9)',
-          color: '#00ff00',
-          padding: '12px',
-          fontSize: '11px',
-          borderRadius: '6px',
-          fontFamily: 'monospace',
-          border: `2px solid ${connectionStatus === 'connected' ? '#00ff00' : connectionStatus === 'connecting' ? '#ffaa00' : '#ff0000'}`,
-          zIndex: 10000,
-          maxWidth: '320px',
-          minWidth: '280px'
-        }}>
-          <div><strong>🔗 Connection Status:</strong></div>
-          <div style={{ color: connectionStatus === 'connected' ? '#00ff00' : connectionStatus === 'connecting' ? '#ffaa00' : '#ff0000' }}>
-            {connectionStatus === 'connected' ? '✅ Connected' : connectionStatus === 'connecting' ? '🔄 Connecting...' : '❌ Disconnected'}
-          </div>
-          <br />
-          
-          {centerPosition ? (
-            <>
-              <div><strong>🎯 Center Position:</strong></div>
-              <div>X: {centerPosition.x.toFixed(1)}, Y: {centerPosition.y.toFixed(1)}</div>
-              <br />
-              <div><strong>🖼️ Game Area:</strong></div>
-              <div>Size: {centerPosition.gameAreaBounds.width} × {centerPosition.gameAreaBounds.height}</div>
-              <div>Position: ({centerPosition.gameAreaBounds.x}, {centerPosition.gameAreaBounds.y})</div>
-              <br />
-            </>
-          ) : (
-            <>
-              <div><strong>⚠️ No Position Data</strong></div>
-              <div style={{ color: '#ffaa00' }}>Waiting for StarcUp.Core data...</div>
-              <br />
-            </>
-          )}
-          
-          <div><strong>⏰ Status:</strong></div>
-          <div>Overlay: {isVisible ? '👁️ Visible' : '🙈 Hidden'}</div>
-          <div>Last Update: {lastUpdateTime ? lastUpdateTime.toLocaleTimeString() : 'Never'}</div>
-          <div>Current Time: {new Date().toLocaleTimeString()}</div>
-          <br />
-          <div><strong>📊 Performance:</strong></div>
-          <div>Updates: {updateCount}</div>
-          <div>FPS: {frameRate > 0 ? `~${frameRate}` : 'N/A'}</div>
-          <div>Throttling: 16ms (60fps target)</div>
-          <div>Debounce Delay: 50ms (last event guarantee)</div>
-          <div>Last Event: {lastEventType || 'N/A'}</div>
-          <br />
-          <div><strong>👷 WorkerManager Events:</strong></div>
-          <div>Last Event: {lastWorkerEvent || 'None'}</div>
-          {workerStatus && (
-            <>
-              <div>Total: {workerStatus.totalWorkers} / Calc: {workerStatus.calculatedTotal}</div>
-              <div>Idle: {workerStatus.idleWorkers} / Prod: {workerStatus.productionWorkers}</div>
-              <div>Active: {workerStatus.activeWorkers}</div>
-            </>
-          )}
-        </div>
+
+      {/* 오버레이 설정 버튼 - 편집모드에서만 표시 */}
+      {isEditMode && (
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            border: 'none',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            color: 'white',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '18px',
+            zIndex: 15000,
+            transition: 'all 0.2s ease',
+            pointerEvents: 'auto',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(0, 153, 255, 0.8)'
+            e.currentTarget.style.transform = 'scale(1.1)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'
+            e.currentTarget.style.transform = 'scale(1)'
+          }}
+        >
+          ⚙️
+        </button>
       )}
+
+      {/* 일꾼 상태 오버레이 - InGame 상태일 때만 표시 */}
+      {(() => {
+        const shouldShow = gameStatus === 'playing' && workerStatus && overlaySettings.showWorkerStatus
+        return shouldShow ? (
+          <WorkerStatus
+            ref={workerStatusRef}
+            totalWorkers={workerStatus.totalWorkers || 0}
+            idleWorkers={workerStatus.idleWorkers || 0}
+            productionWorkers={workerStatus.productionWorkers || 0}
+            calculatedTotal={workerStatus.calculatedTotal || 0}
+            position={workerPosition}
+            isEditMode={isEditMode}
+            onPositionChange={setWorkerPosition}
+            unitIconStyle={overlaySettings.unitIconStyle}
+            teamColor={overlaySettings.teamColor}
+          />
+        ) : null
+      })()}
+
 
       {/* 위치 정보가 없을 때 안내 */}
       {!centerPosition && (
@@ -199,33 +398,34 @@ export function OverlayApp() {
           스타크래프트 윈도우 위치를 대기 중...
         </div>
       )}
+
+      {/* 오버레이 설정 패널 */}
+      <OverlaySettingsPanel
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={overlaySettings}
+        onSettingsChange={setOverlaySettings}
+      />
     </div>
   )
 }
 
-// 전역 스타일
-const overlayStyles = `
-  .overlay-container {
-    width: 100vw;
-    height: 100vh;
-    position: relative;
-    overflow: hidden;
+
+// 동적 body 크기 조정 스타일
+const createDynamicBodyStyles = (width?: number, height?: number) => `
+  html, body {
+    width: ${width ? `${width}px` : '100vw'} !important;
+    height: ${height ? `${height}px` : '100vh'} !important;
     background: transparent;
-    pointer-events: none;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
   }
 
-  .hello-world {
-    transition: all 0.1s ease-out;
-  }
-
-  .debug-info {
-    transition: opacity 0.3s ease;
+  #root {
+    width: ${width ? `${width}px` : '100vw'} !important;
+    height: ${height ? `${height}px` : '100vh'} !important;
+    background: transparent;
   }
 `
 
-// 스타일 주입
-if (typeof document !== 'undefined') {
-  const styleElement = document.createElement('style')
-  styleElement.textContent = overlayStyles
-  document.head.appendChild(styleElement)
-}

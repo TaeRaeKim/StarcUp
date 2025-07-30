@@ -1,15 +1,22 @@
 import { BrowserWindow, app } from 'electron'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { IWindowManager } from './interfaces'
 import { IWindowConfiguration } from '../types'
 import { WINDOW_CONFIG, DEV_TOOLS_CONFIG, OVERLAY_CONFIG } from './WindowConfiguration'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+process.env.APP_ROOT = path.join(__dirname, '..')
+
+
+
+
 // 환경 변수 및 경로 설정
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 // 프로젝트 루트 기준으로 절대 경로 설정
-const PROJECT_ROOT = process.cwd()
-const MAIN_DIST = path.join(PROJECT_ROOT, 'dist-electron')
-const RENDERER_DIST = path.join(PROJECT_ROOT, 'dist')
+//const PROJECT_ROOT = process.cwd()
+const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
+const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 export class WindowManager implements IWindowManager {
   private mainWindow: BrowserWindow | null = null
@@ -29,7 +36,7 @@ export class WindowManager implements IWindowManager {
     
     const preloadPath = path.join(MAIN_DIST, 'preload.mjs')
     console.log(`🔧 Preload 스크립트 경로: ${preloadPath}`)
-    console.log(`🔧 PROJECT_ROOT: ${PROJECT_ROOT}`)
+    console.log(`🔧 APP_ROOT: ${process.env.APP_ROOT}`)
     console.log(`🔧 MAIN_DIST: ${MAIN_DIST}`)
     
     this.mainWindow = new BrowserWindow({
@@ -72,6 +79,11 @@ export class WindowManager implements IWindowManager {
     // 오버레이 특성 설정
     this.overlayWindow.setIgnoreMouseEvents(true)
     this.overlayWindow.center()
+    
+    // 강력한 최상위 설정 (전체화면 게임 위에 표시)
+    this.overlayWindow.setAlwaysOnTop(true, 'screen-saver')
+    this.overlayWindow.setVisibleOnAllWorkspaces(true)
+    this.overlayWindow.setFullScreenable(false)
     
     // 오버레이 이벤트 처리
     this.setupOverlayWindowEvents()
@@ -151,7 +163,11 @@ export class WindowManager implements IWindowManager {
   
   showOverlay(): void {
     if (this.overlayWindow) {
+      // 최상위 설정 재적용 후 표시
+      this.overlayWindow.setAlwaysOnTop(true, 'screen-saver')
       this.overlayWindow.show()
+      this.overlayWindow.focus()
+      console.log('🎯 오버레이 윈도우 표시 및 최상위 설정 적용')
     }
   }
   
@@ -255,7 +271,7 @@ export class WindowManager implements IWindowManager {
       }
     } else {
       // 프로덕션 환경
-      this.mainWindow.loadFile(path.join(RENDERER_DIST, 'src', 'main-page', 'index.html'))
+      this.mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'src', 'main-page', 'index.html'))
     }
   }
   
@@ -267,7 +283,7 @@ export class WindowManager implements IWindowManager {
       this.overlayWindow.loadURL(path.join(VITE_DEV_SERVER_URL, 'src', 'overlay', 'index.html'))
     } else {
       // 프로덕션 환경
-      this.overlayWindow.loadFile(path.join(RENDERER_DIST, 'src', 'overlay', 'index.html'))
+      this.overlayWindow.loadFile(path.join(__dirname, '..', 'dist', 'src', 'overlay', 'index.html'))
     }
   }
   
@@ -322,7 +338,16 @@ export class WindowManager implements IWindowManager {
     this.overlayWindow.on('blur', () => {
       // 오버레이가 포커스를 잃으면 다시 최상위로
       if (this.overlayWindow) {
-        this.overlayWindow.setAlwaysOnTop(true)
+        this.overlayWindow.setAlwaysOnTop(true, 'screen-saver')
+        console.log('🔄 오버레이 포커스 복원 - 최상위 재설정')
+      }
+    })
+    
+    this.overlayWindow.on('focus', () => {
+      // 오버레이가 포커스를 받으면 최상위 설정 확인
+      if (this.overlayWindow) {
+        this.overlayWindow.setAlwaysOnTop(true, 'screen-saver')
+        console.log('🎯 오버레이 포커스 - 최상위 설정 확인')
       }
     })
   }

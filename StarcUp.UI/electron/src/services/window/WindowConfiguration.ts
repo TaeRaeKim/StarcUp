@@ -29,6 +29,7 @@ export const WINDOW_CONFIG: IWindowConfiguration = {
     resizable: false,
     focusable: false,
     show: false,
+    type: 'toolbar' as const, // 전체화면 앱 위에 표시되도록
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

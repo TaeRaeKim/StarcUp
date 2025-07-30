@@ -9,7 +9,8 @@ namespace StarcUp.Business.Units.Types
         Idle = 3,                    // 유휴 상태
         Move = 6,                    // 이동
         Attack = 10,                 // 공격
-        BuildingIdle = 23,                 // 빌딩 Idle 상태
+        BuildingIdle = 23,           // 빌딩 Idle 상태
+        InProduction = 23,           // 유닛 생산 상태
 
         // 건물 건설 관련
         ConstructBuilding = 30,      // 건물 생성 명령 중 (테란-건설)
@@ -105,7 +106,12 @@ namespace StarcUp.Business.Units.Types
         /// </summary>
         public static bool IsIdle(this ActionIndex actionIndex)
         {
-            return actionIndex == ActionIndex.Idle || actionIndex == ActionIndex.BurrowedIdle;
+            return actionIndex == ActionIndex.Idle;
+        }
+
+        public static bool IsInProduction(this ActionIndex actionIndex)
+        {
+            return actionIndex == ActionIndex.InProduction;
         }
 
         /// <summary>
