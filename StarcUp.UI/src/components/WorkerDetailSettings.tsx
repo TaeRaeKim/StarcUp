@@ -8,23 +8,26 @@ import {
   type WorkerPreset
 } from '../utils/presetUtils';
 
+// 일꾼 설정 인터페이스 (완전한 데이터 보장)
+interface WorkerSettingsData {
+  workerCountDisplay: boolean;
+  includeProducingWorkers: boolean;
+  idleWorkerDisplay: boolean;
+  workerProductionDetection: boolean;
+  workerDeathDetection: boolean;
+  gasWorkerCheck: boolean;
+}
+
 interface WorkerDetailSettingsProps {
   isOpen: boolean;
   onClose: () => void;
-  currentPreset?: {
+  currentPreset: {
     id: string;
     name: string;
     description: string;
-    workerSettings?: {
-      workerCountDisplay?: boolean;
-      includeProducingWorkers?: boolean;
-      idleWorkerDisplay?: boolean;
-      workerProductionDetection?: boolean;
-      workerDeathDetection?: boolean;
-      gasWorkerCheck?: boolean;
-    };
+    workerSettings: WorkerSettingsData;
   };
-  onSaveWorkerSettings?: (presetId: string, workerSettings: WorkerSettings) => void;
+  onSaveWorkerSettings: (presetId: string, workerSettings: WorkerSettings) => void;
 }
 
 export function WorkerDetailSettings({
@@ -33,40 +36,38 @@ export function WorkerDetailSettings({
   currentPreset,
   onSaveWorkerSettings
 }: WorkerDetailSettingsProps) {
-  // 일꾼 관련 설정 상태들 (프리셋값으로 초기화)
+  // 일꾼 관련 설정 상태들 (프리셋값으로 초기화 - 완전한 데이터 보장)
   const [workerCountDisplay, setWorkerCountDisplay] = useState(() =>
-    currentPreset?.workerSettings?.workerCountDisplay ?? true
+    currentPreset.workerSettings.workerCountDisplay
   );
   const [idleWorkerDisplay, setIdleWorkerDisplay] = useState(() =>
-    currentPreset?.workerSettings?.idleWorkerDisplay ?? true
+    currentPreset.workerSettings.idleWorkerDisplay
   );
   const [workerProductionDetection, setWorkerProductionDetection] = useState(() =>
-    currentPreset?.workerSettings?.workerProductionDetection ?? true
+    currentPreset.workerSettings.workerProductionDetection
   );
   const [workerDeathDetection, setWorkerDeathDetection] = useState(() =>
-    currentPreset?.workerSettings?.workerDeathDetection ?? true
+    currentPreset.workerSettings.workerDeathDetection
   );
   const [gasWorkerCheck, setGasWorkerCheck] = useState(() =>
-    currentPreset?.workerSettings?.gasWorkerCheck ?? true
+    currentPreset.workerSettings.gasWorkerCheck
   );
   const [includeProducingWorkers, setIncludeProducingWorkers] = useState(() =>
-    currentPreset?.workerSettings?.includeProducingWorkers ?? true
+    currentPreset.workerSettings.includeProducingWorkers
   );
 
-  // 프리셋 변경 시 일꾼 설정 업데이트
+  // 프리셋 변경 시 일꾼 설정 업데이트 (완전한 데이터 보장)
   useEffect(() => {
     console.log('🔧 WorkerDetailSettings 프리셋 변경:', currentPreset);
 
-    const settings = currentPreset?.workerSettings;
+    const settings = currentPreset.workerSettings;
     console.log('🔧 일꾼 설정 업데이트:', settings);
-    setWorkerCountDisplay(settings?.workerCountDisplay ?? true);
-    setIncludeProducingWorkers(settings?.includeProducingWorkers ?? true);
-    setIdleWorkerDisplay(settings?.idleWorkerDisplay ?? true);
-    setWorkerProductionDetection(settings?.workerProductionDetection ?? true);
-    setWorkerDeathDetection(settings?.workerDeathDetection ?? true);
-    setGasWorkerCheck(settings?.gasWorkerCheck ?? true);
-
-
+    setWorkerCountDisplay(settings.workerCountDisplay);
+    setIncludeProducingWorkers(settings.includeProducingWorkers);
+    setIdleWorkerDisplay(settings.idleWorkerDisplay);
+    setWorkerProductionDetection(settings.workerProductionDetection);
+    setWorkerDeathDetection(settings.workerDeathDetection);
+    setGasWorkerCheck(settings.gasWorkerCheck);
   }, [currentPreset]);
 
   const settingItems = [
@@ -133,12 +134,8 @@ export function WorkerDetailSettings({
 
     console.log('💾 일꾼 설정 저장:', settingsToSave);
 
-    // 프리셋에 일꾼 설정 저장
-    if (currentPreset && onSaveWorkerSettings) {
-      onSaveWorkerSettings(currentPreset.id, settingsToSave);
-    } else {
-      console.warn('⚠️ 프리셋 정보가 없거나 저장 콜백이 없습니다');
-    }
+    // 프리셋에 일꾼 설정 저장 (완전한 데이터 보장)
+    onSaveWorkerSettings(currentPreset.id, settingsToSave);
 
     // 비트마스크 계산 (Core 전송용)
     const workerMask = calculateWorkerSettingsMask(settingsToSave);
