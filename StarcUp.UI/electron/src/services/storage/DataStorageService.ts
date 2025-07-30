@@ -5,7 +5,8 @@ import {
   FilePresetRepository, 
   StoredPreset, 
   CreatePresetRequest, 
-  UpdatePresetRequest 
+  UpdatePresetRequest,
+  WorkerSettings
 } from './repositories'
 
 export class DataStorageService implements IDataStorageService {
@@ -145,13 +146,39 @@ export class DataStorageService implements IDataStorageService {
     description?: string
     featureStates?: boolean[]
     selectedRace?: 'protoss' | 'terran' | 'zerg'
+    workerSettings?: {
+      workerCountDisplay?: boolean
+      includeProducingWorkers?: boolean
+      idleWorkerDisplay?: boolean
+      workerProductionDetection?: boolean
+      workerDeathDetection?: boolean
+      gasWorkerCheck?: boolean
+    }
   }): Promise<{ success: boolean }> {
     try {
       console.log(`🔄 프리셋 업데이트: ${userId}/${presetId}`)
       
+      // 워커 설정 처리 - 부분 업데이트 시 기존 설정과 병합
+      let finalWorkerSettings: WorkerSettings | undefined = undefined
+      if (updates.workerSettings) {
+        const existing = await this.presetRepository.findById(presetId)
+        finalWorkerSettings = {
+          workerCountDisplay: updates.workerSettings.workerCountDisplay ?? existing?.workerSettings?.workerCountDisplay ?? true,
+          includeProducingWorkers: updates.workerSettings.includeProducingWorkers ?? existing?.workerSettings?.includeProducingWorkers ?? true,
+          idleWorkerDisplay: updates.workerSettings.idleWorkerDisplay ?? existing?.workerSettings?.idleWorkerDisplay ?? true,
+          workerProductionDetection: updates.workerSettings.workerProductionDetection ?? existing?.workerSettings?.workerProductionDetection ?? true,
+          workerDeathDetection: updates.workerSettings.workerDeathDetection ?? existing?.workerSettings?.workerDeathDetection ?? true,
+          gasWorkerCheck: updates.workerSettings.gasWorkerCheck ?? existing?.workerSettings?.gasWorkerCheck ?? true
+        }
+      }
+      
       const updateRequest: UpdatePresetRequest = {
         id: presetId,
-        ...updates
+        name: updates.name,
+        description: updates.description,
+        featureStates: updates.featureStates,
+        selectedRace: updates.selectedRace,
+        workerSettings: finalWorkerSettings
       }
       
       await this.presetRepository.update(updateRequest)
