@@ -29,12 +29,27 @@ namespace StarcUp.Business.Units.Runtime.Models
         public RaceUnitsDto Protoss { get; set; } = new();
     }
 
+    public class RacePopulationDto
+    {
+        public int SupplyUsed { get; set; }
+        public int SupplyMax { get; set; }
+    }
+
+    public class PopulationOffsetsDto
+    {
+        public string Comment { get; set; } = string.Empty;
+        public RacePopulationDto Terran { get; set; } = new();
+        public RacePopulationDto Zerg { get; set; } = new();
+        public RacePopulationDto Protoss { get; set; } = new();
+    }
+
     public class UnitOffsetConfigDto
     {
         public int BaseOffset { get; set; }
         public int ProductionOffset { get; set; }
         public int MapNameOffset { get; set; }
         public string Comment { get; set; } = string.Empty;
+        public PopulationOffsetsDto PopulationOffsets { get; set; } = new();
         public BufferInfoDto BufferInfo { get; set; } = new();
         public RacesDto Races { get; set; } = new();
     }
