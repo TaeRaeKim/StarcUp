@@ -102,7 +102,7 @@ export class ChannelHandlers {
   }
 
   private setupDataHandlers(): void {
-    // 데이터 관련 핸들러
+    // 기본 프리셋 CRUD 핸들러
     this.ipcService.registerHandler('data:save-preset', async (data) => 
       await this.dataService.savePreset(data.userId, data.preset)
     )
@@ -120,7 +120,26 @@ export class ChannelHandlers {
       await this.dataService.deletePreset(data.userId, data.presetId)
     )
 
-    console.log('📡 Data IPC 핸들러 등록 완료')
+    // 새로운 프리셋 관리 핸들러들
+    this.ipcService.registerHandler('data:update-preset', async (data) => 
+      await this.dataService.updatePreset(data.userId, data.presetId, data.updates)
+    )
+
+    this.ipcService.registerHandler('data:get-selected-preset', async (data) => ({
+      success: true,
+      data: await this.dataService.getSelectedPreset(data.userId)
+    }))
+
+    this.ipcService.registerHandler('data:set-selected-preset', async (data) => 
+      await this.dataService.setSelectedPreset(data.userId, data.index)
+    )
+
+    this.ipcService.registerHandler('data:get-presets-with-selection', async (data) => ({
+      success: true,
+      data: await this.dataService.getPresetsWithSelection(data.userId)
+    }))
+
+    console.log('📡 Data IPC 핸들러 등록 완료 (8개 핸들러)')
   }
 
   private setupWindowHandlers(): void {

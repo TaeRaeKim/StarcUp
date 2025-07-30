@@ -100,6 +100,10 @@ export interface IIPCChannels {
   'data:load-preset': { request: { userId: string; presetId: string }; response: { success: boolean; data?: any } }
   'data:get-presets': { request: { userId: string }; response: { presets: IPreset[] } }
   'data:delete-preset': { request: { userId: string; presetId: string }; response: { success: boolean } }
+  'data:update-preset': { request: { userId: string; presetId: string; updates: any }; response: { success: boolean } }
+  'data:get-selected-preset': { request: { userId: string }; response: { success: boolean; data?: any } }
+  'data:set-selected-preset': { request: { userId: string; index: number }; response: { success: boolean } }
+  'data:get-presets-with-selection': { request: { userId: string }; response: { success: boolean; data?: any } }
   
   // 윈도우 관리
   'window:minimize': { request: void; response: void }

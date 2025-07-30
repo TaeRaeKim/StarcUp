@@ -81,6 +81,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // 리스너 정리 함수 반환
     return () => ipcRenderer.off('toggle-edit-mode', listener)
   },
+
+  // 프리셋 관리 API
+  savePreset: (userId: string, preset: any) => 
+    ipcRenderer.invoke('data:save-preset', { userId, preset }),
+  
+  loadPreset: (userId: string, presetId: string) => 
+    ipcRenderer.invoke('data:load-preset', { userId, presetId }),
+  
+  getPresets: (userId: string) => 
+    ipcRenderer.invoke('data:get-presets', { userId }),
+  
+  deletePreset: (userId: string, presetId: string) => 
+    ipcRenderer.invoke('data:delete-preset', { userId, presetId }),
+  
+  updatePreset: (userId: string, presetId: string, updates: any) => 
+    ipcRenderer.invoke('data:update-preset', { userId, presetId, updates }),
+  
+  getSelectedPreset: (userId: string) => 
+    ipcRenderer.invoke('data:get-selected-preset', { userId }),
+  
+  setSelectedPreset: (userId: string, index: number) => 
+    ipcRenderer.invoke('data:set-selected-preset', { userId, index }),
+  
+  getPresetsWithSelection: (userId: string) => 
+    ipcRenderer.invoke('data:get-presets-with-selection', { userId }),
 })
 
 // --------- Expose Core API to the Renderer process ---------
