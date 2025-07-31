@@ -50,12 +50,12 @@ namespace StarcUp.Business.Units.Runtime.Services
             return _memoryAdapter.LoadAllUnits();
         }
 
-        public bool RefreshUnits()
+        public bool UpdateUnits()
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UnitService));
 
-            return _memoryAdapter.RefreshUnits();
+            return _memoryAdapter.UpdateUnits();
         }
 
         public IEnumerable<Unit> GetAllUnits()

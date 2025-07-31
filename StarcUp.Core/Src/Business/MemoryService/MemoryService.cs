@@ -1,4 +1,6 @@
 using StarcUp.Business.GameDetection;
+using StarcUp.Business.Units.Runtime.Repositories;
+using StarcUp.Business.Units.Types;
 using StarcUp.Common.Events;
 using StarcUp.Infrastructure.Memory;
 using System;
@@ -17,6 +19,7 @@ namespace StarcUp.Business.MemoryService
 
         private readonly IGameDetector _gameDetector;
         private readonly IMemoryReader _memoryReader;
+        private readonly UnitOffsetRepository _unitOffsetRepository;
         private readonly object _lockObject = new object();
         private bool _isDisposed;
 
@@ -28,10 +31,11 @@ namespace StarcUp.Business.MemoryService
         public bool IsConnected => _memoryReader?.IsConnected ?? false;
         public int ConnectedProcessId => _memoryReader?.ConnectedProcessId ?? 0;
 
-        public MemoryService(IGameDetector gameDetector, IMemoryReader memoryReader)
+        public MemoryService(IGameDetector gameDetector, IMemoryReader memoryReader, UnitOffsetRepository unitOffsetRepository)
         {
             _gameDetector = gameDetector ?? throw new ArgumentNullException(nameof(gameDetector));
             _memoryReader = memoryReader ?? throw new ArgumentNullException(nameof(memoryReader));
+            _unitOffsetRepository = unitOffsetRepository ?? throw new ArgumentNullException(nameof(unitOffsetRepository));
 
             _gameDetector.HandleFound += (object sender, GameEventArgs e) => ConnectToProcess(e.GameInfo.ProcessId);
             _gameDetector.HandleLost += (object sender, GameEventArgs e) => Disconnect();
@@ -1254,6 +1258,149 @@ namespace StarcUp.Business.MemoryService
             {
                 Console.WriteLine($"[MemoryService] ReadGameTime 예외: {ex.Message}");
                 return -1;
+            }
+        }
+
+        public RaceType ReadPlayerRace(int playerIndex)
+        {
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadPlayerRace: 프로세스에 연결되지 않음");
+                return RaceType.Zerg;
+            }
+
+            try
+            {
+                var starcraftModule = GetStarCraftModule();
+                if (starcraftModule == null)
+                {
+                    Console.WriteLine("[MemoryService] ReadPlayerRace: StarCraft 모듈을 찾을 수 없음");
+                    return RaceType.Zerg;
+                }
+
+                // 어셈블리 계산 구현
+                // mov rdi, 3CDB939D3F07AAA4
+                nint rdi = unchecked((nint)0x3CDB939D3F07AAA4);
+                
+                // sub rdi,[StarCraft.exe+E42AFC]
+                nint addr1 = starcraftModule.BaseAddress + 0xE42AFC;
+                nint value1 = ReadPointer(addr1);
+                rdi = rdi - value1;
+                
+                // xor rdi,[StarCraft.exe+1091F60]
+                nint addr2 = starcraftModule.BaseAddress + 0x1091F60;
+                nint value2 = ReadPointer(addr2);
+                rdi = rdi ^ value2;
+
+                // rdi + (playerIndex + playerIndex * 8) * 4 + 09
+                nint playerRaceAddress = rdi + (playerIndex + playerIndex * 8) * 4 + 0x09;
+                byte race = ReadByte(playerRaceAddress);
+                
+                Console.WriteLine($"[MemoryService] 플레이어 {playerIndex} 종족 읽기 성공: {race}");
+                return (RaceType)race;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadPlayerRace 예외: {ex.Message}");
+                return RaceType.Zerg;
+            }
+        }
+
+        public int ReadSupplyUsed(int playerIndex, RaceType race)
+        {
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadSupplyUsed: 프로세스에 연결되지 않음");
+                return 0;
+            }
+
+            try
+            {
+                nint threadStackAddress = GetThreadStackAddress(0);
+                if (threadStackAddress == 0)
+                {
+                    Console.WriteLine("[MemoryService] ReadSupplyUsed: ThreadStack 주소를 가져올 수 없음");
+                    return 0;
+                }
+
+                // 포인터 체인: threadStackAddress - baseOffset
+                nint baseAddress = threadStackAddress - _unitOffsetRepository.GetBaseOffset();
+                nint pointerAddress = ReadPointer(baseAddress);
+                
+                if (pointerAddress == 0)
+                {
+                    Console.WriteLine("[MemoryService] ReadSupplyUsed: 포인터 읽기 실패");
+                    return 0;
+                }
+
+                // 종족별 오프셋 가져오기
+                int supplyUsedOffset = race switch
+                {
+                    RaceType.Zerg => _unitOffsetRepository.GetZergSupplyUsedOffset(),
+                    RaceType.Terran => _unitOffsetRepository.GetTerranSupplyUsedOffset(),
+                    RaceType.Protoss => _unitOffsetRepository.GetProtossSupplyUsedOffset(),
+                    _ => throw new ArgumentException($"잘못된 종족 값: {race}")
+                };
+
+                // 플레이어별 주소 계산
+                nint supplyUsedAddress = pointerAddress + supplyUsedOffset + (playerIndex * 4);
+                int supplyUsed = ReadInt(supplyUsedAddress);
+                
+                return supplyUsed;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadSupplyUsed 예외: {ex.Message}");
+                return 0;
+            }
+        }
+
+        public int ReadSupplyMax(int playerIndex, RaceType race)
+        {
+            if (!IsConnected)
+            {
+                Console.WriteLine("[MemoryService] ReadSupplyMax: 프로세스에 연결되지 않음");
+                return 0;
+            }
+
+            try
+            {
+                nint threadStackAddress = GetThreadStackAddress(0);
+                if (threadStackAddress == 0)
+                {
+                    Console.WriteLine("[MemoryService] ReadSupplyMax: ThreadStack 주소를 가져올 수 없음");
+                    return 0;
+                }
+
+                // 포인터 체인: threadStackAddress - baseOffset
+                nint baseAddress = threadStackAddress - _unitOffsetRepository.GetBaseOffset();
+                nint pointerAddress = ReadPointer(baseAddress);
+                
+                if (pointerAddress == 0)
+                {
+                    Console.WriteLine("[MemoryService] ReadSupplyMax: 포인터 읽기 실패");
+                    return 0;
+                }
+
+                // 종족별 오프셋 가져오기
+                int supplyMaxOffset = race switch
+                {
+                    RaceType.Zerg => _unitOffsetRepository.GetZergSupplyMaxOffset(),
+                    RaceType.Terran => _unitOffsetRepository.GetTerranSupplyMaxOffset(),
+                    RaceType.Protoss => _unitOffsetRepository.GetProtossSupplyMaxOffset(),
+                    _ => throw new ArgumentException($"잘못된 종족 값: {race}")
+                };
+
+                // 플레이어별 주소 계산
+                nint supplyMaxAddress = pointerAddress + supplyMaxOffset + (playerIndex * 4);
+                int supplyMax = ReadInt(supplyMaxAddress);
+                
+                return supplyMax;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MemoryService] ReadSupplyMax 예외: {ex.Message}");
+                return 0;
             }
         }
         public void Dispose()
