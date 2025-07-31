@@ -42,7 +42,7 @@ namespace StarcUp.Business.Units.Runtime.Services
                 }
 
                 // 초기 데이터 로드
-                if (!RefreshData())
+                if (!UpdateData())
                 {
                     Console.WriteLine("[UnitCountService] ❌ 초기 데이터 로드 실패");
                     return false;
@@ -69,7 +69,7 @@ namespace StarcUp.Business.Units.Runtime.Services
             Console.WriteLine("[UnitCountService] 서비스 중지됨");
         }
 
-        public bool RefreshData()
+        public bool UpdateData()
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(UnitCountService));

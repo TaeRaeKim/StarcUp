@@ -1,4 +1,5 @@
 using StarcUp.Business.MemoryService;
+using StarcUp.Business.Units.Types;
 using StarcUp.Common.Events;
 using System;
 using System.Collections.Generic;
@@ -84,5 +85,12 @@ namespace StarcUp.Business.MemoryService
 
         int ReadLocalPlayerIndex();
         int ReadGameTime();
+        
+        // 플레이어 정보 관련 메서드
+        RaceType ReadPlayerRace(int playerIndex);
+        
+        // 인구수 관련 메서드 (종족별)
+        int ReadSupplyUsed(int playerIndex, RaceType race);
+        int ReadSupplyMax(int playerIndex, RaceType race);
     }
 }

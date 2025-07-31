@@ -220,7 +220,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             }
         }
 
-        public bool RefreshUnits()
+        public bool UpdateUnits()
         {
             return LoadAllUnits();
         }

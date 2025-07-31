@@ -10,7 +10,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
         bool InitializeUnitArrayAddress();
         void InvalidateAddressCache();
         bool LoadAllUnits();
-        bool RefreshUnits();
+        bool UpdateUnits();
         
         IEnumerable<UnitRaw> GetAllRawUnits();
         IEnumerable<UnitRaw> GetPlayerRawUnits(int playerId);
