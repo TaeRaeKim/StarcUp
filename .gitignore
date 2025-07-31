@@ -368,3 +368,6 @@ CLAUDE.md
 Prototype/
 
 Windows.Practice/
+
+# Temporary files and development artifacts
+temp/
