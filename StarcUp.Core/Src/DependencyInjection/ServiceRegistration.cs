@@ -91,7 +91,8 @@ namespace StarcUp.DependencyInjection
                     c.Resolve<IGameDetector>(),
                     c.Resolve<IInGameDetector>(),
                     c.Resolve<IWindowManager>(),
-                    c.Resolve<IWorkerManager>()));
+                    c.Resolve<IWorkerManager>(),
+                    c.Resolve<IPopulationManager>()));
 
             PlayerExtensions.SetUnitCountService(container.Resolve<IUnitCountService>());
             PlayerExtensions.SetUnitService(container.Resolve<IUnitService>());

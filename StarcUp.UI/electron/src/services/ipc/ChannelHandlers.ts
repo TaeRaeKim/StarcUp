@@ -38,6 +38,7 @@ export class ChannelHandlers {
     this.setupDataHandlers()
     this.setupWindowHandlers()
     this.setupShortcutHandlers()
+    this.setupOverlayHandlers()
     console.log('✅ 모든 IPC 핸들러 설정 완료')
   }
 
@@ -244,6 +245,17 @@ export class ChannelHandlers {
     }))
 
     console.log('📡 Shortcut IPC 핸들러 등록 완료')
+  }
+
+  private setupOverlayHandlers(): void {
+    // 오버레이 설정 업데이트 핸들러
+    this.ipcService.registerHandler('overlay:update-settings', async (settings) => {
+      // 메인 윈도우에서 오버레이 윈도우로 설정 전달
+      this.windowManager.sendToOverlayWindow('overlay-settings-changed', settings)
+      return { success: true }
+    })
+
+    console.log('📡 Overlay IPC 핸들러 등록 완료')
   }
 
   private getShortcutCallback(action: string): (() => void) | null {

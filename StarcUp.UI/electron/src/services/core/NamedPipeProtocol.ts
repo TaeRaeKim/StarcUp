@@ -150,5 +150,8 @@ export const Events = {
   // WorkerManager 관련 이벤트
   WorkerStatusChanged: 'worker-status-changed',
   GasBuildingAlert: 'gas-building-alert',
-  WorkerPresetChanged: 'worker-preset-changed'
+  WorkerPresetChanged: 'worker-preset-changed',
+  
+  // PopulationManager 관련 이벤트
+  SupplyAlert: 'supply-alert'
 } as const

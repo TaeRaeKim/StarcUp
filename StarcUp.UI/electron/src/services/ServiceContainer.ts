@@ -185,6 +185,11 @@ export class ServiceContainer implements IServiceContainer {
       // Overlay 윈도우에 이벤트 전송
       windowManager.sendToOverlayWindow('worker-preset-changed', data)
     })
+
+    coreService.onSupplyAlert(() => {
+      // Overlay 윈도우에 이벤트 전송
+      windowManager.sendToOverlayWindow('supply-alert', {})
+    })
     
     console.log('🔗 게임 이벤트 핸들러 설정 완료')
   }

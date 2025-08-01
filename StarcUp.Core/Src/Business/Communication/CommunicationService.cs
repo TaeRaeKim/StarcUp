@@ -23,6 +23,7 @@ namespace StarcUp.Business.Communication
         private readonly IInGameDetector _inGameDetector;
         private readonly IWindowManager _windowManager;
         private readonly IWorkerManager _workerManager;
+        private readonly IPopulationManager _populationManager;
         private bool _disposed = false;
         
         // 윈도우 위치 변경 관련 필드
@@ -40,13 +41,14 @@ namespace StarcUp.Business.Communication
 
         public event EventHandler<bool> ConnectionStateChanged;
 
-        public CommunicationService(INamedPipeClient pipeClient, IGameDetector gameDetector, IInGameDetector inGameDetector, IWindowManager windowManager, IWorkerManager workerManager)
+        public CommunicationService(INamedPipeClient pipeClient, IGameDetector gameDetector, IInGameDetector inGameDetector, IWindowManager windowManager, IWorkerManager workerManager, IPopulationManager populationManager)
         {
             _pipeClient = pipeClient ?? throw new ArgumentNullException(nameof(pipeClient));
             _gameDetector = gameDetector ?? throw new ArgumentNullException(nameof(gameDetector));
             _inGameDetector = inGameDetector ?? throw new ArgumentNullException(nameof(inGameDetector));
             _windowManager = windowManager ?? throw new ArgumentNullException(nameof(windowManager));
             _workerManager = workerManager ?? throw new ArgumentNullException(nameof(workerManager));
+            _populationManager = populationManager ?? throw new ArgumentNullException(nameof(populationManager));
         }
 
         public async Task<bool> StartAsync(string pipeName = "StarcUp.Dev")
@@ -89,6 +91,9 @@ namespace StarcUp.Business.Communication
                 _workerManager.WorkerDied += OnWorkerDied;
                 _workerManager.IdleCountChanged += OnWorkerIdleCountChanged;
                 _workerManager.GasBuildingAlert += OnGasBuildingAlert;
+
+                // PopulationManager 이벤트 구독
+                _populationManager.SupplyAlert += OnSupplyAlert;
 
 
                 // 자동 재연결 시작 (3초 간격, 최대 10회 재시도)
@@ -159,6 +164,9 @@ namespace StarcUp.Business.Communication
                 _workerManager.WorkerDied -= OnWorkerDied;
                 _workerManager.IdleCountChanged -= OnWorkerIdleCountChanged;
                 _workerManager.GasBuildingAlert -= OnGasBuildingAlert;
+
+                // PopulationManager 이벤트 구독 해제
+                _populationManager.SupplyAlert -= OnSupplyAlert;
 
                 // Debounce 타이머 정리
                 ClearDebounceTimer();
@@ -694,6 +702,23 @@ namespace StarcUp.Business.Communication
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ 가스 건물 알림 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 인구수 부족 알림 이벤트 처리
+        /// </summary>
+        private void OnSupplyAlert(object sender, PopulationEventArgs e)
+        {
+            try
+            {
+                // 빈 데이터로 알림만 전송
+                var eventData = new { };
+                _pipeClient.SendEvent(NamedPipeProtocol.Events.SupplyAlert, eventData);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 인구수 부족 알림 이벤트 전송 실패: {ex.Message}");
             }
         }
 
