@@ -19,15 +19,7 @@ namespace StarcUp.Business.Game
 {
     public class GameManager : IGameManager, IDisposable
     {
-        private readonly IInGameDetector _inGameDetector;
-        private readonly IUnitService _unitService;
-        private readonly IMemoryService _memoryService;
-        private readonly IUnitCountService _unitCountService;
-        private readonly IWorkerManager _workerManager;
-        private readonly IPopulationManager _populationManager;
-        private readonly Timer _updateTimer;
-        private bool _isGameActive;
-        private bool _disposed;
+        private const int MAX_PLAYERS = 8;
         public GameManager(IInGameDetector inGameDetector, IUnitService unitService, IMemoryService memoryService, IUnitCountService unitCountService, IWorkerManager workerManager, IPopulationManager populationManager)
         {
             _inGameDetector = inGameDetector ?? throw new ArgumentNullException(nameof(inGameDetector));
@@ -36,6 +28,13 @@ namespace StarcUp.Business.Game
             _unitCountService = unitCountService ?? throw new ArgumentNullException(nameof(unitCountService));
             _workerManager = workerManager ?? throw new ArgumentNullException(nameof(workerManager));
             _populationManager = populationManager ?? throw new ArgumentNullException(nameof(populationManager));
+            
+            // Player 배열 초기화
+            Players = new Player[MAX_PLAYERS];
+            for (int i = 0; i < MAX_PLAYERS; i++)
+            {
+                Players[i] = new Player { PlayerIndex = i };
+            }
                         
             // 24fps = 약 41.67ms, 안전하게 42ms로 설정
             _updateTimer = new Timer(42); // 24fps (42ms 간격)
@@ -45,18 +44,17 @@ namespace StarcUp.Business.Game
             _inGameDetector.InGameStateChanged += OnInGameStateChanged;
         }
 
+        private readonly IInGameDetector _inGameDetector;
+        private readonly IUnitService _unitService;
+        private readonly IMemoryService _memoryService;
+        private readonly IUnitCountService _unitCountService;
+        private readonly IWorkerManager _workerManager;
+        private readonly IPopulationManager _populationManager;
+        private readonly Timer _updateTimer;
+        private bool _isGameActive;
+        private bool _disposed;
         public LocalGameData LocalGameData { get; private set; } = new LocalGameData();
-        public Player[] Players { get; } = new Player[8]
-        {
-            new Player { PlayerIndex = 0 },
-            new Player { PlayerIndex = 1 },
-            new Player { PlayerIndex = 2 },
-            new Player { PlayerIndex = 3 },
-            new Player { PlayerIndex = 4 },
-            new Player { PlayerIndex = 5 },
-            new Player { PlayerIndex = 6 },
-            new Player { PlayerIndex = 7 }
-        };
+        public Player[] Players { get; }
 
         public nint[] StartUnitAddressFromIndex { get; private set; } = Array.Empty<nint>();
         public nint StartUnitAddress { get; private set; } = 0;
@@ -67,8 +65,10 @@ namespace StarcUp.Business.Game
 
             Console.WriteLine("GameManager: 게임 초기화 시작");
 
-            // 객체 초기화
-            Array.ForEach(Players, player => player.Init());
+            for( int i = 0; i < Players.Length; i++)
+            {
+                Players[i].Init();
+            }
 
             // 유닛 서비스 초기화
             if (_unitService.InitializeUnitArrayAddress())
@@ -165,16 +165,15 @@ namespace StarcUp.Business.Game
         {
             try
             {
+                var localPlayer = Players[LocalGameData.LocalPlayerIndex];
+
                 _unitService.UpdateUnits();
-                Players[LocalGameData.LocalPlayerIndex].UpdateUnits();
-                var units = Players[LocalGameData.LocalPlayerIndex].GetPlayerUnits();
+                localPlayer.UpdateUnits();
                 
-                // WorkerManager에 일꾼 데이터 업데이트
-                var workers = units.Where(u => u.IsWorker);
+                var workers =  localPlayer.GetWorkers();
                 _workerManager.UpdateWorkerData(workers);
                 
-                // WorkerManager에 가스 건물 데이터 업데이트 (기존 타이머 활용)
-                var gasBuildings = units.Where(u => u.IsGasBuilding).ToList();                
+                var gasBuildings =  localPlayer.GetGasBuildings().ToList();                
                 _workerManager.UpdateGasBuildings(gasBuildings);
             }
             catch (Exception ex)
@@ -193,13 +192,6 @@ namespace StarcUp.Business.Game
                     Console.WriteLine("GameManager: UnitCountService 데이터 새로고침 실패");
                     return;
                 }
-                // Players[LocalGameData.LocalPlayerIndex].UpdateUnits();
-                // Console.WriteLine($"GameManager: 플레이어 {LocalGameData.LocalPlayerIndex} 유닛 데이터 업데이트 완료");
-                // Players[LocalGameData.LocalPlayerIndex].GetAllUnitCounts(true).ForEach(unitCount =>
-                // {
-                //     Console.WriteLine($"GameManager: 플레이어 {LocalGameData.LocalPlayerIndex} 유닛 타입 {unitCount.UnitType}의 개수: {unitCount.TotalCount}");
-                // });
-                // Console.WriteLine($"GameManager: {Players[LocalGameData.LocalPlayerIndex].GetUnitCount(UnitType.AllUnits, true)} 유닛이 업데이트되었습니다.");
             }
             catch (Exception ex)
             {

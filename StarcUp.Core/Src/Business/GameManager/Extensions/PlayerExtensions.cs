@@ -142,5 +142,50 @@ namespace StarcUp.Business.GameManager.Extensions
             }
         }
 
+        /// <summary>
+        /// 실제로 활성화된 유닛들만 반환 (_unitCount개만 순회, 메모리 할당 없음)
+        /// 기존 GetPlayerUnits()는 3400개 전체를 반환하지만, 이 메서드는 실제 유닛 수만큼만 반환
+        /// </summary>
+        /// <param name="player">플레이어</param>
+        /// <returns>활성화된 유닛들의 ReadOnlySpan</returns>
+        public static ReadOnlySpan<Unit> GetActiveUnits(this Player player)
+        {
+            return player.GetPlayerUnits().AsSpan(0, player.UnitCount);
+        }
+
+        /// <summary>
+        /// 워커 유닛들만 효율적으로 조회 (yield return 방식, 지연 실행)
+        /// </summary>
+        /// <param name="player">플레이어</param>
+        /// <returns>워커 유닛들의 IEnumerable</returns>
+        public static IEnumerable<Unit> GetWorkers(this Player player)
+        {
+            var units = player.GetPlayerUnits();
+            var unitCount = player.UnitCount;
+            
+            for (int i = 0; i < unitCount; i++)
+            {
+                if (units[i].IsWorker)
+                    yield return units[i];
+            }
+        }
+
+        /// <summary>
+        /// 가스 건물들만 효율적으로 조회
+        /// </summary>
+        /// <param name="player">플레이어</param>
+        /// <returns>가스 건물들의 IEnumerable</returns>
+        public static IEnumerable<Unit> GetGasBuildings(this Player player)
+        {
+            var units = player.GetPlayerUnits();
+            var unitCount = player.UnitCount;
+            
+            for (int i = 0; i < unitCount; i++)
+            {
+                if (units[i].IsGasBuilding)
+                    yield return units[i];
+            }
+        }
+
     }
 }
