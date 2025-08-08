@@ -1,47 +1,58 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Users, Building2, Clock, Settings2, Info, Plus, Minus, Shield, Bot, Star, Home, Cog, Zap } from 'lucide-react';
+import { PopulationSettings, FixedModeSettings, BuildingModeSettings, TrackedBuilding, TimeLimitSettings } from '../utils/presetUtils';
+import { RaceType, UnitType, RACE_BUILDINGS, UNIT_NAMES, RACE_NAMES } from '../types/enums';
 
 interface PopulationDetailSettingsProps {
   isOpen: boolean;
   onClose: () => void;
-  initialRace?: 'protoss' | 'terran' | 'zerg';
+  initialRace?: RaceType;
+  currentPreset?: any;
+  onSavePopulationSettings?: (presetId: string, populationSettings: PopulationSettings) => Promise<void>;
 }
 
-// 종족 정보
+// 종족 정보 (enum 기반)
 const RACES = {
-  protoss: {
-    name: '프로토스',
+  [RaceType.Protoss]: {
+    name: RACE_NAMES[RaceType.Protoss],
     color: '#FFD700',
     buildings: [
-      { key: 'gateway', name: '게이트웨이', defaultMultiplier: 1, icon: Shield },
-      { key: 'robotics', name: '로보틱스', defaultMultiplier: 2, icon: Bot },
-      { key: 'stargate', name: '스타게이트', defaultMultiplier: 2, icon: Star }
+      { unitType: UnitType.ProtossGateway, name: UNIT_NAMES[UnitType.ProtossGateway], defaultMultiplier: 1, icon: Shield },
+      { unitType: UnitType.ProtossRoboticsFacility, name: UNIT_NAMES[UnitType.ProtossRoboticsFacility], defaultMultiplier: 2, icon: Bot },
+      { unitType: UnitType.ProtossStargate, name: UNIT_NAMES[UnitType.ProtossStargate], defaultMultiplier: 2, icon: Star }
     ]
   },
-  terran: {
-    name: '테란',
+  [RaceType.Terran]: {
+    name: RACE_NAMES[RaceType.Terran],
     color: '#0099FF',
     buildings: [
-      { key: 'barracks', name: '배럭', defaultMultiplier: 1, icon: Home },
-      { key: 'factory', name: '팩토리', defaultMultiplier: 2, icon: Cog },
-      { key: 'starport', name: '스타포트', defaultMultiplier: 2, icon: Zap }
+      { unitType: UnitType.TerranBarracks, name: UNIT_NAMES[UnitType.TerranBarracks], defaultMultiplier: 1, icon: Home },
+      { unitType: UnitType.TerranFactory, name: UNIT_NAMES[UnitType.TerranFactory], defaultMultiplier: 2, icon: Cog },
+      { unitType: UnitType.TerranStarport, name: UNIT_NAMES[UnitType.TerranStarport], defaultMultiplier: 2, icon: Zap }
     ]
   },
-  zerg: {
-    name: '저그',
+  [RaceType.Zerg]: {
+    name: RACE_NAMES[RaceType.Zerg],
     color: '#9932CC',
     buildings: [
-      { key: 'hatchery', name: '해처리', defaultMultiplier: 3, icon: Building2 }
+      { unitType: UnitType.ZergHatchery, name: UNIT_NAMES[UnitType.ZergHatchery], defaultMultiplier: 3, icon: Building2 }
     ]
   }
 } as const;
 
-type RaceKey = keyof typeof RACES;
-type BuildingSettings = Record<string, { enabled: boolean; multiplier: number }>;
+type RaceKey = RaceType;
+type BuildingSettings = Record<number, { enabled: boolean; multiplier: number }>;
 
-export function PopulationDetailSettings({ isOpen, onClose, initialRace }: PopulationDetailSettingsProps) {
+
+export function PopulationDetailSettings({ 
+  isOpen, 
+  onClose, 
+  initialRace, 
+  currentPreset,
+  onSavePopulationSettings 
+}: PopulationDetailSettingsProps) {
   const [mode, setMode] = useState<'building' | 'fixed'>('fixed');
-  const [selectedRace, setSelectedRace] = useState<RaceKey>(initialRace || 'protoss');
+  const [selectedRace, setSelectedRace] = useState<RaceKey>(initialRace || RaceType.Protoss);
   
   // 디버깅: 컴포넌트가 받는 props 확인
   console.log('PopulationDetailSettings props:', { isOpen, initialRace, selectedRace });
@@ -58,32 +69,81 @@ export function PopulationDetailSettings({ isOpen, onClose, initialRace }: Popul
       }
     }
   }, [initialRace]);
+
   const [buildingSettings, setBuildingSettings] = useState<BuildingSettings>({});
   const [fixedValue, setFixedValue] = useState(4);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState(3);
-  const [timeLimitSeconds, setTimeLimitSeconds] = useState(0); // 게임 시작 후 n분
+  const [timeLimitSeconds, setTimeLimitSeconds] = useState(0);
   const [isTimeLimitEnabled, setIsTimeLimitEnabled] = useState(true);
 
+  // 현재 프리셋에서 인구수 설정 로드
+  useEffect(() => {
+    if (currentPreset?.populationSettings) {
+      const settings = currentPreset.populationSettings;
+      console.log('🏘️ 현재 프리셋에서 인구수 설정 로드:', settings);
+      
+      setMode(settings.mode);
+      
+      if (settings.fixedSettings) {
+        setFixedValue(settings.fixedSettings.thresholdValue);
+        if (settings.fixedSettings.timeLimit) {
+          setIsTimeLimitEnabled(settings.fixedSettings.timeLimit.enabled);
+          setTimeLimitMinutes(settings.fixedSettings.timeLimit.minutes);
+          setTimeLimitSeconds(settings.fixedSettings.timeLimit.seconds);
+        }
+      }
+      
+      if (settings.buildingSettings) {
+        console.log('🔄 저장된 종족 설정 로드:', settings.buildingSettings.race);
+        
+        // 실시간 편집 중인 종족(initialRace)이 있으면 그것을 우선 사용
+        // 없으면 저장된 설정의 종족을 사용
+        // RaceType.Zerg (0)는 falsy이므로 !== undefined로 체크
+        const raceToUse = initialRace !== undefined ? initialRace : settings.buildingSettings.race;
+        console.log('🎯 사용할 종족 결정:', { 
+          initialRace, 
+          savedRace: settings.buildingSettings.race, 
+          finalRace: raceToUse,
+          raceName: RACES[raceToUse]?.name 
+        });
+        
+        setSelectedRace(raceToUse);
+        
+        // TrackedBuilding 배열을 BuildingSettings 형태로 변환
+        const buildingSettingsMap: BuildingSettings = {};
+        settings.buildingSettings.trackedBuildings.forEach((building: TrackedBuilding) => {
+          buildingSettingsMap[building.buildingType] = {
+            enabled: building.enabled,
+            multiplier: building.multiplier
+          };
+        });
+        setBuildingSettings(buildingSettingsMap);
+      }
+    } else {
+      console.log('🏘️ 현재 프리셋에 인구수 설정이 없음 - 기본값 사용');
+    }
+  }, [currentPreset, initialRace]);
+
   // 건물 설정 업데이트
-  const toggleBuildingEnabled = (buildingKey: string) => {
+  const toggleBuildingEnabled = (unitType: UnitType) => {
     setBuildingSettings(prev => {
-      const current = prev[buildingKey];
+      const current = prev[unitType];
       return {
         ...prev,
-        [buildingKey]: {
+        [unitType]: {
           enabled: !(current?.enabled || false),
-          multiplier: current?.multiplier || RACES[selectedRace].buildings.find(b => b.key === buildingKey)?.defaultMultiplier || 1
+          multiplier: current?.multiplier || RACES[selectedRace].buildings.find(b => b.unitType === unitType)?.defaultMultiplier || 1
         }
       };
     });
   };
 
-  const updateBuildingMultiplier = (buildingKey: string, delta: number) => {
+  const updateBuildingMultiplier = (unitType: UnitType, delta: number) => {
     setBuildingSettings(prev => {
-      const current = prev[buildingKey];
+      const current = prev[unitType];
       return {
         ...prev,
-        [buildingKey]: {
+        [unitType]: {
           enabled: current?.enabled || false,
           multiplier: Math.max(1, Math.min(10, (current?.multiplier || 1) + delta))
         }
@@ -92,46 +152,66 @@ export function PopulationDetailSettings({ isOpen, onClose, initialRace }: Popul
   };
 
   // 초기 건물 설정 생성
-  const getBuildingConfig = (buildingKey: string, defaultMultiplier: number) => {
-    return buildingSettings[buildingKey] || { enabled: false, multiplier: defaultMultiplier };
+  const getBuildingConfig = (unitType: UnitType, defaultMultiplier: number) => {
+    return buildingSettings[unitType] || { enabled: false, multiplier: defaultMultiplier };
   };
 
   // 총 경고 기준값 계산 (모드 A) - 프로그램이 자동으로 건물 개수 추적
   const calculateTotalThreshold = () => {
     const race = RACES[selectedRace];
     return race.buildings.reduce((total, building) => {
-      const config = getBuildingConfig(building.key, building.defaultMultiplier);
+      const config = getBuildingConfig(building.unitType, building.defaultMultiplier);
       // 선택된 건물만 계산 (실제로는 프로그램이 해당 건물 개수를 자동 추적)
       return config.enabled ? total + config.multiplier : total;
     }, 0);
   };
 
-  const handleSave = () => {
-    // TODO: 설정 저장 로직
-    const settingsToSave = {
-      mode,
-      ...(mode === 'building' && {
-        selectedRace,
-        trackedBuildings: Object.entries(buildingSettings)
-          .filter(([_, config]) => config.enabled)
-          .map(([buildingKey, config]) => ({
-            buildingKey,
-            name: RACES[selectedRace].buildings.find(b => b.key === buildingKey)?.name,
-            multiplier: config.multiplier
-          }))
-      }),
-      ...(mode === 'fixed' && {
-        fixedValue,
-        ...(isTimeLimitEnabled && { 
-          timeLimitMinutes, 
-          timeLimitSeconds,
-          totalSeconds: timeLimitMinutes * 60 + timeLimitSeconds 
+  const handleSave = async () => {
+    try {
+      if (!currentPreset || !onSavePopulationSettings) {
+        console.error('❌ 현재 프리셋 또는 저장 핸들러가 없습니다');
+        return;
+      }
+
+      // 현재 UI 상태를 PopulationSettings 형식으로 변환
+      const populationSettings: PopulationSettings = {
+        mode,
+        ...(mode === 'fixed' && {
+          fixedSettings: {
+            thresholdValue: fixedValue,
+            ...(isTimeLimitEnabled && {
+              timeLimit: {
+                enabled: isTimeLimitEnabled,
+                minutes: timeLimitMinutes,
+                seconds: timeLimitSeconds
+              }
+            })
+          }
+        }),
+        ...(mode === 'building' && {
+          buildingSettings: {
+            race: selectedRace, // RaceType enum 값 (int)
+            trackedBuildings: Object.entries(buildingSettings).map(([unitTypeStr, settings]) => {
+              const unitType = parseInt(unitTypeStr) as UnitType;
+              return {
+                buildingType: unitType, // UnitType enum 값 (int)
+                multiplier: settings.multiplier,
+                enabled: settings.enabled
+              };
+            })
+          }
         })
-      })
-    };
-    
-    console.log('인구수 설정 저장:', settingsToSave);
-    onClose();
+      };
+      
+      console.log('🏘️ 인구수 설정 저장:', populationSettings);
+      
+      await onSavePopulationSettings(currentPreset.id, populationSettings);
+      console.log('✅ 인구수 설정 저장 완료');
+      
+      onClose();
+    } catch (error) {
+      console.error('❌ 인구수 설정 저장 실패:', error);
+    }
   };
 
   if (!isOpen) return null;
@@ -351,18 +431,18 @@ export function PopulationDetailSettings({ isOpen, onClose, initialRace }: Popul
                       }}
                     >
                       선택됨: {RACES[selectedRace].buildings.filter(building => 
-                        getBuildingConfig(building.key, building.defaultMultiplier).enabled
+                        getBuildingConfig(building.unitType, building.defaultMultiplier).enabled
                       ).length}/{RACES[selectedRace].buildings.length}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {RACES[selectedRace].buildings.map((building) => {
-                      const config = getBuildingConfig(building.key, building.defaultMultiplier);
+                      const config = getBuildingConfig(building.unitType, building.defaultMultiplier);
                       const IconComponent = building.icon;
                       return (
                         <div
-                          key={building.key}
+                          key={building.unitType}
                           className={`p-4 rounded-lg border-2 transition-all duration-300 ${
                             config.enabled ? 'border-current' : ''
                           }`}
@@ -412,7 +492,7 @@ export function PopulationDetailSettings({ isOpen, onClose, initialRace }: Popul
                               <input
                                 type="checkbox"
                                 checked={config.enabled}
-                                onChange={() => toggleBuildingEnabled(building.key)}
+                                onChange={() => toggleBuildingEnabled(building.unitType)}
                                 className="sr-only"
                               />
                               <div
@@ -450,7 +530,7 @@ export function PopulationDetailSettings({ isOpen, onClose, initialRace }: Popul
                               </label>
                               <div className="flex items-center gap-2">
                                 <button
-                                  onClick={() => updateBuildingMultiplier(building.key, -1)}
+                                  onClick={() => updateBuildingMultiplier(building.unitType, -1)}
                                   className="p-2 rounded transition-all duration-300 hover:bg-red-500/20"
                                   style={{ color: 'var(--starcraft-red)' }}
                                   disabled={config.multiplier <= 1}
@@ -468,7 +548,7 @@ export function PopulationDetailSettings({ isOpen, onClose, initialRace }: Popul
                                   ×{config.multiplier}
                                 </div>
                                 <button
-                                  onClick={() => updateBuildingMultiplier(building.key, 1)}
+                                  onClick={() => updateBuildingMultiplier(building.unitType, 1)}
                                   className="p-2 rounded transition-all duration-300 hover:bg-green-500/20"
                                   style={{ color: 'var(--starcraft-green)' }}
                                   disabled={config.multiplier >= 10}
@@ -725,16 +805,16 @@ export function PopulationDetailSettings({ isOpen, onClose, initialRace }: Popul
                           </div>
                         </div>
 
-                        {/* 시간 유효성 체크 */}
+                        {/* 시간 설정 안내 */}
                         {timeLimitMinutes === 0 && timeLimitSeconds === 0 && (
                           <div 
                             className="text-xs text-center p-2 rounded"
                             style={{ 
-                              color: 'var(--starcraft-red)',
-                              backgroundColor: 'rgba(255, 0, 0, 0.1)'
+                              color: 'var(--starcraft-green)',
+                              backgroundColor: 'rgba(0, 255, 0, 0.1)'
                             }}
                           >
-                            ⚠️ 시간을 0분 0초보다 크게 설정해주세요
+                            ℹ️ 게임 시작과 동시에 경고가 활성화됩니다
                           </div>
                         )}
                       </div>

@@ -66,5 +66,8 @@ namespace StarcUp.Business.Profile.Models
 
         [JsonPropertyName("settingsMask")]
         public int SettingsMask { get; set; }
+
+        [JsonPropertyName("settings")]
+        public object Settings { get; set; } // 인구수 등 복잡한 설정을 위한 범용 필드
     }
 }

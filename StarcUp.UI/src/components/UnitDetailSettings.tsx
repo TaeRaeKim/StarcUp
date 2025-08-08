@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Users, Plus, X, Skull, Zap, Clock, Info, Search, Shield, Home, Building2 } from 'lucide-react';
+import { RaceType, RACE_NAMES } from '../types/enums';
 
 interface UnitDetailSettingsProps {
   isOpen: boolean;
   onClose: () => void;
-  initialRace?: 'protoss' | 'terran' | 'zerg';
+  initialRace?: RaceType;
 }
 
 interface UnitCategory {
@@ -17,36 +18,36 @@ interface Unit {
   id: string;
   name: string;
   icon: string;
-  race: 'protoss' | 'terran' | 'zerg';
+  race: RaceType;
 }
 
-// 종족 정보
+// 종족 정보 (enum 기반)
 const RACES = {
-  protoss: {
-    name: '프로토스',
+  [RaceType.Protoss]: {
+    name: RACE_NAMES[RaceType.Protoss],
     color: '#FFD700',
     icon: Shield,
     description: '첨단 기술과 사이오닉 능력'
   },
-  terran: {
-    name: '테란',
+  [RaceType.Terran]: {
+    name: RACE_NAMES[RaceType.Terran],
     color: '#0099FF', 
     icon: Home,
     description: '다재다능한 인간 문명'
   },
-  zerg: {
-    name: '저그',
+  [RaceType.Zerg]: {
+    name: RACE_NAMES[RaceType.Zerg],
     color: '#9932CC',
     icon: Building2,
     description: '진화와 적응의 외계 종족'
   }
 } as const;
 
-type RaceKey = keyof typeof RACES;
+type RaceKey = RaceType;
 
 export function UnitDetailSettings({ isOpen, onClose, initialRace }: UnitDetailSettingsProps) {
   // 종족 상태 관리
-  const [selectedRace, setSelectedRace] = useState<RaceKey>(initialRace || 'protoss');
+  const [selectedRace, setSelectedRace] = useState<RaceKey>(initialRace || RaceType.Protoss);
   
   // 기본 설정 상태들
   const [unitDeathDetection, setUnitDeathDetection] = useState(true);
@@ -56,31 +57,31 @@ export function UnitDetailSettings({ isOpen, onClose, initialRace }: UnitDetailS
   // 카테고리 및 유닛 관리 상태 - 선택된 종족에 맞는 기본 유닛으로 초기화
   const getDefaultCategory = (race: RaceKey): UnitCategory => {
     switch (race) {
-      case 'protoss':
+      case RaceType.Protoss:
         return {
           id: 'main_army',
           name: '주력 부대',
           units: [
-            { id: 'zealot', name: '질럿', icon: '⚔️', race: 'protoss' },
-            { id: 'dragoon', name: '드라군', icon: '🔫', race: 'protoss' }
+            { id: 'zealot', name: '질럿', icon: '⚔️', race: RaceType.Protoss },
+            { id: 'dragoon', name: '드라군', icon: '🔫', race: RaceType.Protoss }
           ]
         };
-      case 'terran':
+      case RaceType.Terran:
         return {
           id: 'main_army',
           name: '주력 부대',
           units: [
-            { id: 'marine', name: '마린', icon: '🎯', race: 'terran' },
-            { id: 'tank', name: '탱크', icon: '🚗', race: 'terran' }
+            { id: 'marine', name: '마린', icon: '🎯', race: RaceType.Terran },
+            { id: 'tank', name: '탱크', icon: '🚗', race: RaceType.Terran }
           ]
         };
-      case 'zerg':
+      case RaceType.Zerg:
         return {
           id: 'main_army',
           name: '주력 부대',
           units: [
-            { id: 'zergling', name: '저글링', icon: '🦎', race: 'zerg' },
-            { id: 'hydralisk', name: '히드라리스크', icon: '🐍', race: 'zerg' }
+            { id: 'zergling', name: '저글링', icon: '🦎', race: RaceType.Zerg },
+            { id: 'hydralisk', name: '히드라리스크', icon: '🐍', race: RaceType.Zerg }
           ]
         };
     }
@@ -99,45 +100,45 @@ export function UnitDetailSettings({ isOpen, onClose, initialRace }: UnitDetailS
   // 사용 가능한 모든 유닛들
   const availableUnits: Unit[] = [
     // Protoss
-    { id: 'probe', name: '탐사정', icon: '🔧', race: 'protoss' },
-    { id: 'zealot', name: '질럿', icon: '⚔️', race: 'protoss' },
-    { id: 'dragoon', name: '드라군', icon: '🔫', race: 'protoss' },
-    { id: 'high_templar', name: '하이템플러', icon: '⚡', race: 'protoss' },
-    { id: 'dark_templar', name: '다크템플러', icon: '🗡️', race: 'protoss' },
-    { id: 'archon', name: '아콘', icon: '🔮', race: 'protoss' },
-    { id: 'reaver', name: '리버', icon: '💥', race: 'protoss' },
-    { id: 'observer', name: '옵저버', icon: '👁️', race: 'protoss' },
-    { id: 'shuttle', name: '셔틀', icon: '🚁', race: 'protoss' },
-    { id: 'scout', name: '스카우트', icon: '✈️', race: 'protoss' },
-    { id: 'corsair', name: '커세어', icon: '🛩️', race: 'protoss' },
-    { id: 'carrier', name: '캐리어', icon: '🚢', race: 'protoss' },
-    { id: 'arbiter', name: '아비터', icon: '🌀', race: 'protoss' },
+    { id: 'probe', name: '탐사정', icon: '🔧', race: RaceType.Protoss },
+    { id: 'zealot', name: '질럿', icon: '⚔️', race: RaceType.Protoss },
+    { id: 'dragoon', name: '드라군', icon: '🔫', race: RaceType.Protoss },
+    { id: 'high_templar', name: '하이템플러', icon: '⚡', race: RaceType.Protoss },
+    { id: 'dark_templar', name: '다크템플러', icon: '🗡️', race: RaceType.Protoss },
+    { id: 'archon', name: '아콘', icon: '🔮', race: RaceType.Protoss },
+    { id: 'reaver', name: '리버', icon: '💥', race: RaceType.Protoss },
+    { id: 'observer', name: '옵저버', icon: '👁️', race: RaceType.Protoss },
+    { id: 'shuttle', name: '셔틀', icon: '🚁', race: RaceType.Protoss },
+    { id: 'scout', name: '스카우트', icon: '✈️', race: RaceType.Protoss },
+    { id: 'corsair', name: '커세어', icon: '🛩️', race: RaceType.Protoss },
+    { id: 'carrier', name: '캐리어', icon: '🚢', race: RaceType.Protoss },
+    { id: 'arbiter', name: '아비터', icon: '🌀', race: RaceType.Protoss },
     
     // Terran
-    { id: 'scv', name: 'SCV', icon: '🔨', race: 'terran' },
-    { id: 'marine', name: '마린', icon: '🎯', race: 'terran' },
-    { id: 'firebat', name: '파이어뱃', icon: '🔥', race: 'terran' },
-    { id: 'ghost', name: '고스트', icon: '👻', race: 'terran' },
-    { id: 'vulture', name: '벌처', icon: '🏍️', race: 'terran' },
-    { id: 'tank', name: '탱크', icon: '🚗', race: 'terran' },
-    { id: 'goliath', name: '골리앗', icon: '🤖', race: 'terran' },
-    { id: 'wraith', name: '레이스', icon: '👤', race: 'terran' },
-    { id: 'dropship', name: '드랍쉽', icon: '🚁', race: 'terran' },
-    { id: 'valkyrie', name: '발키리', icon: '💫', race: 'terran' },
-    { id: 'battlecruiser', name: '배틀크루저', icon: '⚓', race: 'terran' },
+    { id: 'scv', name: 'SCV', icon: '🔨', race: RaceType.Terran },
+    { id: 'marine', name: '마린', icon: '🎯', race: RaceType.Terran },
+    { id: 'firebat', name: '파이어뱃', icon: '🔥', race: RaceType.Terran },
+    { id: 'ghost', name: '고스트', icon: '👻', race: RaceType.Terran },
+    { id: 'vulture', name: '벌처', icon: '🏍️', race: RaceType.Terran },
+    { id: 'tank', name: '탱크', icon: '🚗', race: RaceType.Terran },
+    { id: 'goliath', name: '골리앗', icon: '🤖', race: RaceType.Terran },
+    { id: 'wraith', name: '레이스', icon: '👤', race: RaceType.Terran },
+    { id: 'dropship', name: '드랍쉽', icon: '🚁', race: RaceType.Terran },
+    { id: 'valkyrie', name: '발키리', icon: '💫', race: RaceType.Terran },
+    { id: 'battlecruiser', name: '배틀크루저', icon: '⚓', race: RaceType.Terran },
     
     // Zerg
-    { id: 'drone', name: '드론', icon: '🐛', race: 'zerg' },
-    { id: 'zergling', name: '저글링', icon: '🦎', race: 'zerg' },
-    { id: 'hydralisk', name: '히드라리스크', icon: '🐍', race: 'zerg' },
-    { id: 'lurker', name: '러커', icon: '🕷️', race: 'zerg' },
-    { id: 'ultralisk', name: '울트라리스크', icon: '🦏', race: 'zerg' },
-    { id: 'defiler', name: '디파일러', icon: '🦠', race: 'zerg' },
-    { id: 'mutalisk', name: '뮤탈리스크', icon: '🦇', race: 'zerg' },
-    { id: 'scourge', name: '스커지', icon: '💀', race: 'zerg' },
-    { id: 'queen', name: '퀸', icon: '👑', race: 'zerg' },
-    { id: 'guardian', name: '가디언', icon: '🐉', race: 'zerg' },
-    { id: 'devourer', name: '디바우어러', icon: '🦈', race: 'zerg' }
+    { id: 'drone', name: '드론', icon: '🐛', race: RaceType.Zerg },
+    { id: 'zergling', name: '저글링', icon: '🦎', race: RaceType.Zerg },
+    { id: 'hydralisk', name: '히드라리스크', icon: '🐍', race: RaceType.Zerg },
+    { id: 'lurker', name: '러커', icon: '🕷️', race: RaceType.Zerg },
+    { id: 'ultralisk', name: '울트라리스크', icon: '🦏', race: RaceType.Zerg },
+    { id: 'defiler', name: '디파일러', icon: '🦠', race: RaceType.Zerg },
+    { id: 'mutalisk', name: '뮤탈리스크', icon: '🦇', race: RaceType.Zerg },
+    { id: 'scourge', name: '스커지', icon: '💀', race: RaceType.Zerg },
+    { id: 'queen', name: '퀸', icon: '👑', race: RaceType.Zerg },
+    { id: 'guardian', name: '가디언', icon: '🐉', race: RaceType.Zerg },
+    { id: 'devourer', name: '디바우어러', icon: '🦈', race: RaceType.Zerg }
   ];
 
   const basicSettings = [

@@ -1,3 +1,5 @@
+import { RaceType, UnitType } from '../types/enums';
+
 // 일꾼 설정 인터페이스
 export interface WorkerSettings {
   workerCountDisplay: boolean;          // Default (1): 일꾼 수 출력
@@ -27,7 +29,37 @@ export interface WorkerPreset {
 
 export interface PopulationPreset {
   enabled: boolean;
-  settingsMask: number;
+  settingsMask?: number;          // 선택적 (인구수는 사용하지 않음)
+  settings?: PopulationSettings;  // 전체 설정 객체 (주로 사용)
+}
+
+// 인구수 설정 인터페이스 (Core PopulationSettings와 동기화)
+export interface PopulationSettings {
+  mode: 'fixed' | 'building';    // PopulationMode.Fixed or PopulationMode.Building
+  fixedSettings?: FixedModeSettings;
+  buildingSettings?: BuildingModeSettings;
+}
+
+export interface FixedModeSettings {
+  thresholdValue: number;         // 1-50 범위
+  timeLimit?: TimeLimitSettings;
+}
+
+export interface TimeLimitSettings {
+  enabled: boolean;
+  minutes: number;                // 0-59
+  seconds: number;                // 0-59
+}
+
+export interface BuildingModeSettings {
+  race: RaceType;  // RaceType enum 사용
+  trackedBuildings: TrackedBuilding[];
+}
+
+export interface TrackedBuilding {
+  buildingType: UnitType;         // UnitType enum 사용
+  multiplier: number;             // 1-10 범위
+  enabled: boolean;
 }
 
 export interface UnitPreset {

@@ -5,6 +5,7 @@ import { IDataStorageService } from '../storage'
 import { IWindowManager, IShortcutManager } from '../window'
 import { IOverlayAutoManager } from '../overlay'
 import { IPresetStateManager } from '../preset'
+import { RaceType } from '../../../../src/types/enums'
 
 export class ChannelHandlers {
   private ipcService: IIPCService
@@ -435,7 +436,7 @@ export class ChannelHandlers {
           type: event.type,
           presetId: event.presetId,
           featureStates: event.preset?.featureStates || [],
-          selectedRace: event.preset?.selectedRace || 'protoss',
+          selectedRace: event.preset?.selectedRace || RaceType.Protoss,
           timestamp: event.timestamp
         })
       }

@@ -120,8 +120,16 @@ namespace StarcUp.Business.Profile
         /// <param name="settings">인구수 설정 객체</param>
         public void InitializePopulationSettings(PopulationSettings settings)
         {
-            Console.WriteLine($"[PopulationManager] ✅ 인구수 설정 초기화: {settings.Mode}");
-            Settings = settings ?? new PopulationSettings();
+            if (settings == null)
+            {
+                Console.WriteLine("[PopulationManager] ⚠️ 인구수 설정이 null입니다. 기본 설정을 사용합니다.");
+                Settings = new PopulationSettings();
+                return;
+            }
+
+            Console.WriteLine($"[PopulationManager] 🔄 인구수 설정 초기화 시작 - 모드: {settings.Mode}");
+            Settings = settings;
+            Console.WriteLine("[PopulationManager] ✅ 인구수 설정 초기화 완료");
         }
 
         /// <summary>
@@ -146,6 +154,12 @@ namespace StarcUp.Business.Profile
         private void CheckSupplyAlert()
         {
             if (Settings == null) return;
+
+            // 최대인구수가 200(메모리상 400)인 경우 경고하지 않음
+            if (_currentStats.RawMaxSupply >= 400)
+            {
+                return;
+            }
 
             bool shouldAlert = false;
             int thresholdValue = 0;

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Save, RotateCcw, Settings, Cog, Shield, Bot, Star, Home, Zap, Building2 } from 'lucide-react';
+import { RaceType, RACE_NAMES } from '../types/enums';
 
 interface PresetSettingsModalProps {
   isOpen: boolean;
@@ -9,16 +10,22 @@ interface PresetSettingsModalProps {
     name: string;
     description: string;
     featureStates: boolean[];
-    selectedRace?: 'protoss' | 'terran' | 'zerg';
+    selectedRace?: RaceType;
   };
-  onSave: (updatedPreset: {
-    id: string;
+  editingPresetData: {
     name: string;
     description: string;
     featureStates: boolean[];
-    selectedRace?: 'protoss' | 'terran' | 'zerg';
+    selectedRace: RaceType;
+  } | null;
+  onSave: () => void;
+  onRaceChange?: (race: RaceType) => void;
+  onEditingDataChange?: (updatedData: {
+    name?: string;
+    description?: string;
+    featureStates?: boolean[];
+    selectedRace?: RaceType;
   }) => void;
-  onRaceChange?: (race: 'protoss' | 'terran' | 'zerg') => void;
   onOpenPopulationSettings?: () => void;
   onOpenWorkerSettings?: () => void;
   onOpenUnitSettings?: () => void;
@@ -51,36 +58,38 @@ const FEATURE_CONFIG = [
   }
 ];
 
-// 종족 정보
+// 종족 정보 (enum 기반)
 const RACES = {
-  protoss: {
-    name: '프로토스',
+  [RaceType.Protoss]: {
+    name: RACE_NAMES[RaceType.Protoss],
     color: '#FFD700',
     icon: Shield,
     description: '첨단 기술과 사이오닉 능력'
   },
-  terran: {
-    name: '테란',
+  [RaceType.Terran]: {
+    name: RACE_NAMES[RaceType.Terran],
     color: '#0099FF',
     icon: Home,
     description: '다재다능한 인간 문명'
   },
-  zerg: {
-    name: '저그',
+  [RaceType.Zerg]: {
+    name: RACE_NAMES[RaceType.Zerg],
     color: '#9932CC',
     icon: Building2,
     description: '진화와 적응의 외계 종족'
   }
 } as const;
 
-type RaceKey = keyof typeof RACES;
+type RaceKey = RaceType;
 
 export function PresetSettingsModal({ 
   isOpen, 
   onClose, 
   currentPreset, 
+  editingPresetData,
   onSave,
   onRaceChange,
+  onEditingDataChange,
   onOpenPopulationSettings,
   onOpenWorkerSettings,
   onOpenUnitSettings,
@@ -88,32 +97,27 @@ export function PresetSettingsModal({
   onOpenBuildOrderSettings,
   onOpenDevelopmentProgress
 }: PresetSettingsModalProps) {
-  const [editedName, setEditedName] = useState(currentPreset.name);
-  const [editedDescription, setEditedDescription] = useState(currentPreset.description);
-  const [editedFeatures, setEditedFeatures] = useState(currentPreset.featureStates);
-  const [selectedRace, setSelectedRace] = useState<RaceKey>(currentPreset.selectedRace || 'protoss');
+  // 편집 데이터가 없으면 현재 프리셋으로 초기화
+  const editData = editingPresetData || {
+    name: currentPreset.name,
+    description: currentPreset.description,
+    featureStates: [...currentPreset.featureStates],
+    selectedRace: currentPreset.selectedRace ?? RaceType.Protoss
+  };
+  
   const [hasChanges, setHasChanges] = useState(false);
-
-  // 프리셋이 변경될 때마다 초기화
-  useEffect(() => {
-    setEditedName(currentPreset.name);
-    setEditedDescription(currentPreset.description);
-    setEditedFeatures(currentPreset.featureStates);
-    setSelectedRace(currentPreset.selectedRace || 'protoss');
-    setHasChanges(false);
-  }, [currentPreset]);
 
   // 변경사항 감지
   useEffect(() => {
-    const nameChanged = editedName !== currentPreset.name;
-    const descChanged = editedDescription !== currentPreset.description;
-    const featuresChanged = editedFeatures.some((feature, index) => 
+    const nameChanged = editData.name !== currentPreset.name;
+    const descChanged = editData.description !== currentPreset.description;
+    const featuresChanged = editData.featureStates.some((feature, index) => 
       feature !== currentPreset.featureStates[index]
     );
-    const raceChanged = selectedRace !== (currentPreset.selectedRace || 'protoss');
+    const raceChanged = editData.selectedRace !== (currentPreset.selectedRace ?? RaceType.Protoss);
     
     setHasChanges(nameChanged || descChanged || featuresChanged || raceChanged);
-  }, [editedName, editedDescription, editedFeatures, selectedRace, currentPreset]);
+  }, [editData, currentPreset]);
 
   const handleFeatureToggle = (index: number) => {
     // 유닛(2), 업그레이드(3), 빌드오더(4)는 비활성화 - 클릭 불가 (일꾼은 0번, 인구수는 1번으로 활성화)
@@ -121,9 +125,12 @@ export function PresetSettingsModal({
       return;
     }
     
-    const newFeatures = [...editedFeatures];
+    const newFeatures = [...editData.featureStates];
     newFeatures[index] = !newFeatures[index];
-    setEditedFeatures(newFeatures);
+    
+    if (onEditingDataChange) {
+      onEditingDataChange({ featureStates: newFeatures });
+    }
   };
 
   const handleFeatureSettings = (index: number) => {
@@ -155,34 +162,26 @@ export function PresetSettingsModal({
   };
 
   const handleSave = () => {
-    onSave({
-      id: currentPreset.id,
-      name: editedName,
-      description: editedDescription,
-      featureStates: editedFeatures,
-      selectedRace: selectedRace
-    });
-    // 저장 시에는 초기화하지 않고 바로 닫기
+    onSave();
     onClose();
   };
 
   const handleReset = () => {
-    setEditedName(currentPreset.name);
-    setEditedDescription(currentPreset.description);
-    setEditedFeatures(currentPreset.featureStates);
-    setSelectedRace(currentPreset.selectedRace || 'protoss');
+    if (onEditingDataChange) {
+      onEditingDataChange({
+        name: currentPreset.name,
+        description: currentPreset.description,
+        featureStates: [...currentPreset.featureStates],
+        selectedRace: currentPreset.selectedRace ?? RaceType.Protoss
+      });
+    }
   };
 
   const handleClose = () => {
-    // 저장하지 않은 변경사항이 있으면 초기화
-    if (hasChanges) {
-      handleReset();
-      console.log('프리셋 설정창 닫기: 저장하지 않은 변경사항 초기화됨');
-    }
     onClose();
   };
 
-  const enabledCount = editedFeatures.filter(f => f).length;
+  const enabledCount = editData.featureStates.filter(f => f).length;
 
   if (!isOpen) return null;
 
@@ -277,8 +276,8 @@ export function PresetSettingsModal({
                   </label>
                   <input
                     type="text"
-                    value={editedName}
-                    onChange={(e) => setEditedName(e.target.value)}
+                    value={editData.name}
+                    onChange={(e) => onEditingDataChange?.({ name: e.target.value })}
                     className="w-full p-3 rounded-sm border transition-all duration-300 focus:outline-none"
                     style={{
                       backgroundColor: 'var(--starcraft-bg-secondary)',
@@ -304,8 +303,8 @@ export function PresetSettingsModal({
                     설명
                   </label>
                   <textarea
-                    value={editedDescription}
-                    onChange={(e) => setEditedDescription(e.target.value)}
+                    value={editData.description}
+                    onChange={(e) => onEditingDataChange?.({ description: e.target.value })}
                     rows={2}
                     className="w-full p-3 rounded-sm border transition-all duration-300 focus:outline-none resize-none"
                     style={{
@@ -339,17 +338,18 @@ export function PresetSettingsModal({
               </h3>
               
               <div className="grid grid-cols-3 gap-3">
-                {Object.entries(RACES).map(([raceKey, race]) => {
+                {[RaceType.Protoss, RaceType.Terran, RaceType.Zerg].map((raceKey) => {
+                  const race = RACES[raceKey];
                   const IconComponent = race.icon;
-                  const isSelected = selectedRace === raceKey;
+                  const isSelected = editData.selectedRace === raceKey;
                   return (
                     <button
                       key={raceKey}
                       onClick={() => {
-                        setSelectedRace(raceKey as RaceKey);
+                        onEditingDataChange?.({ selectedRace: raceKey });
                         // 종족 변경 시 즉시 부모 컴포넌트에 알림
                         if (onRaceChange) {
-                          onRaceChange(raceKey as RaceKey);
+                          onRaceChange(raceKey);
                         }
                       }}
                       className={`p-4 rounded-lg border-2 transition-all duration-300 hover:bg-opacity-80 ${
@@ -448,12 +448,12 @@ export function PresetSettingsModal({
                     style={{
                       backgroundColor: isDisabled 
                         ? 'var(--starcraft-bg-secondary)' 
-                        : editedFeatures[index] 
+                        : editData.featureStates[index] 
                           ? 'var(--starcraft-bg-active)' 
                           : 'var(--starcraft-bg-secondary)',
                       borderColor: isDisabled 
                         ? 'var(--starcraft-inactive-border)' 
-                        : editedFeatures[index] 
+                        : editData.featureStates[index] 
                           ? 'var(--starcraft-green)' 
                           : 'var(--starcraft-border)'
                     }}
@@ -464,7 +464,7 @@ export function PresetSettingsModal({
                         style={{ 
                           color: isDisabled 
                             ? 'var(--starcraft-inactive-text)' 
-                            : editedFeatures[index] 
+                            : editData.featureStates[index] 
                               ? 'var(--starcraft-green)' 
                               : 'var(--starcraft-inactive-text)' 
                         }}
@@ -476,7 +476,7 @@ export function PresetSettingsModal({
                         style={{ 
                           color: isDisabled 
                             ? 'var(--starcraft-inactive-text)' 
-                            : editedFeatures[index] 
+                            : editData.featureStates[index] 
                               ? 'var(--starcraft-green)' 
                               : 'var(--starcraft-inactive-text)' 
                         }}
@@ -493,7 +493,7 @@ export function PresetSettingsModal({
                         style={{
                           color: isDisabled 
                             ? 'var(--starcraft-inactive-text)' 
-                            : editedFeatures[index] 
+                            : editData.featureStates[index] 
                               ? 'var(--starcraft-green)' 
                               : 'var(--starcraft-inactive-text)',
                           backgroundColor: 'transparent'
@@ -509,35 +509,35 @@ export function PresetSettingsModal({
                         disabled={isDisabled}
                         className={`
                           w-12 h-6 rounded-full border-2 transition-all duration-300 relative
-                          ${editedFeatures[index] ? 'justify-end' : 'justify-start'}
+                          ${editData.featureStates[index] ? 'justify-end' : 'justify-start'}
                           ${isDisabled ? 'cursor-not-allowed' : ''}
                         `}
                         style={{
                           backgroundColor: isDisabled 
                             ? 'var(--starcraft-inactive-bg)' 
-                            : editedFeatures[index] 
+                            : editData.featureStates[index] 
                               ? 'var(--starcraft-green)' 
                               : 'var(--starcraft-inactive-bg)',
                           borderColor: isDisabled 
                             ? 'var(--starcraft-inactive-border)' 
-                            : editedFeatures[index] 
+                            : editData.featureStates[index] 
                               ? 'var(--starcraft-green)' 
                               : 'var(--starcraft-inactive-border)'
                         }}
                         title={isDisabled 
                           ? `${feature.name} (개발 중 - 사용 불가)` 
-                          : `${feature.name} ${editedFeatures[index] ? '비활성화' : '활성화'}`
+                          : `${feature.name} ${editData.featureStates[index] ? '비활성화' : '활성화'}`
                         }
                       >
                         <div
                           className={`
                             w-4 h-4 rounded-full transition-all duration-300 absolute top-0.5
-                            ${editedFeatures[index] ? 'right-0.5' : 'left-0.5'}
+                            ${editData.featureStates[index] ? 'right-0.5' : 'left-0.5'}
                           `}
                           style={{
                             backgroundColor: isDisabled 
                               ? 'var(--starcraft-inactive-secondary)' 
-                              : editedFeatures[index] 
+                              : editData.featureStates[index] 
                                 ? 'var(--starcraft-bg)' 
                                 : 'var(--starcraft-inactive-secondary)'
                           }}

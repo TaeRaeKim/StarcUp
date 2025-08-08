@@ -1,4 +1,5 @@
 import { StoredPreset, WorkerSettings } from '../storage/repositories/IPresetRepository'
+import { RaceType } from '../../../../src/types/enums'
 import { EventEmitter } from 'events'
 
 /**
@@ -33,10 +34,41 @@ export interface IPreset {
   name: string
   description: string
   featureStates: boolean[]
-  selectedRace: 'protoss' | 'terran' | 'zerg'
+  selectedRace: RaceType
   workerSettings?: WorkerSettings
+  populationSettings?: PopulationSettings
   createdAt: Date
   updatedAt: Date
+}
+
+// 인구수 설정 관련 타입들 (presetUtils.ts와 동기화)
+export interface PopulationSettings {
+  mode: 'fixed' | 'building'
+  fixedSettings?: FixedModeSettings
+  buildingSettings?: BuildingModeSettings
+}
+
+export interface FixedModeSettings {
+  thresholdValue: number
+  timeLimit?: TimeLimitSettings
+}
+
+export interface TimeLimitSettings {
+  enabled: boolean
+  minutes: number
+  seconds: number
+}
+
+export interface BuildingModeSettings {
+  race: RaceType
+  trackedBuildings: TrackedBuilding[]
+}
+
+export interface TrackedBuilding {
+  buildingType: string
+  name: string
+  multiplier: number
+  enabled: boolean
 }
 
 /**

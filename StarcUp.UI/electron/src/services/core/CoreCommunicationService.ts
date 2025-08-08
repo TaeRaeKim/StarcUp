@@ -26,6 +26,7 @@ export class CoreCommunicationService implements ICoreCommunicationService {
     
     this.setupDefaultCommands()
     this.setupEventHandlers()
+    this.setupConnectionCallbacks()
   }
   
   // 게임 감지 관련
@@ -89,6 +90,17 @@ export class CoreCommunicationService implements ICoreCommunicationService {
       console.error('❌ Core 통신 연결 실패:', error)
       throw error
     }
+  }
+
+  // 연결 성공 시 콜백 등록/해제 메서드 추가
+  private connectionEstablishedCallback: (() => void) | null = null
+
+  onConnectionEstablished(callback: () => void): void {
+    this.connectionEstablishedCallback = callback
+  }
+
+  offConnectionEstablished(): void {
+    this.connectionEstablishedCallback = null
   }
   
   // 연결 종료 메서드 추가
@@ -236,6 +248,27 @@ export class CoreCommunicationService implements ICoreCommunicationService {
     })
 
     console.log('✅ Core 이벤트 핸들러 설정 완료')
+  }
+
+  // 연결 콜백 설정
+  private setupConnectionCallbacks(): void {
+    // NamedPipeService의 연결 성공 콜백 설정
+    if (this.namedPipeService.setConnectionEstablishedCallback) {
+      this.namedPipeService.setConnectionEstablishedCallback(() => {
+        console.log('🔗 Core와 연결 성공 - 프리셋 전송 콜백 호출')
+        
+        // 연결 성공 콜백 호출
+        if (this.connectionEstablishedCallback) {
+          try {
+            this.connectionEstablishedCallback()
+          } catch (error) {
+            console.error('❌ 연결 성공 콜백 실행 실패:', error)
+          }
+        }
+      })
+    }
+    
+    console.log('✅ 연결 콜백 설정 완료')
   }
 
   // 게임 상태 변경 콜백 등록

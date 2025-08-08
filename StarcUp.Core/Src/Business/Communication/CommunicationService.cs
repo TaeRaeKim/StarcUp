@@ -84,11 +84,11 @@ namespace StarcUp.Business.Communication
                 _windowManager.WindowSizeChanged += OnWindowSizeChanged;
 
                 // WorkerManager 이벤트 구독
-                _workerManager.WorkerStatusChanged += OnWorkerStatusChanged;
-                _workerManager.ProductionStarted += OnProductionStarted;
-                _workerManager.ProductionCompleted += OnProductionCompleted;
-                _workerManager.ProductionCanceled += OnProductionCanceled;
-                _workerManager.WorkerDied += OnWorkerDied;
+                _workerManager.WorkerStatusChanged += OnWWorkerStatusChanged;
+                _workerManager.ProductionStarted += OnWWorkerStatusChanged;
+                _workerManager.ProductionCompleted += OnWWorkerStatusChanged;
+                _workerManager.ProductionCanceled += OnWWorkerStatusChanged;
+                _workerManager.WorkerDied += OnWWorkerStatusChanged;
                 _workerManager.IdleCountChanged += OnWorkerIdleCountChanged;
                 _workerManager.GasBuildingAlert += OnGasBuildingAlert;
 
@@ -157,11 +157,11 @@ namespace StarcUp.Business.Communication
                 _windowManager.WindowSizeChanged -= OnWindowSizeChanged;
                 
                 // WorkerManager 이벤트 구독 해제
-                _workerManager.WorkerStatusChanged -= OnWorkerStatusChanged;
-                _workerManager.ProductionStarted -= OnProductionStarted;
-                _workerManager.ProductionCompleted -= OnProductionCompleted;
-                _workerManager.ProductionCanceled -= OnProductionCanceled;
-                _workerManager.WorkerDied -= OnWorkerDied;
+                _workerManager.WorkerStatusChanged -= OnWWorkerStatusChanged;
+                _workerManager.ProductionStarted -= OnWWorkerStatusChanged;
+                _workerManager.ProductionCompleted -= OnWWorkerStatusChanged;
+                _workerManager.ProductionCanceled -= OnWWorkerStatusChanged;
+                _workerManager.WorkerDied -= OnWWorkerStatusChanged;
                 _workerManager.IdleCountChanged -= OnWorkerIdleCountChanged;
                 _workerManager.GasBuildingAlert -= OnGasBuildingAlert;
 
@@ -503,8 +503,13 @@ namespace StarcUp.Business.Communication
                     SendWorkerPresetChangedEvent(workerPreset, true);
                 }
                 
+                // 인구수 프리셋 처리
+                if (initData.Presets?.Population != null)
+                {
+                    HandlePopulationPreset(initData.Presets.Population);
+                }
+                
                 // 향후 다른 프리셋들도 여기서 처리...
-                // if (initData.Presets?.Population != null) { ... }
                 // if (initData.Presets?.Unit != null) { ... }
                 // if (initData.Presets?.Upgrade != null) { ... }
                 // if (initData.Presets?.BuildOrder != null) { ... }
@@ -559,8 +564,11 @@ namespace StarcUp.Business.Communication
                         break;
                         
                     case "population":
-                        // 향후 구현
-                        Console.WriteLine("⚠️ 인구수 프리셋은 아직 구현되지 않았습니다");
+                        HandlePopulationPreset(new PresetItem 
+                        { 
+                            Enabled = true,  // 업데이트 시에는 활성화되어 있다고 가정
+                            Settings = updateData.Data.Settings
+                        });
                         break;
                         
                     case "unit":
@@ -590,10 +598,7 @@ namespace StarcUp.Business.Communication
             }
         }
 
-        /// <summary>
-        /// 일꾼 상태 변경 이벤트 처리 (단순 증가, 프리셋 Off 시 사용)
-        /// </summary>
-        private void OnWorkerStatusChanged(object sender, WorkerEventArgs e)
+        private void OnWWorkerStatusChanged(object sender, WorkerEventArgs e)
         {
             try
             {
@@ -601,67 +606,7 @@ namespace StarcUp.Business.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 일꾼 상태 변경 이벤트 전송 실패: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 일꾼 생산 시작 이벤트 처리
-        /// </summary>
-        private void OnProductionStarted(object sender, WorkerEventArgs e)
-        {
-            try
-            {
-                SendWorkerStatusEvent(e);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ 일꾼 생산 시작 이벤트 전송 실패: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 일꾼 생산 완료 이벤트 처리
-        /// </summary>
-        private void OnProductionCompleted(object sender, WorkerEventArgs e)
-        {
-            try
-            {
-                SendWorkerStatusEvent(e);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ 일꾼 생산 완료 이벤트 전송 실패: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 일꾼 생산 취소 이벤트 처리
-        /// </summary>
-        private void OnProductionCanceled(object sender, WorkerEventArgs e)
-        {
-            try
-            {
-                SendWorkerStatusEvent(e);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ 일꾼 생산 취소 이벤트 전송 실패: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 일꾼 사망 이벤트 처리
-        /// </summary>
-        private void OnWorkerDied(object sender, WorkerEventArgs e)
-        {
-            try
-            {
-                SendWorkerStatusEvent(e);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ 일꾼 사망 이벤트 전송 실패: {ex.Message}");
+                Console.WriteLine($"❌ 일꾼 이벤트 전송 실패: {ex.Message}");
             }
         }
 
@@ -761,6 +706,53 @@ namespace StarcUp.Business.Communication
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ 일꾼 프리셋 변경 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 인구수 프리셋 처리
+        /// </summary>
+        private void HandlePopulationPreset(PresetItem populationPreset)
+        {
+            try
+            {
+                Console.WriteLine($"🏘️ 인구수 프리셋 처리: enabled={populationPreset.Enabled}");
+                
+                if (!populationPreset.Enabled)
+                {
+                    Console.WriteLine("⚠️ 인구수 기능이 비활성화되어 있습니다");
+                    return;
+                }
+
+                // settings 필드에서 PopulationSettings 객체 파싱
+                if (populationPreset.Settings != null)
+                {
+                    PopulationSettings populationSettings;
+                    
+                    if (populationPreset.Settings is JsonElement element)
+                    {
+                        var jsonText = element.GetRawText();
+                        populationSettings = JsonSerializer.Deserialize<PopulationSettings>(jsonText);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"❌ 지원되지 않는 인구수 설정 타입: {populationPreset.Settings.GetType()}");
+                        return;
+                    }
+                    
+                    // PopulationManager에 설정 적용
+                    _populationManager.InitializePopulationSettings(populationSettings);
+                    Console.WriteLine($"✅ 인구수 설정 적용 완료: {populationSettings.Mode}");
+                }
+                else
+                {
+                    Console.WriteLine("⚠️ 인구수 설정 데이터가 없습니다. 기본 설정 사용");
+                    _populationManager.InitializePopulationSettings(new PopulationSettings());
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ 인구수 프리셋 처리 실패: {ex.Message}");
             }
         }
 

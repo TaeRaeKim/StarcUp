@@ -1,4 +1,5 @@
 import { IUserData, IStoredPresetConfig, IGameHistory } from '../types'
+import { RaceType } from '../../../../src/types/enums'
 
 export interface IDataStorageService {
   // 사용자 데이터 관리
@@ -16,7 +17,7 @@ export interface IDataStorageService {
     name?: string
     description?: string
     featureStates?: boolean[]
-    selectedRace?: 'protoss' | 'terran' | 'zerg'
+    selectedRace?: RaceType
     workerSettings?: {
       workerCountDisplay?: boolean
       includeProducingWorkers?: boolean

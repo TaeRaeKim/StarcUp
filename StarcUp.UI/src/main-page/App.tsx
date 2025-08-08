@@ -13,6 +13,7 @@ import {
   type WorkerPreset,
   type WorkerSettings as PresetUtilsWorkerSettings
 } from "../utils/presetUtils";
+import { RaceType, RACE_NAMES } from "../types/enums";
 
 // 게임 상태 타입 정의
 type GameStatus = 'playing' | 'waiting' | 'error';
@@ -48,7 +49,7 @@ interface Preset {
   name: string;
   description: string;
   featureStates: boolean[];
-  selectedRace: 'protoss' | 'terran' | 'zerg';
+  selectedRace: RaceType;
   workerSettings: WorkerSettings;
 }
 
@@ -77,8 +78,14 @@ export default function App() {
   // 현재 뷰 상태 관리 (모달 대신 페이지 전환 방식)
   const [currentView, setCurrentView] = useState<CurrentView>('main');
 
-  // 현재 편집 중인 종족 상태 (실시간 동기화용)
-  const [currentEditingRace, setCurrentEditingRace] = useState<'protoss' | 'terran' | 'zerg' | null>(null);
+  // 현재 편집 중인 프리셋 상태 (실시간 동기화용)
+  const [currentEditingRace, setCurrentEditingRace] = useState<RaceType | null>(null);
+  const [editingPresetData, setEditingPresetData] = useState<{
+    name: string;
+    description: string;
+    featureStates: boolean[];
+    selectedRace: RaceType;
+  } | null>(null);
 
   // 개발 중 기능 상태
   const [developmentFeatureName, setDevelopmentFeatureName] = useState('');
@@ -311,15 +318,14 @@ export default function App() {
     }
   };
 
-  const handleSavePreset = async (updatedPreset: {
-    id: string;
-    name: string;
-    description: string;
-    featureStates: boolean[];
-    selectedRace?: 'protoss' | 'terran' | 'zerg';
-  }) => {
+  const handleSavePreset = async () => {
     try {
-      console.log('📝 프리셋 저장 시작:', updatedPreset.name, '종족:', updatedPreset.selectedRace);
+      if (!editingPresetData || !currentPreset) {
+        console.error('❌ 편집 데이터 또는 현재 프리셋이 없습니다.');
+        return;
+      }
+
+      console.log('📝 프리셋 저장 시작:', editingPresetData.name, '종족:', editingPresetData.selectedRace);
       
       if (!window.presetAPI?.toggleFeature || !window.presetAPI?.updateSettings) {
         console.error('❌ presetAPI를 사용할 수 없습니다.');
@@ -327,40 +333,41 @@ export default function App() {
       }
 
       // 1. 프리셋 기본 정보 업데이트 (이름, 설명)
-      if (currentPreset?.name !== updatedPreset.name || currentPreset?.description !== updatedPreset.description) {
+      if (currentPreset.name !== editingPresetData.name || currentPreset.description !== editingPresetData.description) {
         console.log('📝 프리셋 기본 정보 업데이트:', {
-          name: updatedPreset.name,
-          description: updatedPreset.description
+          name: editingPresetData.name,
+          description: editingPresetData.description
         });
         
         await window.presetAPI.updateSettings('basic', {
-          name: updatedPreset.name,
-          description: updatedPreset.description
+          name: editingPresetData.name,
+          description: editingPresetData.description
         });
       }
 
       // 2. 기능 상태 업데이트
-      const currentFeatureStates = currentPreset?.featureStates || [];
+      const currentFeatureStates = currentPreset.featureStates || [];
       
-      for (let i = 0; i < updatedPreset.featureStates.length; i++) {
-        if (currentFeatureStates[i] !== updatedPreset.featureStates[i]) {
-          console.log('🎛️ 기능 토글:', i, updatedPreset.featureStates[i]);
-          await window.presetAPI.toggleFeature(i, updatedPreset.featureStates[i]);
+      for (let i = 0; i < editingPresetData.featureStates.length; i++) {
+        if (currentFeatureStates[i] !== editingPresetData.featureStates[i]) {
+          console.log('🎛️ 기능 토글:', i, editingPresetData.featureStates[i]);
+          await window.presetAPI.toggleFeature(i, editingPresetData.featureStates[i]);
         }
       }
 
       // 3. 종족 변경이 있는 경우 설정 업데이트
-      if (currentPreset?.selectedRace !== updatedPreset.selectedRace && updatedPreset.selectedRace) {
-        console.log('🏁 종족 업데이트:', updatedPreset.selectedRace);
+      if (currentPreset.selectedRace !== editingPresetData.selectedRace) {
+        console.log('🏁 종족 업데이트:', editingPresetData.selectedRace);
         await window.presetAPI.updateSettings('race', { 
-          selectedRace: updatedPreset.selectedRace 
+          selectedRace: editingPresetData.selectedRace 
         });
       }
       
       console.log('✅ 프리셋 저장 완료');
       
-      // 저장 후 편집 중인 종족 상태 초기화
+      // 저장 후 편집 상태 초기화
       setCurrentEditingRace(null);
+      setEditingPresetData(null);
     } catch (error) {
       console.error('❌ 프리셋 저장 중 오류:', error);
     }
@@ -384,17 +391,44 @@ export default function App() {
     }
   };
 
+  // 인구수 설정 저장 핸들러 (presetAPI 전용)
+  const handleSavePopulationSettings = async (presetId: string, populationSettings: any) => {
+    try {
+      console.log('🏘️ 인구수 설정 저장:', presetId, populationSettings);
+      
+      if (!window.presetAPI?.updateSettings) {
+        console.error('❌ presetAPI.updateSettings를 사용할 수 없습니다.');
+        return;
+      }
+
+      await window.presetAPI.updateSettings('population', populationSettings);
+      console.log('✅ presetAPI 인구수 설정 업데이트 완료');
+      // 나머지는 이벤트로 자동 처리됨
+    } catch (error) {
+      console.error('❌ 인구수 설정 저장 중 오류:', error);
+    }
+  };
+
   // 뷰 전환 핸들러
   const handleOpenPresetSettings = () => {
-    // 프리셋 설정을 열 때 현재 프리셋의 종족으로 편집 상태 초기화
-    setCurrentEditingRace(currentPreset.selectedRace);
+    // 프리셋 설정을 열 때 편집 중인 데이터가 없으면 현재 프리셋으로 초기화
+    if (editingPresetData === null) {
+      setEditingPresetData({
+        name: currentPreset.name,
+        description: currentPreset.description,
+        featureStates: [...currentPreset.featureStates],
+        selectedRace: currentPreset.selectedRace ?? RaceType.Protoss
+      });
+      setCurrentEditingRace(currentPreset.selectedRace ?? RaceType.Protoss);
+    }
     setCurrentView('preset-settings');
     changeWindowSize('preset-settings');
   };
 
   const handleBackToMain = () => {
-    // 메인으로 돌아갈 때 편집 중인 종족 상태 초기화
+    // 메인으로 돌아갈 때 편집 중인 상태 모두 초기화
     setCurrentEditingRace(null);
+    setEditingPresetData(null);
     setCurrentView('main');
     changeWindowSize('main');
   };
@@ -406,9 +440,31 @@ export default function App() {
   };
 
   // 종족 실시간 변경 핸들러
-  const handleRaceChange = (race: 'protoss' | 'terran' | 'zerg') => {
+  const handleRaceChange = (race: RaceType) => {
     console.log('실시간 종족 변경:', race);
     setCurrentEditingRace(race);
+    // 편집 데이터도 업데이트
+    if (editingPresetData) {
+      setEditingPresetData({
+        ...editingPresetData,
+        selectedRace: race
+      });
+    }
+  };
+
+  // 편집 데이터 업데이트 핸들러들
+  const handleEditingDataChange = (updatedData: {
+    name?: string;
+    description?: string;
+    featureStates?: boolean[];
+    selectedRace?: RaceType;
+  }) => {
+    if (editingPresetData) {
+      setEditingPresetData({
+        ...editingPresetData,
+        ...updatedData
+      });
+    }
   };
 
   // 설정 페이지 전환 핸들러들
@@ -494,8 +550,10 @@ export default function App() {
             isOpen={true}
             onClose={handleBackToMain}
             currentPreset={currentPreset}
+            editingPresetData={editingPresetData}
             onSave={handleSavePreset}
             onRaceChange={handleRaceChange}
+            onEditingDataChange={handleEditingDataChange}
             onOpenPopulationSettings={handleOpenPopulationSettings}
             onOpenWorkerSettings={handleOpenWorkerSettings}
             onOpenUnitSettings={handleOpenUnitSettings}
@@ -510,7 +568,9 @@ export default function App() {
           <PopulationDetailSettings
             isOpen={true}
             onClose={handleBackToPresetSettings}
-            initialRace={currentEditingRace || currentPreset.selectedRace}
+            initialRace={editingPresetData?.selectedRace ?? currentPreset.selectedRace}
+            currentPreset={currentPreset}
+            onSavePopulationSettings={handleSavePopulationSettings}
           />
         );
 
@@ -530,7 +590,7 @@ export default function App() {
           <UnitDetailSettings
             isOpen={true}
             onClose={handleBackToPresetSettings}
-            initialRace={currentEditingRace || currentPreset.selectedRace}
+            initialRace={editingPresetData?.selectedRace ?? currentPreset.selectedRace}
           />
         );
 
@@ -539,7 +599,7 @@ export default function App() {
           <UpgradeDetailSettings
             isOpen={true}
             onClose={handleBackToPresetSettings}
-            initialRace={currentEditingRace || currentPreset.selectedRace}
+            initialRace={editingPresetData?.selectedRace ?? currentPreset.selectedRace}
           />
         );
 
