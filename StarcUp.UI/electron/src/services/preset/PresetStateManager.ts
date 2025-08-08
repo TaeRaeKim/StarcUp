@@ -26,8 +26,6 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
   private repository: IPresetRepository
   private debounceTimers: Map<string, NodeJS.Timeout> = new Map()
   private performanceMetrics: IPerformanceMetrics[] = []
-  private readonly CACHE_SYNC_INTERVAL = 30000 // 30초
-  private syncTimer: NodeJS.Timeout | null = null
   
   // 디바운스 기본 설정
   private readonly DEFAULT_DEBOUNCE_DELAY = 300
@@ -71,9 +69,6 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
       
       // 현재 선택된 프리셋 설정
       await this.loadCurrentPreset()
-      
-      // 주기적 동기화 시작
-      this.startPeriodicSync()
       
       this.state.isInitialized = true
       this.state.isLoading = false
@@ -361,9 +356,6 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
     try {
       console.log('🔄 PresetStateManager 정리 시작')
       
-      // 주기적 동기화 중지
-      this.stopPeriodicSync()
-      
       // 디바운스 타이머 정리
       this.clearAllDebounceTimers()
       
@@ -543,31 +535,6 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
       presetName: preset?.name,
       changes
     })
-  }
-  
-  private startPeriodicSync(): void {
-    if (this.syncTimer) {
-      clearInterval(this.syncTimer)
-    }
-    
-    this.syncTimer = setInterval(async () => {
-      try {
-        console.log('🔄 주기적 Repository 동기화 실행')
-        await this.syncWithRepository()
-      } catch (error) {
-        console.error('❌ 주기적 동기화 실패:', error)
-      }
-    }, this.CACHE_SYNC_INTERVAL)
-    
-    console.log('⏰ 주기적 동기화 시작:', this.CACHE_SYNC_INTERVAL + 'ms 간격')
-  }
-  
-  private stopPeriodicSync(): void {
-    if (this.syncTimer) {
-      clearInterval(this.syncTimer)
-      this.syncTimer = null
-      console.log('⏹️ 주기적 동기화 중지')
-    }
   }
   
   private clearAllDebounceTimers(): void {

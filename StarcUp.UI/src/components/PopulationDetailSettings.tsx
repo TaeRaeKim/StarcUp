@@ -99,7 +99,7 @@ export function PopulationDetailSettings({
         // 실시간 편집 중인 종족(initialRace)이 있으면 그것을 우선 사용
         // 없으면 저장된 설정의 종족을 사용
         // RaceType.Zerg (0)는 falsy이므로 !== undefined로 체크
-        const raceToUse = initialRace !== undefined ? initialRace : settings.buildingSettings.race;
+        const raceToUse: RaceType = initialRace !== undefined ? initialRace : settings.buildingSettings.race;
         console.log('🎯 사용할 종족 결정:', { 
           initialRace, 
           savedRace: settings.buildingSettings.race, 

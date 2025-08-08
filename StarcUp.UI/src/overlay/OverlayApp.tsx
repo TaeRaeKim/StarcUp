@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { CenterPositionData } from '../../electron/src/services/types'
 import { WorkerStatus, type WorkerStatusRef } from './components/WorkerStatus'
+import { PopulationWarning } from './components/PopulationWarning'
 import { OverlaySettingsPanel, type OverlaySettings } from './components/OverlaySettings'
 import { type EffectType } from './hooks/useEffectSystem'
 import './styles/OverlayApp.css'
@@ -18,8 +19,12 @@ export function OverlayApp() {
   const [workerStatus, setWorkerStatus] = useState<any>(null)
   const [lastWorkerEvent, setLastWorkerEvent] = useState<string | null>(null)
   const [gameStatus, setGameStatus] = useState<string>('waiting') // 'waiting', 'playing', 'game-ended'
+  
+  // PopulationManager 이벤트 상태
+  const [showSupplyAlert, setShowSupplyAlert] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
   const [workerPosition, setWorkerPosition] = useState({ x: 50, y: 50 })
+  const [populationWarningPosition, setPopulationWarningPosition] = useState({ x: 100, y: 60 })
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const workerStatusRef = useRef<WorkerStatusRef>(null)
   
@@ -65,6 +70,17 @@ export function OverlayApp() {
       
       setWorkerPosition({ x: centerX, y: centerY })
       console.log('🎯 WorkerStatus 위치 중앙으로 리셋:', { x: centerX, y: centerY })
+    }
+
+    // PopulationWarning 위치 리셋
+    const populationWarningElement = document.querySelector('.population-warning') as HTMLElement
+    if (populationWarningElement) {
+      const warningRect = populationWarningElement.getBoundingClientRect()
+      const centerX = (containerRect.width - warningRect.width) / 2
+      const centerY = 60 // 상단에서 60px 떨어진 위치
+      
+      setPopulationWarningPosition({ x: centerX, y: centerY })
+      console.log('🎯 PopulationWarning 위치 리셋:', { x: centerX, y: centerY })
     }
   }
 
@@ -124,17 +140,34 @@ export function OverlayApp() {
 
   // 실시간 프리셋 기능 상태 동기화 (presetAPI 전용)
   useEffect(() => {
-    if (!window.presetAPI?.onFeaturesChanged) {
-      console.error('❌ [Overlay] presetAPI.onFeaturesChanged를 사용할 수 없습니다')
+    if (!window.presetAPI?.onFeaturesChanged || !window.presetAPI?.onStateChanged) {
+      console.error('❌ [Overlay] presetAPI 이벤트 리스너를 사용할 수 없습니다')
       return
     }
 
-    const unsubscribe = window.presetAPI.onFeaturesChanged((data) => {
-      console.log('🔄 [Overlay] 프리셋 기능 상태 변경 수신:', data.featureStates, '| 시간:', data.timestamp)
+    // Overlay 전용 최적화 이벤트 (빠른 응답)
+    const unsubscribeFeaturesChanged = window.presetAPI.onFeaturesChanged((data) => {
+      console.log('🔄 [Overlay] 프리셋 기능 상태 변경 수신 (최적화):', data.featureStates, '| 시간:', data.timestamp)
       setPresetFeatures(data.featureStates)
     })
 
-    return unsubscribe
+    // Main 페이지 변경사항 감지용 포괄적 이벤트
+    const unsubscribeStateChanged = window.presetAPI.onStateChanged((event) => {
+      console.log('🔄 [Overlay] 프리셋 상태 변경 수신:', event.type, event)
+      
+      if (event.type === 'feature-toggled' || event.type === 'settings-updated') {
+        // Main 페이지에서 변경된 경우 현재 프리셋의 기능 상태 동기화
+        if (event.preset?.featureStates) {
+          console.log('🔄 [Overlay] Main 페이지 변경사항으로 기능 상태 업데이트:', event.preset.featureStates)
+          setPresetFeatures(event.preset.featureStates)
+        }
+      }
+    })
+
+    return () => {
+      unsubscribeFeaturesChanged()
+      unsubscribeStateChanged()
+    }
   }, [])
 
   // 프리셋 기능 상태에 따른 overlaySettings 자동 업데이트
@@ -188,10 +221,22 @@ export function OverlayApp() {
         setLastWorkerEvent('preset-changed')
       })
 
+      // PopulationManager supply-alert 이벤트 리스너
+      const removeSupplyAlertListener = electronAPI.onSupplyAlert && electronAPI.onSupplyAlert(() => {
+        console.log('⚠️ [Overlay] 인구 경고 알림 수신')
+        setShowSupplyAlert(true)
+        
+        // 3초 후 알림 자동 해제
+        setTimeout(() => {
+          setShowSupplyAlert(false)
+        }, 3000)
+      })
+
       return () => {
         if (removeWorkerStatusListener) removeWorkerStatusListener()
         if (removeGasAlertListener) removeGasAlertListener()
         if (removePresetChangedListener) removePresetChangedListener()
+        if (removeSupplyAlertListener) removeSupplyAlertListener()
       }
     }
   }, [])
@@ -276,12 +321,25 @@ export function OverlayApp() {
           setWorkerPosition({ x: newWorkerX, y: newWorkerY })
         }
       }
+
+      // PopulationWarning 위치 조정
+      const populationWarningElement = document.querySelector('.population-warning') as HTMLElement
+      if (populationWarningElement) {
+        const warningRect = populationWarningElement.getBoundingClientRect()
+        const newWarningX = Math.max(0, Math.min(overlayWidth - warningRect.width, populationWarningPosition.x))
+        const newWarningY = Math.max(0, Math.min(overlayHeight - warningRect.height, populationWarningPosition.y))
+        
+        if (newWarningX !== populationWarningPosition.x || newWarningY !== populationWarningPosition.y) {
+          console.log('🔧 [위치 조정] PopulationWarning:', { from: populationWarningPosition, to: { x: newWarningX, y: newWarningY } })
+          setPopulationWarningPosition({ x: newWarningX, y: newWarningY })
+        }
+      }
     }
 
     // centerPosition이 변경될 때마다 위치 조정 실행
     setTimeout(adjustItemPositions, 100) // DOM 업데이트 후 실행하기 위해 지연
     
-  }, [centerPosition, workerPosition])
+  }, [centerPosition, workerPosition, populationWarningPosition])
 
   // 윈도우 크기에 따른 body 크기 동적 조정
   useEffect(() => {
@@ -431,21 +489,59 @@ export function OverlayApp() {
         </button>
       )}
 
-      {/* 일꾼 상태 오버레이 - InGame 상태일 때만 표시 */}
+      {/* 일꾼 상태 오버레이 - InGame 상태 또는 편집 모드일 때 표시 */}
       {(() => {
-        const shouldShow = gameStatus === 'playing' && workerStatus && overlaySettings.showWorkerStatus
+        const shouldShow = ((gameStatus === 'playing' && workerStatus) || isEditMode) && overlaySettings.showWorkerStatus
+        
+        // 편집 모드용 더미 데이터 (InGame이 아닌 상태에서 4(4) 형태로 표시)
+        const dummyWorkerData = {
+          totalWorkers: 4,
+          idleWorkers: 4,
+          productionWorkers: 0,
+          calculatedTotal: 4
+        }
+        
+        // InGame 상태일 때는 실제 데이터, 아닐 때는 더미 데이터 4(4) 사용
+        const workerData = gameStatus === 'playing' ? {
+          totalWorkers: workerStatus?.totalWorkers || 0,
+          idleWorkers: workerStatus?.idleWorkers || 0,
+          productionWorkers: workerStatus?.productionWorkers || 0,
+          calculatedTotal: workerStatus?.calculatedTotal || 0
+        } : dummyWorkerData
+        
         return shouldShow ? (
           <WorkerStatus
             ref={workerStatusRef}
-            totalWorkers={workerStatus.totalWorkers || 0}
-            idleWorkers={workerStatus.idleWorkers || 0}
-            productionWorkers={workerStatus.productionWorkers || 0}
-            calculatedTotal={workerStatus.calculatedTotal || 0}
+            totalWorkers={workerData.totalWorkers}
+            idleWorkers={workerData.idleWorkers}
+            productionWorkers={workerData.productionWorkers}
+            calculatedTotal={workerData.calculatedTotal}
             position={workerPosition}
             isEditMode={isEditMode}
             onPositionChange={setWorkerPosition}
             unitIconStyle={overlaySettings.unitIconStyle}
             teamColor={overlaySettings.teamColor}
+            opacity={overlaySettings.opacity}
+            isPreview={isEditMode && !workerStatus}
+          />
+        ) : null
+      })()}
+
+      {/* 인구 경고 알람 - PopulationWarning 컴포넌트 사용 */}
+      {(() => {
+        const shouldShow = overlaySettings.showPopulationWarning
+        // 편집 모드에서는 미리보기로 표시, 일반 모드에서는 실제 알림 상태에 따라 표시
+        const isVisibleState = isEditMode ? true : showSupplyAlert
+        
+        return shouldShow ? (
+          <PopulationWarning
+            isVisible={isVisibleState}
+            message="인구수 한계 도달!"
+            opacity={overlaySettings.opacity}
+            position={populationWarningPosition}
+            isEditMode={isEditMode}
+            onPositionChange={setPopulationWarningPosition}
+            isPreview={isEditMode}
           />
         ) : null
       })()}

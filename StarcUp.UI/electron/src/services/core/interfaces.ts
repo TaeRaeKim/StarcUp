@@ -75,4 +75,8 @@ export interface ICoreCommunicationService {
   offGasBuildingAlert(): void
   onWorkerPresetChanged(callback: (data: WorkerPresetChangedEvent) => void): void
   offWorkerPresetChanged(): void
+
+  // PopulationManager 이벤트 콜백
+  onSupplyAlert(callback: () => void): void
+  offSupplyAlert(): void
 }

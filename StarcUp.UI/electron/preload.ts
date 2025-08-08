@@ -73,6 +73,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.off('worker-preset-changed', listener)
   },
 
+  // PopulationManager supply-alert 이벤트 리스너
+  onSupplyAlert: (callback: () => void) => {
+    const listener = (_event: any, data: any) => callback()
+    ipcRenderer.on('supply-alert', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('supply-alert', listener)
+  },
+
   // 오버레이 편집 모드 토글 이벤트 리스너
   onToggleEditMode: (callback: (data: { isEditMode: boolean }) => void) => {
     const listener = (_event: any, data: { isEditMode: boolean }) => callback(data)
