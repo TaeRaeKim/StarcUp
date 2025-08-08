@@ -23,7 +23,16 @@ export function OverlayApp() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const workerStatusRef = useRef<WorkerStatusRef>(null)
   
-  // 오버레이 설정 상태
+  // 프리셋 기능 상태 (presetAPI 연동)
+  const [presetFeatures, setPresetFeatures] = useState<boolean[]>([
+    true,   // 일꾼 기능 (Worker)
+    false,  // 인구수 기능 (Population)
+    false,  // 유닛 기능 (Unit)
+    false,  // 업그레이드 기능 (Upgrade)
+    false   // 빌드오더 기능 (BuildOrder)
+  ])
+
+  // 오버레이 설정 상태 (프리셋 기능 상태와 연동)
   const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>({
     showWorkerStatus: true,
     showBuildOrder: false,
@@ -88,6 +97,65 @@ export function OverlayApp() {
       console.warn('⚠️ Electron API를 찾을 수 없습니다')
     }
   }, [])
+
+  // 프리셋 기능 상태 초기화 (presetAPI 전용)
+  useEffect(() => {
+    const initializePresetFeatures = async () => {
+      try {
+        if (!window.presetAPI?.getFeaturesOnly) {
+          console.error('❌ [Overlay] presetAPI.getFeaturesOnly를 사용할 수 없습니다')
+          return
+        }
+
+        const result = await window.presetAPI.getFeaturesOnly()
+        if (result?.success && result.data?.featureStates) {
+          console.log('🎯 [Overlay] 초기 프리셋 기능 상태 로드:', result.data.featureStates)
+          setPresetFeatures(result.data.featureStates)
+        } else {
+          console.error('❌ [Overlay] 프리셋 기능 상태 로드 실패:', result?.error)
+        }
+      } catch (error) {
+        console.error('❌ [Overlay] 프리셋 기능 상태 초기화 실패:', error)
+      }
+    }
+
+    initializePresetFeatures()
+  }, [])
+
+  // 실시간 프리셋 기능 상태 동기화 (presetAPI 전용)
+  useEffect(() => {
+    if (!window.presetAPI?.onFeaturesChanged) {
+      console.error('❌ [Overlay] presetAPI.onFeaturesChanged를 사용할 수 없습니다')
+      return
+    }
+
+    const unsubscribe = window.presetAPI.onFeaturesChanged((data) => {
+      console.log('🔄 [Overlay] 프리셋 기능 상태 변경 수신:', data.featureStates, '| 시간:', data.timestamp)
+      setPresetFeatures(data.featureStates)
+    })
+
+    return unsubscribe
+  }, [])
+
+  // 프리셋 기능 상태에 따른 overlaySettings 자동 업데이트
+  useEffect(() => {
+    console.log('🔄 [Overlay] overlaySettings 업데이트:', {
+      showWorkerStatus: presetFeatures[0] || false,
+      showPopulationWarning: presetFeatures[1] || false,
+      showUnitCount: presetFeatures[2] || false,
+      showUpgradeProgress: presetFeatures[3] || false,
+      showBuildOrder: presetFeatures[4] || false,
+    })
+    
+    setOverlaySettings(prev => ({
+      ...prev,
+      showWorkerStatus: presetFeatures[0] || false,
+      showPopulationWarning: presetFeatures[1] || false,
+      showUnitCount: presetFeatures[2] || false,
+      showUpgradeProgress: presetFeatures[3] || false,
+      showBuildOrder: presetFeatures[4] || false,
+    }))
+  }, [presetFeatures])
 
   // WorkerManager 이벤트 구독
   useEffect(() => {

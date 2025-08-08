@@ -34,7 +34,7 @@ async function initializeApp(): Promise<void> {
     console.log(`🏗️ 애플리케이션 모드: ${isDevelopment ? '개발' : '프로덕션'}`)
 
     // 서비스 컨테이너 초기화
-    serviceContainer.initialize()
+    await serviceContainer.initialize()
 
     // 서비스 해결
     const windowManager = serviceContainer.resolve<IWindowManager>('windowManager')

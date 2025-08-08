@@ -4,6 +4,7 @@ import { IAuthService } from '../auth'
 import { IDataStorageService } from '../storage'
 import { IWindowManager, IShortcutManager } from '../window'
 import { IOverlayAutoManager } from '../overlay'
+import { IPresetStateManager } from '../preset'
 
 export class ChannelHandlers {
   private ipcService: IIPCService
@@ -13,6 +14,7 @@ export class ChannelHandlers {
   private windowManager: IWindowManager
   private shortcutManager: IShortcutManager
   private overlayAutoManager: IOverlayAutoManager
+  private presetStateManager: IPresetStateManager
 
   constructor(
     ipcService: IIPCService,
@@ -21,7 +23,8 @@ export class ChannelHandlers {
     dataService: IDataStorageService,
     windowManager: IWindowManager,
     shortcutManager: IShortcutManager,
-    overlayAutoManager: IOverlayAutoManager
+    overlayAutoManager: IOverlayAutoManager,
+    presetStateManager: IPresetStateManager
   ) {
     this.ipcService = ipcService
     this.coreService = coreService
@@ -30,6 +33,7 @@ export class ChannelHandlers {
     this.windowManager = windowManager
     this.shortcutManager = shortcutManager
     this.overlayAutoManager = overlayAutoManager
+    this.presetStateManager = presetStateManager
   }
 
   setupAllHandlers(): void {    
@@ -39,6 +43,7 @@ export class ChannelHandlers {
     this.setupWindowHandlers()
     this.setupShortcutHandlers()
     this.setupOverlayHandlers()
+    this.setupPresetHandlers()
     console.log('✅ 모든 IPC 핸들러 설정 완료')
   }
 
@@ -256,6 +261,187 @@ export class ChannelHandlers {
     })
 
     console.log('📡 Overlay IPC 핸들러 등록 완료')
+  }
+
+  private setupPresetHandlers(): void {
+    // 상태 조회 핸들러
+    this.ipcService.registerHandler('preset:get-current', async () => {
+      try {
+        return {
+          success: true,
+          data: this.presetStateManager.getCurrentPreset()
+        }
+      } catch (error) {
+        console.error('❌ preset:get-current 실패:', error)
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      }
+    })
+
+    this.ipcService.registerHandler('preset:get-state', async () => {
+      try {
+        return {
+          success: true,
+          data: this.presetStateManager.getPresetState()
+        }
+      } catch (error) {
+        console.error('❌ preset:get-state 실패:', error)
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      }
+    })
+
+    this.ipcService.registerHandler('preset:get-all', async () => {
+      try {
+        return {
+          success: true,
+          data: this.presetStateManager.getAllPresets()
+        }
+      } catch (error) {
+        console.error('❌ preset:get-all 실패:', error)
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      }
+    })
+
+    // 프리셋 관리 핸들러
+    this.ipcService.registerHandler('preset:switch', async (data) => {
+      try {
+        if (!data?.presetId) {
+          throw new Error('presetId가 필요합니다')
+        }
+        
+        await this.presetStateManager.switchPreset(data.presetId)
+        
+        return {
+          success: true,
+          data: this.presetStateManager.getCurrentPreset()
+        }
+      } catch (error) {
+        console.error('❌ preset:switch 실패:', error)
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      }
+    })
+
+    this.ipcService.registerHandler('preset:update-settings', async (data) => {
+      try {
+        if (!data?.presetType || !data?.settings) {
+          throw new Error('presetType과 settings가 필요합니다')
+        }
+        
+        await this.presetStateManager.updatePresetSettings(data.presetType, data.settings)
+        
+        return {
+          success: true,
+          data: this.presetStateManager.getCurrentPreset()
+        }
+      } catch (error) {
+        console.error('❌ preset:update-settings 실패:', error)
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      }
+    })
+
+    this.ipcService.registerHandler('preset:toggle-feature', async (data) => {
+      try {
+        if (typeof data?.featureIndex !== 'number' || typeof data?.enabled !== 'boolean') {
+          throw new Error('featureIndex (number)와 enabled (boolean)가 필요합니다')
+        }
+        
+        await this.presetStateManager.toggleFeature(data.featureIndex, data.enabled)
+        
+        return {
+          success: true,
+          data: this.presetStateManager.getCurrentPreset()
+        }
+      } catch (error) {
+        console.error('❌ preset:toggle-feature 실패:', error)
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      }
+    })
+
+    // Overlay 전용 성능 최적화 핸들러
+    this.ipcService.registerHandler('preset:get-features-only', async () => {
+      try {
+        const currentPreset = this.presetStateManager.getCurrentPreset()
+        
+        // Overlay가 필요로 하는 기본 기능 On/Off 상태만 반환 (성능 최적화)
+        return {
+          success: true,
+          data: {
+            featureStates: currentPreset?.featureStates || [false, false, false, false, false]
+          }
+        }
+      } catch (error) {
+        console.error('❌ preset:get-features-only 실패:', error)
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      }
+    })
+
+    // 프리셋 상태 변경 이벤트를 IPC로 브로드캐스트
+    this.setupPresetEventBroadcasting()
+    
+    console.log('📡 Preset IPC 핸들러 등록 완료 (6개 핸들러)')
+  }
+
+  private setupPresetEventBroadcasting(): void {
+    // PresetStateManager의 상태 변경 이벤트를 모든 renderer 프로세스에 브로드캐스트
+    this.presetStateManager.onStateChanged((event) => {
+      console.log('📢 프리셋 상태 변경 IPC 브로드캐스트:', event.type)
+      
+      // 메인 페이지에 전체 상태 정보 전송 (기존 방식 유지)
+      this.windowManager.sendToMainWindow('preset:state-changed', {
+        type: event.type,
+        presetId: event.presetId,
+        preset: event.preset,
+        state: this.presetStateManager.getPresetState(),
+        changes: event.changes,
+        timestamp: event.timestamp
+      })
+      
+      // Overlay 전용: 성능 최적화를 위해 기능 상태만 전송
+      if (event.type === 'preset-switched' || event.type === 'feature-toggled') {
+        this.windowManager.sendToOverlayWindow('preset:features-changed', {
+          featureStates: event.preset?.featureStates || [false, false, false, false, false],
+          timestamp: event.timestamp
+        })
+        
+        console.log('📡 Overlay에 기능 상태 변경 알림:', {
+          type: event.type,
+          featureStates: event.preset?.featureStates || [false, false, false, false, false]
+        })
+      }
+      
+      // 호환성을 위해 기존 오버레이 이벤트도 유지 (향후 제거 예정)
+      if (event.type === 'preset-switched' || event.type === 'feature-toggled') {
+        this.windowManager.sendToOverlayWindow('preset:state-changed', {
+          type: event.type,
+          presetId: event.presetId,
+          featureStates: event.preset?.featureStates || [],
+          selectedRace: event.preset?.selectedRace || 'protoss',
+          timestamp: event.timestamp
+        })
+      }
+    })
+    
+    console.log('📡 프리셋 이벤트 브로드캐스팅 설정 완료 (Main: 전체, Overlay: 기능 상태만)')
   }
 
   private getShortcutCallback(action: string): (() => void) | null {

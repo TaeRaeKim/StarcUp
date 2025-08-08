@@ -24,6 +24,10 @@ export * from './auth/AuthService'
 export * from './storage/interfaces'
 export * from './storage/DataStorageService'
 
+// 프리셋 상태 관리 서비스
+export * from './preset/interfaces'
+export * from './preset/PresetStateManager'
+
 // 윈도우 관리 서비스
 export * from './window/interfaces'
 export * from './window/WindowConfiguration'
