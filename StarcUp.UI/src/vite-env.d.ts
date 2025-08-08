@@ -79,6 +79,7 @@ declare global {
       // 프리셋 관리
       switch: (presetId: string) => Promise<{ success: boolean; error?: string }>
       updateSettings: (presetType: string, settings: any) => Promise<{ success: boolean; error?: string }>
+      updateBatch: (updates: any) => Promise<{ success: boolean; error?: string }>
       toggleFeature: (featureIndex: number, enabled: boolean) => Promise<{ success: boolean; error?: string }>
       
       // 이벤트 리스너 (기본 - Main Page용)

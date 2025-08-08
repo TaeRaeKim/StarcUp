@@ -8,7 +8,7 @@ export type {
   IPresetState,
   IPresetChangeEvent,
   IPresetSettingsUpdate,
-  DebounceOptions,
+  IBatchPresetUpdate,
   IPerformanceMetrics,
   IPresetStateManagerState
 } from './interfaces'

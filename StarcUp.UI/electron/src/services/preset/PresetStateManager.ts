@@ -5,7 +5,7 @@ import {
   IPresetState, 
   IPresetChangeEvent,
   IPresetSettingsUpdate,
-  DebounceOptions,
+  IBatchPresetUpdate,
   IPerformanceMetrics,
   IPresetStateManagerState
 } from './interfaces'
@@ -18,18 +18,13 @@ import { IPresetRepository, StoredPreset } from '../storage/repositories/IPreset
  * - 중앙화된 프리셋 상태 관리
  * - 이벤트 기반 상태 변경 알림
  * - FilePresetRepository와 연동
- * - 성능 최적화 (캐싱, 디바운싱)
+ * - 배치 업데이트 지원
  * - 에러 복구 로직
  */
 export class PresetStateManager extends EventEmitter implements IPresetStateManager {
   private state: IPresetStateManagerState
   private repository: IPresetRepository
-  private debounceTimers: Map<string, NodeJS.Timeout> = new Map()
   private performanceMetrics: IPerformanceMetrics[] = []
-  
-  // 디바운스 기본 설정
-  private readonly DEFAULT_DEBOUNCE_DELAY = 300
-  private readonly MAX_DEBOUNCE_WAIT = 1000
   
   constructor(repository: IPresetRepository) {
     super()
@@ -244,8 +239,14 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
           break
       }
       
-      // Repository 업데이트 (디바운싱 적용)
-      await this.debouncedRepositoryUpdate(currentPreset.id, updateData)
+      // Repository 즉시 업데이트
+      await this.repository.update({
+        id: currentPreset.id,
+        ...updateData
+      })
+      
+      // 로컬 캐시 동기화
+      await this.syncWithRepository()
       
       const metrics: IPerformanceMetrics = {
         operationName: 'updatePresetSettings',
@@ -261,6 +262,11 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
         updateTime: metrics.executionTime + 'ms'
       })
       
+      // 이벤트 발행
+      this.emitStateChange('settings-updated', currentPreset.id, {
+        settings: updateData
+      })
+      
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
       
@@ -274,6 +280,66 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
       this.recordMetrics(metrics)
       
       console.error('❌ 프리셋 설정 업데이트 실패:', error)
+      throw error
+    }
+  }
+  
+  async updatePresetBatch(updates: IBatchPresetUpdate): Promise<void> {
+    const startTime = Date.now()
+    
+    try {
+      console.log('🔄 프리셋 배치 업데이트:', updates)
+      
+      if (!this.state.currentPresetId) {
+        throw new Error('현재 선택된 프리셋이 없습니다')
+      }
+      
+      const currentPreset = this.getCurrentPreset()
+      if (!currentPreset) {
+        throw new Error('현재 프리셋 데이터를 찾을 수 없습니다')
+      }
+      
+      // 모든 변경사항을 한 번에 Repository에 적용
+      await this.repository.update({
+        id: currentPreset.id,
+        ...updates
+      })
+      
+      // 로컬 캐시 동기화
+      await this.syncWithRepository()
+      
+      const metrics: IPerformanceMetrics = {
+        operationName: 'updatePresetBatch',
+        executionTime: Date.now() - startTime,
+        timestamp: new Date(),
+        success: true
+      }
+      this.recordMetrics(metrics)
+      
+      console.log('✅ 프리셋 배치 업데이트 완료:', {
+        presetId: currentPreset.id,
+        updates,
+        updateTime: metrics.executionTime + 'ms'
+      })
+      
+      // 이벤트 발행
+      this.emitStateChange('settings-updated', currentPreset.id, {
+        settings: updates
+      })
+      
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      
+      const metrics: IPerformanceMetrics = {
+        operationName: 'updatePresetBatch',
+        executionTime: Date.now() - startTime,
+        timestamp: new Date(),
+        success: false,
+        error: errorMsg
+      }
+      this.recordMetrics(metrics)
+      
+      console.error('❌ 프리셋 배치 업데이트 실패:', error)
       throw error
     }
   }
@@ -301,9 +367,18 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
       const newFeatureStates = [...currentPreset.featureStates]
       newFeatureStates[featureIndex] = enabled
       
-      // Repository 업데이트 (디바운싱 적용)
-      await this.debouncedRepositoryUpdate(currentPreset.id, {
+      // Repository 즉시 업데이트
+      await this.repository.update({
+        id: currentPreset.id,
         featureStates: newFeatureStates
+      })
+      
+      // 로컬 캐시 동기화
+      await this.syncWithRepository()
+      
+      // 이벤트 발행
+      this.emitStateChange('feature-toggled', currentPreset.id, {
+        toggledFeature: { index: featureIndex, enabled }
       })
       
       const metrics: IPerformanceMetrics = {
@@ -355,9 +430,6 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
     
     try {
       console.log('🔄 PresetStateManager 정리 시작')
-      
-      // 디바운스 타이머 정리
-      this.clearAllDebounceTimers()
       
       // 이벤트 리스너 정리
       this.removeAllListeners()
@@ -418,8 +490,7 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
         lastSyncTime: new Date(this.state.lastSyncTime).toISOString()
       },
       performance: {
-        recentMetrics: this.performanceMetrics.slice(-10),
-        debounceTimers: this.debounceTimers.size
+        recentMetrics: this.performanceMetrics.slice(-10)
       }
     }
   }
@@ -473,40 +544,6 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
     }
   }
   
-  private async debouncedRepositoryUpdate(presetId: string, updateData: any): Promise<void> {
-    const debounceKey = `update-${presetId}`
-    
-    // 기존 타이머 제거
-    if (this.debounceTimers.has(debounceKey)) {
-      clearTimeout(this.debounceTimers.get(debounceKey)!)
-      this.debounceTimers.delete(debounceKey)
-    }
-    
-    // 새로운 타이머 설정
-    const timer = setTimeout(async () => {
-      try {
-        await this.repository.update({
-          id: presetId,
-          ...updateData
-        })
-        
-        // 로컬 캐시 업데이트
-        await this.syncWithRepository()
-        
-        // 이벤트 발행
-        this.emitStateChange('settings-updated', presetId, {
-          settings: updateData
-        })
-        
-      } catch (error) {
-        console.error('❌ 디바운스된 Repository 업데이트 실패:', error)
-      } finally {
-        this.debounceTimers.delete(debounceKey)
-      }
-    }, this.DEFAULT_DEBOUNCE_DELAY)
-    
-    this.debounceTimers.set(debounceKey, timer)
-  }
   
   private async syncWithRepository(): Promise<void> {
     try {
@@ -537,13 +574,6 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
     })
   }
   
-  private clearAllDebounceTimers(): void {
-    for (const [key, timer] of this.debounceTimers) {
-      clearTimeout(timer)
-    }
-    this.debounceTimers.clear()
-    console.log('🔄 모든 디바운스 타이머 정리 완료')
-  }
   
   private recordMetrics(metrics: IPerformanceMetrics): void {
     this.performanceMetrics.push(metrics)

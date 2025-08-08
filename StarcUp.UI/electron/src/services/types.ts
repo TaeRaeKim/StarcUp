@@ -138,6 +138,7 @@ export interface IIPCChannels {
   'preset:get-features-only': { request: void; response: { success: boolean; data?: { featureStates: boolean[] }; error?: string } }
   'preset:switch': { request: { presetId: string }; response: { success: boolean; data?: any; error?: string } }
   'preset:update-settings': { request: { presetType: string; settings: any }; response: { success: boolean; data?: any; error?: string } }
+  'preset:update-batch': { request: { updates: any }; response: { success: boolean; data?: any; error?: string } }
   'preset:toggle-feature': { request: { featureIndex: number; enabled: boolean }; response: { success: boolean; data?: any; error?: string } }
   
   // 이벤트 브로드캐스트 (renderer에서 수신만 가능)

@@ -162,6 +162,9 @@ contextBridge.exposeInMainWorld('presetAPI', {
   
   updateSettings: (presetType: string, settings: any) => 
     ipcRenderer.invoke('preset:update-settings', { presetType, settings }),
+    
+  updateBatch: (updates: any) => 
+    ipcRenderer.invoke('preset:update-batch', { updates }),
   
   toggleFeature: (featureIndex: number, enabled: boolean) => 
     ipcRenderer.invoke('preset:toggle-feature', { featureIndex, enabled }),

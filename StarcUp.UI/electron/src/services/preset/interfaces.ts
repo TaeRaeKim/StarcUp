@@ -15,6 +15,7 @@ export interface IPresetStateManager {
   // 프리셋 관리  
   switchPreset(presetId: string): Promise<void>
   updatePresetSettings(presetType: string, settings: any): Promise<void>
+  updatePresetBatch(updates: IBatchPresetUpdate): Promise<void>
   toggleFeature(featureIndex: number, enabled: boolean): Promise<void>
   
   // 이벤트 관리
@@ -108,12 +109,17 @@ export interface IPresetSettingsUpdate {
 }
 
 /**
- * 디바운싱 옵션
+ * 배치 프리셋 업데이트 인터페이스
  */
-export interface DebounceOptions {
-  delay: number
-  maxWait?: number
+export interface IBatchPresetUpdate {
+  name?: string
+  description?: string
+  featureStates?: boolean[]
+  selectedRace?: RaceType
+  workerSettings?: WorkerSettings
+  populationSettings?: PopulationSettings
 }
+
 
 /**
  * 성능 메트릭 정보

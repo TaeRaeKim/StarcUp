@@ -325,45 +325,22 @@ export default function App() {
         return;
       }
 
-      console.log('📝 프리셋 저장 시작:', editingPresetData.name, '종족:', editingPresetData.selectedRace);
+      console.log('📝 프리셋 배치 저장 시작:', editingPresetData.name, '종족:', editingPresetData.selectedRace);
       
-      if (!window.presetAPI?.toggleFeature || !window.presetAPI?.updateSettings) {
-        console.error('❌ presetAPI를 사용할 수 없습니다.');
+      if (!window.presetAPI?.updateBatch) {
+        console.error('❌ presetAPI.updateBatch를 사용할 수 없습니다.');
         return;
       }
 
-      // 1. 프리셋 기본 정보 업데이트 (이름, 설명)
-      if (currentPreset.name !== editingPresetData.name || currentPreset.description !== editingPresetData.description) {
-        console.log('📝 프리셋 기본 정보 업데이트:', {
-          name: editingPresetData.name,
-          description: editingPresetData.description
-        });
-        
-        await window.presetAPI.updateSettings('basic', {
-          name: editingPresetData.name,
-          description: editingPresetData.description
-        });
-      }
-
-      // 2. 기능 상태 업데이트
-      const currentFeatureStates = currentPreset.featureStates || [];
+      // 모든 변경사항을 한 번에 배치 업데이트
+      await window.presetAPI.updateBatch({
+        name: editingPresetData.name,
+        description: editingPresetData.description,
+        featureStates: editingPresetData.featureStates,
+        selectedRace: editingPresetData.selectedRace
+      });
       
-      for (let i = 0; i < editingPresetData.featureStates.length; i++) {
-        if (currentFeatureStates[i] !== editingPresetData.featureStates[i]) {
-          console.log('🎛️ 기능 토글:', i, editingPresetData.featureStates[i]);
-          await window.presetAPI.toggleFeature(i, editingPresetData.featureStates[i]);
-        }
-      }
-
-      // 3. 종족 변경이 있는 경우 설정 업데이트
-      if (currentPreset.selectedRace !== editingPresetData.selectedRace) {
-        console.log('🏁 종족 업데이트:', editingPresetData.selectedRace);
-        await window.presetAPI.updateSettings('race', { 
-          selectedRace: editingPresetData.selectedRace 
-        });
-      }
-      
-      console.log('✅ 프리셋 저장 완료');
+      console.log('✅ 프리셋 배치 저장 완료');
       
       // 저장 후 편집 상태 초기화
       setCurrentEditingRace(null);

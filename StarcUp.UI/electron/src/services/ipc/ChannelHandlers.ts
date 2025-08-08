@@ -354,6 +354,27 @@ export class ChannelHandlers {
       }
     })
 
+    this.ipcService.registerHandler('preset:update-batch', async (data) => {
+      try {
+        if (!data?.updates) {
+          throw new Error('updates가 필요합니다')
+        }
+        
+        await this.presetStateManager.updatePresetBatch(data.updates)
+        
+        return {
+          success: true,
+          data: this.presetStateManager.getCurrentPreset()
+        }
+      } catch (error) {
+        console.error('❌ preset:update-batch 실패:', error)
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      }
+    })
+
     this.ipcService.registerHandler('preset:toggle-feature', async (data) => {
       try {
         if (typeof data?.featureIndex !== 'number' || typeof data?.enabled !== 'boolean') {
