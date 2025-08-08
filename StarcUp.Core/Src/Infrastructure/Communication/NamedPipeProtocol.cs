@@ -142,6 +142,9 @@ namespace StarcUp.Infrastructure.Communication
             public const string WorkerStatusChanged = "worker-status-changed";
             public const string GasBuildingAlert = "gas-building-alert";
             public const string WorkerPresetChanged = "worker-preset-changed";
+            
+            // PopulationManager 관련 이벤트
+            public const string SupplyAlert = "supply-alert";
         }
     }
 }

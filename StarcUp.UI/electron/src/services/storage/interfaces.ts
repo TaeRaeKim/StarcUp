@@ -1,4 +1,4 @@
-import { IUserData, IPreset, IGameHistory } from '../types'
+import { IUserData, IStoredPresetConfig, IGameHistory } from '../types'
 
 export interface IDataStorageService {
   // 사용자 데이터 관리
@@ -6,9 +6,9 @@ export interface IDataStorageService {
   loadUserData(userId: string): Promise<IUserData | null>
   
   // 프리셋 관리
-  savePreset(userId: string, preset: Omit<IPreset, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string }>
-  loadPresets(userId: string): Promise<IPreset[]>
-  loadPreset(userId: string, presetId: string): Promise<IPreset | null>
+  savePreset(userId: string, preset: Omit<IStoredPresetConfig, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string }>
+  loadPresets(userId: string): Promise<IStoredPresetConfig[]>
+  loadPreset(userId: string, presetId: string): Promise<IStoredPresetConfig | null>
   deletePreset(userId: string, presetId: string): Promise<{ success: boolean }>
   
   // 프리셋 UI 편의 메서드들
@@ -26,10 +26,10 @@ export interface IDataStorageService {
       gasWorkerCheck?: boolean
     }
   }): Promise<{ success: boolean }>
-  getSelectedPreset(userId: string): Promise<IPreset | null>
+  getSelectedPreset(userId: string): Promise<IStoredPresetConfig | null>
   setSelectedPreset(userId: string, index: number): Promise<{ success: boolean }>
   getPresetsWithSelection(userId: string): Promise<{
-    presets: IPreset[]
+    presets: IStoredPresetConfig[]
     selectedIndex: number
     maxPresets: number
   }>
@@ -49,9 +49,9 @@ export interface IUserDataRepository {
 }
 
 export interface IPresetRepository {
-  save(userId: string, preset: Omit<IPreset, 'id' | 'createdAt' | 'updatedAt'>): Promise<string>
-  load(userId: string, presetId: string): Promise<IPreset | null>
-  loadAll(userId: string): Promise<IPreset[]>
+  save(userId: string, preset: Omit<IStoredPresetConfig, 'id' | 'createdAt' | 'updatedAt'>): Promise<string>
+  load(userId: string, presetId: string): Promise<IStoredPresetConfig | null>
+  loadAll(userId: string): Promise<IStoredPresetConfig[]>
   delete(userId: string, presetId: string): Promise<void>
 }
 

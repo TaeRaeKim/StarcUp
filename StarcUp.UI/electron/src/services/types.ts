@@ -41,7 +41,7 @@ export interface IHotkeySettings {
   stopDetection: string
 }
 
-export interface IPreset {
+export interface IStoredPresetConfig {
   id: string
   name: string
   type: 'overlay' | 'hotkey' | 'ui' | 'game'
@@ -53,7 +53,7 @@ export interface IPreset {
 export interface IUserData {
   userId: string
   settings: IUserSettings
-  presets: IPreset[]
+  presets: IStoredPresetConfig[]
   gameHistory: IGameHistory[]
   lastModified: Date
 }
@@ -96,9 +96,9 @@ export interface IIPCChannels {
   'auth:get-session': { request: void; response: { user?: IUser } }
   
   // 데이터 관련
-  'data:save-preset': { request: { userId: string; preset: IPreset }; response: { success: boolean; id?: string } }
+  'data:save-preset': { request: { userId: string; preset: IStoredPresetConfig }; response: { success: boolean; id?: string } }
   'data:load-preset': { request: { userId: string; presetId: string }; response: { success: boolean; data?: any } }
-  'data:get-presets': { request: { userId: string }; response: { presets: IPreset[] } }
+  'data:get-presets': { request: { userId: string }; response: { presets: IStoredPresetConfig[] } }
   'data:delete-preset': { request: { userId: string; presetId: string }; response: { success: boolean } }
   'data:update-preset': { request: { userId: string; presetId: string; updates: any }; response: { success: boolean } }
   'data:get-selected-preset': { request: { userId: string }; response: { success: boolean; data?: any } }
@@ -127,6 +127,22 @@ export interface IIPCChannels {
   'shortcut:register': { request: { accelerator: string; action: string }; response: { success: boolean } }
   'shortcut:unregister': { request: { accelerator: string }; response: { success: boolean } }
   'shortcut:list': { request: void; response: { shortcuts: string[] } }
+  
+  // 오버레이 관리
+  'overlay:update-settings': { request: any; response: { success: boolean } }
+  
+  // 프리셋 상태 관리 (PresetStateManager)
+  'preset:get-current': { request: void; response: { success: boolean; data?: any; error?: string } }
+  'preset:get-state': { request: void; response: { success: boolean; data?: any; error?: string } }
+  'preset:get-all': { request: void; response: { success: boolean; data?: any; error?: string } }
+  'preset:get-features-only': { request: void; response: { success: boolean; data?: { featureStates: boolean[] }; error?: string } }
+  'preset:switch': { request: { presetId: string }; response: { success: boolean; data?: any; error?: string } }
+  'preset:update-settings': { request: { presetType: string; settings: any }; response: { success: boolean; data?: any; error?: string } }
+  'preset:toggle-feature': { request: { featureIndex: number; enabled: boolean }; response: { success: boolean; data?: any; error?: string } }
+  
+  // 이벤트 브로드캐스트 (renderer에서 수신만 가능)
+  'preset:state-changed': { request: never; response: any }
+  'preset:features-changed': { request: never; response: { featureStates: boolean[]; timestamp: Date } }
   
   // 메시지 전송 (renderer에서 수신만 가능)
   'main-process-message': { request: never; response: string }

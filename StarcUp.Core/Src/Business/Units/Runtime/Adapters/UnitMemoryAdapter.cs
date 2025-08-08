@@ -579,7 +579,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 // nextAllyPointer를 따라가며 해당 플레이어의 유닛들을 Unit으로 변환하여 버퍼에 직접 복사
                 nint currentUnitPointer = firstUnitPointer;
                 int iterations = 0;
-                const int maxIterations = 200; // 무한 루프 방지
+                const int maxIterations = 400; // 무한 루프 방지
 
                 while (currentUnitPointer != 0 && iterations < maxIterations && unitCount < maxCount)
                 {

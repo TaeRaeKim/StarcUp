@@ -28,8 +28,7 @@ namespace StarcUp.Business.Units.Runtime.Models
         /// </summary>
         public Unit()
         {
-            // 기본값으로 초기화
-            ProductionQueue = new ushort[5];
+            Init();
         }
 
         public bool IsValid => UnitType != Types.UnitType.None && PlayerIndex < 12;
@@ -38,7 +37,7 @@ namespace StarcUp.Business.Units.Runtime.Models
         public bool IsWorker => UnitType.IsWorker();
         public bool IsHero => UnitType.IsHero();
         public bool IsGasBuilding => UnitType.IsGasBuilding();
-        
+
         public int TotalHitPoints => (int)(Health + Shield);
         public double HealthPercentage => Health > 0 ? (double)Health / GetMaxHealth() : 0;
         public string DisplayName => UnitType.GetUnitName();
@@ -107,13 +106,13 @@ namespace StarcUp.Business.Units.Runtime.Models
             ProductionQueueIndex = raw.productionQueueIndex;
             GatheringState = raw.gatheringState;
             MemoryAddress = memoryAddress;
-            
+
             // ProductionQueue 배열 재활용 (이미 할당된 배열이 있으면 재사용)
             if (ProductionQueue == null || ProductionQueue.Length != 5)
             {
                 ProductionQueue = new ushort[5];
             }
-            
+
             unsafe
             {
                 for (int i = 0; i < 5; i++)
@@ -147,7 +146,7 @@ namespace StarcUp.Business.Units.Runtime.Models
             {
                 ProductionQueue = new ushort[5];
             }
-            
+
             for (int i = 0; i < 5; i++)
             {
                 ProductionQueue[i] = other.ProductionQueue[i];
@@ -157,6 +156,37 @@ namespace StarcUp.Business.Units.Runtime.Models
         public override string ToString()
         {
             return $"{DisplayName} [Player={PlayerIndex}, HP={Health}/{Shield}, Pos=({CurrentX},{CurrentY})]";
+        }
+
+        public void Init()
+        {
+            Health = 0;
+            Shield = 0;
+            CurrentX = 0;
+            CurrentY = 0;
+            DestX = 0;
+            DestY = 0;
+            UnitType = UnitType.None;
+            ActionIndex = 0;
+            ActionState = 0;
+            AttackCooldown = 0;
+            Timer = 0;
+            CurrentUpgrade = 0;
+            CurrentUpgradeLevel = 0;
+            ProductionQueueIndex = 0;
+            GatheringState = 0;
+
+            if (ProductionQueue == null || ProductionQueue.Length != 5)
+            {
+                ProductionQueue = new ushort[5];
+            }
+            else
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    ProductionQueue[i] = 0;
+                }
+            }
         }
     }
 }

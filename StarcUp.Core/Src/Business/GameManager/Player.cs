@@ -35,11 +35,17 @@ namespace StarcUp.Business.Game
         }
 
         public void Init()
-        {
+        {   
             Mineral = 0;
             Gas = 0;
             SupplyUsed = 0;
             SupplyTotal = 0;
+
+            for (int i = 0; i < _unitCount; i++)
+            {
+                _units[i].Init();
+            }
+            _unitCount = 0;
         }
 
         // 유닛 관련 속성들 (외부 접근용)

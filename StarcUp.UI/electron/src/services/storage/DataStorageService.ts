@@ -1,5 +1,5 @@
 import { IDataStorageService } from './interfaces'
-import { IUserData, IPreset, IGameHistory } from '../types'
+import { IUserData, IStoredPresetConfig, IGameHistory } from '../types'
 import { 
   IPresetRepository, 
   FilePresetRepository, 
@@ -51,11 +51,11 @@ export class DataStorageService implements IDataStorageService {
   }
   
   // 프리셋 관리 (Repository를 통한 구현)
-  async savePreset(userId: string, preset: Omit<IPreset, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string }> {
+  async savePreset(userId: string, preset: Omit<IStoredPresetConfig, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; id?: string }> {
     try {
       console.log(`💾 프리셋 저장 요청: ${userId}`)
       
-      // IPreset을 CreatePresetRequest로 변환
+      // IStoredPresetConfig을 CreatePresetRequest로 변환
       const createRequest: CreatePresetRequest = {
         name: preset.name || 'New Preset',
         description: preset.data?.description || '',
@@ -71,14 +71,14 @@ export class DataStorageService implements IDataStorageService {
     }
   }
   
-  async loadPresets(userId: string): Promise<IPreset[]> {
+  async loadPresets(userId: string): Promise<IStoredPresetConfig[]> {
     try {
       console.log(`📂 프리셋 목록 로드: ${userId}`)
       
       const collection = await this.presetRepository.loadAll()
       
-      // StoredPreset을 IPreset으로 변환
-      const presets: IPreset[] = collection.presets.map(stored => ({
+      // StoredPreset을 IStoredPresetConfig으로 변환
+      const presets: IStoredPresetConfig[] = collection.presets.map(stored => ({
         id: stored.id,
         name: stored.name,
         type: 'game' as const,
@@ -99,15 +99,15 @@ export class DataStorageService implements IDataStorageService {
     }
   }
   
-  async loadPreset(userId: string, presetId: string): Promise<IPreset | null> {
+  async loadPreset(userId: string, presetId: string): Promise<IStoredPresetConfig | null> {
     try {
       console.log(`📂 프리셋 로드: ${userId}/${presetId}`)
       
       const stored = await this.presetRepository.findById(presetId)
       if (!stored) return null
       
-      // StoredPreset을 IPreset으로 변환
-      const preset: IPreset = {
+      // StoredPreset을 IStoredPresetConfig으로 변환
+      const preset: IStoredPresetConfig = {
         id: stored.id,
         name: stored.name,
         type: 'game' as const,
@@ -189,14 +189,14 @@ export class DataStorageService implements IDataStorageService {
     }
   }
   
-  async getSelectedPreset(userId: string): Promise<IPreset | null> {
+  async getSelectedPreset(userId: string): Promise<IStoredPresetConfig | null> {
     try {
       console.log(`🎯 선택된 프리셋 조회: ${userId}`)
       
       const stored = await this.presetRepository.getSelected()
       if (!stored) return null
       
-      const preset: IPreset = {
+      const preset: IStoredPresetConfig = {
         id: stored.id,
         name: stored.name,
         type: 'game' as const,
@@ -230,7 +230,7 @@ export class DataStorageService implements IDataStorageService {
   }
   
   async getPresetsWithSelection(userId: string): Promise<{
-    presets: IPreset[]
+    presets: IStoredPresetConfig[]
     selectedIndex: number
     maxPresets: number
   }> {
@@ -239,7 +239,7 @@ export class DataStorageService implements IDataStorageService {
       
       const collection = await this.presetRepository.loadAll()
       
-      const presets: IPreset[] = collection.presets.map(stored => ({
+      const presets: IStoredPresetConfig[] = collection.presets.map(stored => ({
         id: stored.id,
         name: stored.name,
         type: 'game' as const,
@@ -261,7 +261,7 @@ export class DataStorageService implements IDataStorageService {
     } catch (error) {
       console.error('Get presets with selection failed:', error)
       return {
-        presets: [],
+        presets: [] as IStoredPresetConfig[],
         selectedIndex: 0,
         maxPresets: 3
       }

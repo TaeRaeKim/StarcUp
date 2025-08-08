@@ -17,6 +17,9 @@ export class CoreCommunicationService implements ICoreCommunicationService {
   private gasBuildingAlertCallback: (() => void) | null = null
   private workerPresetChangedCallback: ((data: WorkerPresetChangedEvent) => void) | null = null
   
+  // PopulationManager 이벤트 콜백들
+  private supplyAlertCallback: (() => void) | null = null
+  
   constructor(namedPipeService?: INamedPipeService) {
     this.namedPipeService = namedPipeService || new NamedPipeService()
     this.commandRegistry = new CommandRegistry()
@@ -225,6 +228,13 @@ export class CoreCommunicationService implements ICoreCommunicationService {
       }
     })
 
+    // PopulationManager 이벤트 핸들러들
+    this.namedPipeService.onEvent(Events.SupplyAlert, (data: any) => {
+      if (this.supplyAlertCallback) {
+        this.supplyAlertCallback()
+      }
+    })
+
     console.log('✅ Core 이벤트 핸들러 설정 완료')
   }
 
@@ -291,6 +301,15 @@ export class CoreCommunicationService implements ICoreCommunicationService {
 
   offWorkerPresetChanged(): void {
     this.workerPresetChangedCallback = null
+  }
+
+  // PopulationManager 이벤트 콜백 등록/해제 메서드들
+  onSupplyAlert(callback: () => void): void {
+    this.supplyAlertCallback = callback
+  }
+
+  offSupplyAlert(): void {
+    this.supplyAlertCallback = null
   }
   
 }

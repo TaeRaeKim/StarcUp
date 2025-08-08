@@ -5,12 +5,15 @@ import { IForegroundWindowService, ForegroundWindowService } from './foreground'
 import { IOverlayAutoManager, OverlayAutoManager } from './overlay'
 import { DataStorageService } from './storage'
 import { AuthService } from './auth'
+import { IPresetStateManager, PresetStateManager, IPresetChangeEvent } from './preset'
+import { FilePresetRepository } from './storage/repositories/FilePresetRepository'
+import { PresetInitMessage, PresetUpdateMessage, calculateWorkerSettingsMask, WorkerSettings } from '../../../src/utils/presetUtils'
 
 export interface IServiceContainer {
   register<T>(name: string, factory: () => T): void
   registerSingleton<T>(name: string, factory: () => T): void
   resolve<T>(name: string): T
-  initialize(): void
+  initialize(): Promise<void>
   dispose(): Promise<void>
 }
 
@@ -49,13 +52,13 @@ export class ServiceContainer implements IServiceContainer {
   }
   
   // 서비스 초기화
-  initialize(): void {
+  async initialize(): Promise<void> {
     if (this.initialized) {
       throw new Error('ServiceContainer already initialized')
     }
     
     this.registerServices()
-    this.setupServices()
+    await this.setupServices()
     this.initialized = true
   }
   
@@ -96,6 +99,15 @@ export class ServiceContainer implements IServiceContainer {
       return new OverlayAutoManager(this.resolve('windowManager'))
     })
     
+    // 프리셋 관련 서비스 등록
+    this.registerSingleton('filePresetRepository', () => {
+      return new FilePresetRepository()
+    })
+    
+    this.registerSingleton('presetStateManager', () => {
+      return new PresetStateManager(this.resolve('filePresetRepository'))
+    })
+    
     this.registerSingleton('ipcService', () => {
       return new IPCService()
     })
@@ -108,17 +120,21 @@ export class ServiceContainer implements IServiceContainer {
         this.resolve('dataStorageService'),
         this.resolve('windowManager'),
         this.resolve('shortcutManager'),
-        this.resolve('overlayAutoManager')
+        this.resolve('overlayAutoManager'),
+        this.resolve('presetStateManager')
       )
     })
     
     console.log('🔧 모든 서비스 등록 완료')
   }
   
-  private setupServices(): void {
+  private async setupServices(): Promise<void> {
     // 서비스 초기화 및 설정
     const channelHandlers = this.resolve<{ setupAllHandlers(): void }>('channelHandlers')
     channelHandlers.setupAllHandlers()
+    
+    // PresetStateManager 초기화
+    await this.initializePresetStateManager()
     
     // CoreCommunicationService와 ForegroundWindowService 연결
     this.setupGameEventHandlers()
@@ -185,8 +201,179 @@ export class ServiceContainer implements IServiceContainer {
       // Overlay 윈도우에 이벤트 전송
       windowManager.sendToOverlayWindow('worker-preset-changed', data)
     })
+
+    // coreService.onSupplyAlert(() => {
+    //   // Overlay 윈도우에 이벤트 전송
+    //   windowManager.sendToOverlayWindow('supply-alert', {})
+    // })
     
     console.log('🔗 게임 이벤트 핸들러 설정 완료')
+  }
+  
+  private async initializePresetStateManager(): Promise<void> {
+    try {
+      console.log('🎯 PresetStateManager 초기화 시작')
+      
+      const presetStateManager = this.resolve<IPresetStateManager>('presetStateManager')
+      await presetStateManager.initialize()
+      
+      // 프리셋 상태 변경 이벤트를 다른 서비스들과 연결
+      this.setupPresetEventHandlers(presetStateManager)
+      
+      console.log('✅ PresetStateManager 초기화 완료')
+    } catch (error) {
+      console.error('❌ PresetStateManager 초기화 실패:', error)
+      throw error
+    }
+  }
+  
+  private setupPresetEventHandlers(presetStateManager: IPresetStateManager): void {
+    const windowManager = this.resolve<IWindowManager>('windowManager')
+    const coreService = this.resolve<ICoreCommunicationService>('coreCommunicationService')
+    
+    // 프리셋 상태 변경을 UI에 알림
+    presetStateManager.onStateChanged(async (event) => {
+      console.log('📢 프리셋 상태 변경 감지:', event.type)
+      
+      // 메인 윈도우에 이벤트 전송
+      windowManager.sendToMainWindow('preset-state-changed', {
+        type: event.type,
+        preset: event.preset,
+        state: presetStateManager.getPresetState(),
+        timestamp: event.timestamp
+      })
+      
+      // 오버레이 윈도우에도 전송 (필요한 경우)
+      if (event.type === 'preset-switched' || event.type === 'feature-toggled') {
+        windowManager.sendToOverlayWindow('preset-state-changed', {
+          type: event.type,
+          preset: event.preset,
+          featureStates: event.preset?.featureStates,
+          timestamp: event.timestamp
+        })
+      }
+      
+      // Core 자동 동기화 (새로운 기능)
+      await this.syncPresetToCore(event, presetStateManager, coreService)
+    })
+    
+    console.log('🔗 프리셋 이벤트 핸들러 설정 완료')
+  }
+  
+  /**
+   * PresetStateManager와 Core 간 자동 동기화
+   * @param event 프리셋 변경 이벤트
+   * @param presetStateManager 프리셋 상태 관리자
+   * @param coreService Core 통신 서비스
+   */
+  private async syncPresetToCore(
+    event: IPresetChangeEvent,
+    presetStateManager: IPresetStateManager,
+    coreService: ICoreCommunicationService
+  ): Promise<void> {
+    try {
+      console.log('🔄 Core 프리셋 동기화 시작:', event.type)
+      
+      // Core 연결 상태 확인
+      if (!coreService.isConnected) {
+        console.warn('⚠️ Core 연결이 안된 상태 - 동기화 건너뛰기')
+        return
+      }
+      
+      // 프리셋 데이터를 Core 프로토콜로 변환
+      const coreMessage = this.convertPresetForCore(presetStateManager.getCurrentPreset())
+      
+      // Core로 전송
+      const response = await coreService.sendPresetInit(coreMessage)
+      
+      if (response.success) {
+        console.log('✅ Core 프리셋 동기화 완료')
+      } else {
+        console.warn('⚠️ Core 프리셋 동기화 실패:', response.error)
+      }
+    } catch (error) {
+      console.error('❌ Core 프리셋 동기화 중 오류:', error)
+      // 에러가 발생해도 UI 동작은 계속 진행
+    }
+  }
+  
+  /**
+   * 프리셋 데이터를 Core 프로토콜 형식으로 변환
+   * @param preset UI 프리셋 데이터
+   * @returns Core 프로토콜 메시지
+   */
+  private convertPresetForCore(preset: any): PresetInitMessage {
+    if (!preset) {
+      console.log('🔄 빈 프리셋을 Core로 전송')
+      return {
+        type: 'preset-init',
+        timestamp: Date.now(),
+        presets: {
+          worker: { enabled: false, settingsMask: 1 }, // 최소한 Default는 활성화
+          population: { enabled: false, settingsMask: 0 },
+          unit: { enabled: false, settingsMask: 0 },
+          upgrade: { enabled: false, settingsMask: 0 },
+          buildOrder: { enabled: false, settingsMask: 0 }
+        }
+      }
+    }
+    
+    console.log('🔄 프리셋 데이터 변환:', {
+      id: preset.id,
+      name: preset.name,
+      featureStates: preset.featureStates
+    })
+    
+    return {
+      type: 'preset-init', // 전체 상태 전송
+      timestamp: Date.now(),
+      presets: {
+        worker: {
+          enabled: preset.featureStates?.[0] || false,
+          settingsMask: this.calculateWorkerSettingsMask(preset.workerSettings)
+        },
+        population: {
+          enabled: preset.featureStates?.[1] || false,
+          settingsMask: 0 // 추후 구현
+        },
+        unit: {
+          enabled: preset.featureStates?.[2] || false,
+          settingsMask: 0 // 추후 구현
+        },
+        upgrade: {
+          enabled: preset.featureStates?.[3] || false,
+          settingsMask: 0 // 추후 구현
+        },
+        buildOrder: {
+          enabled: preset.featureStates?.[4] || false,
+          settingsMask: 0 // 추후 구현
+        }
+      }
+    }
+  }
+  
+  /**
+   * 일꾼 설정을 비트마스크로 변환
+   * @param workerSettings 일꾼 설정 객체
+   * @returns 비트마스크 값
+   */
+  private calculateWorkerSettingsMask(workerSettings: WorkerSettings | undefined): number {
+    if (!workerSettings) {
+      return 1 // 기본값: Default만 활성화
+    }
+    
+    try {
+      const mask = calculateWorkerSettingsMask(workerSettings)
+      console.log('🔢 일꾼 설정 비트마스크 계산:', {
+        settings: workerSettings,
+        mask: mask,
+        binary: '0b' + mask.toString(2).padStart(8, '0')
+      })
+      return mask || 1 // 최소한 Default는 활성화
+    } catch (error) {
+      console.warn('⚠️ 일꾼 설정 비트마스크 계산 실패:', error)
+      return 1 // 안전한 기본값
+    }
   }
   
   // 서비스 정리
@@ -229,6 +416,12 @@ export class ServiceContainer implements IServiceContainer {
       const overlayAutoManager = this.resolve<IOverlayAutoManager>('overlayAutoManager')
       if (overlayAutoManager && typeof overlayAutoManager.dispose === 'function') {
         overlayAutoManager.dispose()
+      }
+      
+      // PresetStateManager 정리
+      const presetStateManager = this.resolve<IPresetStateManager>('presetStateManager')
+      if (presetStateManager && typeof presetStateManager.dispose === 'function') {
+        await presetStateManager.dispose()
       }
       
       // 싱글톤 서비스들 정리

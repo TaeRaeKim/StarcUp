@@ -136,3 +136,42 @@ contextBridge.exposeInMainWorld('coreAPI', {
     return () => ipcRenderer.off('foreground-changed', listener)
   }
 })
+
+// --------- Expose Preset API to the Renderer process ---------
+contextBridge.exposeInMainWorld('presetAPI', {
+  // 상태 조회 (기본 - Main Page용)
+  getCurrent: () => ipcRenderer.invoke('preset:get-current'),
+  getState: () => ipcRenderer.invoke('preset:get-state'),
+  getAll: () => ipcRenderer.invoke('preset:get-all'),
+  
+  // Overlay 전용 성능 최적화 메서드
+  getFeaturesOnly: () => ipcRenderer.invoke('preset:get-features-only'),
+  
+  // 프리셋 관리
+  switch: (presetId: string) => 
+    ipcRenderer.invoke('preset:switch', { presetId }),
+  
+  updateSettings: (presetType: string, settings: any) => 
+    ipcRenderer.invoke('preset:update-settings', { presetType, settings }),
+  
+  toggleFeature: (featureIndex: number, enabled: boolean) => 
+    ipcRenderer.invoke('preset:toggle-feature', { featureIndex, enabled }),
+  
+  // 프리셋 상태 변경 이벤트 리스너 (기본 - Main Page용)
+  onStateChanged: (callback: (data: any) => void) => {
+    const listener = (_event: any, data: any) => callback(data)
+    ipcRenderer.on('preset:state-changed', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('preset:state-changed', listener)
+  },
+  
+  // Overlay 전용 기능 상태 변경 이벤트 리스너 (성능 최적화)
+  onFeaturesChanged: (callback: (data: { featureStates: boolean[], timestamp: Date }) => void) => {
+    const listener = (_event: any, data: { featureStates: boolean[], timestamp: Date }) => callback(data)
+    ipcRenderer.on('preset:features-changed', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('preset:features-changed', listener)
+  }
+})

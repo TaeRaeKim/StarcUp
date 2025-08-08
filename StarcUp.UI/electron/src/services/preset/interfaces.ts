@@ -1,0 +1,107 @@
+import { StoredPreset, WorkerSettings } from '../storage/repositories/IPresetRepository'
+import { EventEmitter } from 'events'
+
+/**
+ * 프리셋 상태 관리자 인터페이스
+ * 중앙화된 프리셋 상태 관리 및 이벤트 시스템 제공
+ */
+export interface IPresetStateManager {
+  // 상태 조회
+  getCurrentPreset(): IPreset | null
+  getPresetState(): IPresetState
+  getAllPresets(): IPreset[]
+  
+  // 프리셋 관리  
+  switchPreset(presetId: string): Promise<void>
+  updatePresetSettings(presetType: string, settings: any): Promise<void>
+  toggleFeature(featureIndex: number, enabled: boolean): Promise<void>
+  
+  // 이벤트 관리
+  onStateChanged(callback: (event: IPresetChangeEvent) => void): () => void
+  
+  // 생명주기
+  initialize(): Promise<void>
+  dispose(): Promise<void>
+}
+
+/**
+ * UI 계층에서 사용하는 프리셋 데이터 구조
+ * StoredPreset을 기반으로 하되 UI에 최적화된 형태
+ */
+export interface IPreset {
+  id: string
+  name: string
+  description: string
+  featureStates: boolean[]
+  selectedRace: 'protoss' | 'terran' | 'zerg'
+  workerSettings?: WorkerSettings
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
+ * 전체 프리셋 상태를 나타내는 인터페이스
+ */
+export interface IPresetState {
+  currentPreset: IPreset | null
+  allPresets: IPreset[]
+  selectedPresetIndex: number
+  isLoading: boolean
+  lastUpdated: Date
+}
+
+/**
+ * 프리셋 변경 이벤트 타입 정의
+ */
+export interface IPresetChangeEvent {
+  type: 'preset-switched' | 'settings-updated' | 'feature-toggled' | 'presets-loaded'
+  presetId: string
+  preset: IPreset | null
+  changes: {
+    featureStates?: boolean[]
+    settings?: Record<string, any>
+    toggledFeature?: { index: number; enabled: boolean }
+    previousPresetId?: string
+    allPresets?: IPreset[]
+  }
+  timestamp: Date
+}
+
+/**
+ * 프리셋 설정 업데이트 요청 인터페이스
+ */
+export interface IPresetSettingsUpdate {
+  presetType: 'basic' | 'race' | 'worker' | 'unit' | 'upgrade' | 'population' | 'build-order'
+  settings: Record<string, any>
+}
+
+/**
+ * 디바운싱 옵션
+ */
+export interface DebounceOptions {
+  delay: number
+  maxWait?: number
+}
+
+/**
+ * 성능 메트릭 정보
+ */
+export interface IPerformanceMetrics {
+  operationName: string
+  executionTime: number
+  timestamp: Date
+  success: boolean
+  error?: string
+}
+
+/**
+ * PresetStateManager 내부 상태 관리를 위한 인터페이스
+ */
+export interface IPresetStateManagerState {
+  currentPresetId: string | null
+  allPresets: Map<string, IPreset>
+  selectedIndex: number
+  isInitialized: boolean
+  isLoading: boolean
+  lastSyncTime: number
+}

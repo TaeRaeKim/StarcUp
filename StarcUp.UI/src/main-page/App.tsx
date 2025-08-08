@@ -55,9 +55,24 @@ interface Preset {
 export default function App() {
   const [isActive, setIsActive] = useState(false);
   const [gameStatus, setGameStatus] = useState<GameStatus>('error');
-  const [currentPresetIndex, setCurrentPresetIndex] = useState(0);
-  const [presets, setPresets] = useState<Preset[]>([]);
-  const [presetsLoaded, setPresetsLoaded] = useState(false);
+  
+  // presetAPI 기반 상태 관리 (단순화)
+  const [presetState, setPresetState] = useState<{
+    currentPreset: any | null
+    allPresets: any[]
+    isLoading: boolean
+    selectedIndex: number
+  }>({
+    currentPreset: null,
+    allPresets: [],
+    isLoading: true,
+    selectedIndex: 0
+  });
+  
+  // 기존 호환성 유지를 위한 computed 값들
+  const presets = presetState.allPresets;
+  const currentPresetIndex = presetState.selectedIndex;
+  const presetsLoaded = !presetState.isLoading && presetState.allPresets.length > 0;
   
   // 현재 뷰 상태 관리 (모달 대신 페이지 전환 방식)
   const [currentView, setCurrentView] = useState<CurrentView>('main');
@@ -111,87 +126,108 @@ export default function App() {
     };
   }, []);
 
-  // 프리셋 자동 로드 (앱 시작 시)
+  // presetAPI를 통한 프리셋 상태 초기화 (단순화)
   useEffect(() => {
-    const loadPresets = async () => {
+    const initializePresetData = async () => {
       try {
-        console.log('📋 프리셋 자동 로드 시작...');
+        console.log('🚀 presetAPI를 통한 프리셋 초기화 시작...');
         
-        if (!window.electronAPI?.getPresetsWithSelection) {
-          console.warn('⚠️ electronAPI.getPresetsWithSelection이 준비되지 않았습니다');
+        if (!window.presetAPI?.getState) {
+          console.error('❌ presetAPI가 준비되지 않았습니다.');
+          setPresetState(prev => ({ ...prev, isLoading: false }));
           return;
         }
 
-        const response = await window.electronAPI.getPresetsWithSelection('default-user');
+        // presetAPI를 통한 현재 상태 조회
+        const stateResult = await window.presetAPI.getState();
         
-        if (response.success && response.data) {
-          const { presets: loadedPresets, selectedIndex } = response.data;
+        if (stateResult?.success && stateResult.data) {
+          const state = stateResult.data;
           
-          // IPreset을 UI Preset 형태로 변환
-          const uiPresets: Preset[] = loadedPresets.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            description: p.data.description,
-            featureStates: p.data.featureStates,
-            selectedRace: p.data.selectedRace,
-            workerSettings: p.data.workerSettings
-          }));
-
-          setPresets(uiPresets);
-          setCurrentPresetIndex(selectedIndex);
-          setPresetsLoaded(true);
+          setPresetState({
+            currentPreset: state.currentPreset,
+            allPresets: state.allPresets,
+            isLoading: false,
+            selectedIndex: state.selectedPresetIndex || 0
+          });
           
-          console.log('✅ 프리셋 자동 로드 완료:', {
-            count: uiPresets.length,
-            selected: selectedIndex,
-            selectedName: uiPresets[selectedIndex]?.name
+          console.log('✅ presetAPI 프리셋 초기화 완료:', {
+            count: state.allPresets?.length || 0,
+            selected: state.selectedPresetIndex,
+            currentName: state.currentPreset?.name
           });
         } else {
-          console.warn('⚠️ 프리셋 로드 실패');
+          console.error('❌ presetAPI 상태 조회 실패:', stateResult?.error);
+          setPresetState(prev => ({ ...prev, isLoading: false }));
         }
       } catch (error) {
-        console.error('❌ 프리셋 로드 실패', error);
+        console.error('❌ presetAPI 초기화 실패:', error);
+        setPresetState(prev => ({ ...prev, isLoading: false }));
       }
     };
 
-    loadPresets();
+    initializePresetData();
+  }, []);
+
+  // presetAPI 이벤트 리스너 설정 (실시간 동기화)
+  useEffect(() => {
+    if (!window.presetAPI?.onStateChanged) {
+      console.log('⚠️ presetAPI 이벤트 리스너가 준비되지 않았습니다');
+      return;
+    }
+
+    console.log('👂 presetAPI 이벤트 리스너 등록');
+    
+    const unsubscribe = window.presetAPI.onStateChanged((event) => {
+      console.log('📡 프리셋 상태 변경 수신:', event.type, event);
+      
+      // 이벤트 타입에 따른 상태 업데이트
+      try {
+        switch (event.type) {
+          case 'presets-loaded':
+          case 'preset-switched':
+          case 'settings-updated':
+            // 전체 상태를 다시 조회하여 동기화
+            if (event.state) {
+              setPresetState({
+                currentPreset: event.state.currentPreset,
+                allPresets: event.state.allPresets || [],
+                isLoading: event.state.isLoading || false,
+                selectedIndex: event.state.selectedPresetIndex || 0
+              });
+              
+              console.log('✅ 프리셋 상태 동기화 완료:', event.type);
+            } else {
+              console.warn('⚠️ 이벤트에 상태 정보가 없습니다:', event);
+            }
+            break;
+          
+          default:
+            console.log('📡 알 수 없는 프리셋 이벤트 타입:', event.type);
+            break;
+        }
+      } catch (error) {
+        console.error('❌ 프리셋 이벤트 처리 실패:', error, event);
+      }
+    });
+
+    // 컴포넌트 언마운트 시 이벤트 리스너 정리
+    return () => {
+      console.log('🧹 presetAPI 이벤트 리스너 정리');
+      unsubscribe();
+    };
   }, []);
 
   // 자동 overlay 관리는 이제 메인 프로세스에서 처리됩니다
 
-  // 프리셋 초기화 함수 (Named Pipe 연결 후 호출)
+  // 프리셋 초기화 함수 (presetAPI에서 자동 관리)
   const sendPresetInit = async () => {
     try {
-      // 현재 선택된 프리셋의 일꾼 설정 사용 (완전한 데이터 보장)
-      const currentWorkerSettings: WorkerSettings = currentPreset.workerSettings;
-
-      const workerMask = calculateWorkerSettingsMask(currentWorkerSettings as PresetUtilsWorkerSettings);
+      // presetAPI 중앙 관리 시스템에서 자동으로 현재 프리셋이 Core에 전송됨
+      console.log('🚀 프리셋 초기화: presetAPI에서 자동 관리됨');
       
-      const initMessage: PresetInitMessage = {
-        type: 'preset-init',
-        timestamp: Date.now(),
-        presets: {
-          worker: {
-            enabled: currentPreset.featureStates[0], // 일꾼 기능 활성화 여부
-            settingsMask: workerMask
-          } as WorkerPreset
-          // 향후 다른 프리셋들도 여기에 추가
-        }
-      };
-
-      console.log('🚀 프리셋 초기화 메시지 전송:', initMessage);
-      
-      if (window.coreAPI?.sendPresetInit) {
-        const response = await window.coreAPI.sendPresetInit(initMessage);
-        
-        if (response?.success) {
-          console.log('✅ 프리셋 초기화 성공:', response.data);
-        } else {
-          console.error('❌ 프리셋 초기화 실패:', response?.error);
-        }
-      } else {
-        console.warn('⚠️ coreAPI.sendPresetInit 함수가 사용 불가능합니다');
-      }
+      // presetAPI가 자동으로 Core와 동기화를 처리하므로 별도 작업 불필요
+      console.log('ℹ️ presetAPI가 프리셋 상태를 자동으로 관리합니다');
     } catch (error) {
       console.error('💥 프리셋 초기화 중 오류 발생:', error);
     }
@@ -211,12 +247,8 @@ export default function App() {
         if (response?.success) {
           console.log('Core 게임 감지 시작됨:', response.data);
           
-          // 프리셋 로딩이 완료된 경우에만 프리셋 초기화 메시지 전송
-          if (presetsLoaded && presets.length > 0) {
-            await sendPresetInit();
-          } else {
-            console.warn('⚠️ 프리셋이 아직 로드되지 않아 초기화 메시지 전송을 건너뜁니다');
-          }
+          // 프리셋 초기화 (presetAPI에서 자동 관리)
+          await sendPresetInit();
           
           // 자동 overlay 관리가 메인 프로세스에서 처리됩니다
         } else {
@@ -250,13 +282,33 @@ export default function App() {
     }
   };
 
-  const currentPreset = presets[currentPresetIndex];
+  const currentPreset = presetState.currentPreset || presets[currentPresetIndex];
 
-  // 프리셋 관련 핸들러
-  const handlePresetIndexChange = (index: number) => {
-    setCurrentPresetIndex(index);
-    // 프리셋 변경 시 편집 중인 종족 상태 초기화
-    setCurrentEditingRace(null);
+  // 프리셋 관련 핸들러 (presetAPI 전용)
+  const handlePresetIndexChange = async (index: number) => {
+    try {
+      const targetPreset = presets[index];
+      if (!targetPreset) {
+        console.error('❌ 대상 프리셋을 찾을 수 없습니다:', index);
+        return;
+      }
+
+      console.log('🔄 프리셋 전환 시작:', targetPreset.name);
+
+      if (!window.presetAPI?.switch) {
+        console.error('❌ presetAPI.switch를 사용할 수 없습니다.');
+        return;
+      }
+
+      await window.presetAPI.switch(targetPreset.id);
+      console.log('✅ presetAPI 프리셋 전환 완료');
+      // 나머지는 이벤트로 자동 처리됨
+      
+      // 프리셋 변경 시 편집 중인 종족 상태 초기화
+      setCurrentEditingRace(null);
+    } catch (error) {
+      console.error('❌ 프리셋 전환 실패:', error);
+    }
   };
 
   const handleSavePreset = async (updatedPreset: {
@@ -269,30 +321,43 @@ export default function App() {
     try {
       console.log('📝 프리셋 저장 시작:', updatedPreset.name, '종족:', updatedPreset.selectedRace);
       
-      // 로컬 상태 업데이트
-      setPresets(prev => prev.map(preset => 
-        preset.id === updatedPreset.id ? { ...preset, ...updatedPreset } : preset
-      ));
-      
-      // 파일에 저장
-      if (window.electronAPI?.updatePreset) {
-        const updates = {
-          name: updatedPreset.name,
-          description: updatedPreset.description,
-          featureStates: updatedPreset.featureStates,
-          selectedRace: updatedPreset.selectedRace
-        };
-        
-        const result = await window.electronAPI.updatePreset('default-user', updatedPreset.id, updates);
-        
-        if (result.success) {
-          console.log('✅ 프리셋 파일 저장 완료:', updatedPreset.name);
-        } else {
-          console.error('❌ 프리셋 파일 저장 실패');
-        }
-      } else {
-        console.warn('⚠️ electronAPI가 준비되지 않아 로컬 상태만 업데이트됨');
+      if (!window.presetAPI?.toggleFeature || !window.presetAPI?.updateSettings) {
+        console.error('❌ presetAPI를 사용할 수 없습니다.');
+        return;
       }
+
+      // 1. 프리셋 기본 정보 업데이트 (이름, 설명)
+      if (currentPreset?.name !== updatedPreset.name || currentPreset?.description !== updatedPreset.description) {
+        console.log('📝 프리셋 기본 정보 업데이트:', {
+          name: updatedPreset.name,
+          description: updatedPreset.description
+        });
+        
+        await window.presetAPI.updateSettings('basic', {
+          name: updatedPreset.name,
+          description: updatedPreset.description
+        });
+      }
+
+      // 2. 기능 상태 업데이트
+      const currentFeatureStates = currentPreset?.featureStates || [];
+      
+      for (let i = 0; i < updatedPreset.featureStates.length; i++) {
+        if (currentFeatureStates[i] !== updatedPreset.featureStates[i]) {
+          console.log('🎛️ 기능 토글:', i, updatedPreset.featureStates[i]);
+          await window.presetAPI.toggleFeature(i, updatedPreset.featureStates[i]);
+        }
+      }
+
+      // 3. 종족 변경이 있는 경우 설정 업데이트
+      if (currentPreset?.selectedRace !== updatedPreset.selectedRace && updatedPreset.selectedRace) {
+        console.log('🏁 종족 업데이트:', updatedPreset.selectedRace);
+        await window.presetAPI.updateSettings('race', { 
+          selectedRace: updatedPreset.selectedRace 
+        });
+      }
+      
+      console.log('✅ 프리셋 저장 완료');
       
       // 저장 후 편집 중인 종족 상태 초기화
       setCurrentEditingRace(null);
@@ -301,32 +366,19 @@ export default function App() {
     }
   };
 
-  // 일꾼 설정 저장 핸들러
+  // 일꾼 설정 저장 핸들러 (presetAPI 전용)
   const handleSaveWorkerSettings = async (presetId: string, workerSettings: WorkerSettings) => {
     try {
       console.log('🔧 일꾼 설정 저장:', presetId, workerSettings);
       
-      // 로컬 상태 업데이트
-      setPresets(prev => prev.map(preset => 
-        preset.id === presetId 
-          ? { ...preset, workerSettings } 
-          : preset
-      ));
-      
-      // 파일에 저장
-      if (window.electronAPI?.updatePreset) {
-        const result = await window.electronAPI.updatePreset('default-user', presetId, {
-          workerSettings
-        });
-        
-        if (result.success) {
-          console.log('✅ 일꾼 설정 파일 저장 완료');
-        } else {
-          console.error('❌ 일꾼 설정 파일 저장 실패');
-        }
-      } else {
-        console.warn('⚠️ electronAPI가 준비되지 않아 로컬 상태만 업데이트됨');
+      if (!window.presetAPI?.updateSettings) {
+        console.error('❌ presetAPI.updateSettings를 사용할 수 없습니다.');
+        return;
       }
+
+      await window.presetAPI.updateSettings('worker', workerSettings);
+      console.log('✅ presetAPI 일꾼 설정 업데이트 완료');
+      // 나머지는 이벤트로 자동 처리됨
     } catch (error) {
       console.error('❌ 일꾼 설정 저장 중 오류:', error);
     }
