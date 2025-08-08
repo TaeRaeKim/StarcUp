@@ -8,6 +8,7 @@ import {
   UpdatePresetRequest,
   WorkerSettings
 } from './repositories'
+import { RaceType } from '../../../../src/types/enums'
 
 export class DataStorageService implements IDataStorageService {
   private presetRepository: IPresetRepository
@@ -60,7 +61,7 @@ export class DataStorageService implements IDataStorageService {
         name: preset.name || 'New Preset',
         description: preset.data?.description || '',
         featureStates: preset.data?.featureStates || [true, false, false, false, false],
-        selectedRace: preset.data?.selectedRace || 'protoss'
+        selectedRace: preset.data?.selectedRace || RaceType.Protoss
       }
       
       const savedPreset = await this.presetRepository.create(createRequest)
@@ -145,7 +146,7 @@ export class DataStorageService implements IDataStorageService {
     name?: string
     description?: string
     featureStates?: boolean[]
-    selectedRace?: 'protoss' | 'terran' | 'zerg'
+    selectedRace?: RaceType
     workerSettings?: {
       workerCountDisplay?: boolean
       includeProducingWorkers?: boolean

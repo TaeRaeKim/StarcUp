@@ -8,6 +8,7 @@ import { AuthService } from './auth'
 import { IPresetStateManager, PresetStateManager, IPresetChangeEvent } from './preset'
 import { FilePresetRepository } from './storage/repositories/FilePresetRepository'
 import { PresetInitMessage, PresetUpdateMessage, calculateWorkerSettingsMask, WorkerSettings } from '../../../src/utils/presetUtils'
+import { RaceType, UnitType, RACE_BUILDINGS } from '../../../src/types/enums'
 
 export interface IServiceContainer {
   register<T>(name: string, factory: () => T): void
@@ -139,6 +140,9 @@ export class ServiceContainer implements IServiceContainer {
     // CoreCommunicationService와 ForegroundWindowService 연결
     this.setupGameEventHandlers()
     
+    // Core 연결 성공 시 프리셋 자동 전송 설정
+    this.setupCoreConnectionHandler()
+    
     // ShortcutManager에 OverlayAutoManager 연결
     const shortcutManager = this.resolve<IShortcutManager>('shortcutManager')
     const overlayAutoManager = this.resolve<IOverlayAutoManager>('overlayAutoManager')
@@ -260,6 +264,44 @@ export class ServiceContainer implements IServiceContainer {
     console.log('🔗 프리셋 이벤트 핸들러 설정 완료')
   }
   
+  private setupCoreConnectionHandler(): void {
+    const coreService = this.resolve<ICoreCommunicationService>('coreCommunicationService')
+    const presetStateManager = this.resolve<IPresetStateManager>('presetStateManager')
+    
+    // Core 연결 성공 시 현재 프리셋을 자동으로 전송
+    coreService.onConnectionEstablished(async () => {
+      console.log('🔗 Core 연결 성공 - 현재 프리셋 자동 전송 시작')
+      
+      try {
+        // 짧은 지연 후 프리셋 전송 (연결 안정화를 위해)
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        const currentPreset = presetStateManager.getCurrentPreset()
+        if (currentPreset) {
+          console.log('📤 현재 프리셋 Core로 전송:', currentPreset.name)
+          
+          // 프리셋 데이터를 Core 프로토콜로 변환
+          const coreMessage = this.convertPresetForCore(currentPreset)
+          
+          // Core로 전송
+          const response = await coreService.sendPresetInit(coreMessage)
+          
+          if (response.success) {
+            console.log('✅ 연결 시 프리셋 전송 완료')
+          } else {
+            console.warn('⚠️ 연결 시 프리셋 전송 실패:', response.error)
+          }
+        } else {
+          console.warn('⚠️ 전송할 현재 프리셋이 없습니다')
+        }
+      } catch (error) {
+        console.error('❌ 연결 시 프리셋 전송 중 오류:', error)
+      }
+    })
+    
+    console.log('🔗 Core 연결 핸들러 설정 완료')
+  }
+  
   /**
    * PresetStateManager와 Core 간 자동 동기화
    * @param event 프리셋 변경 이벤트
@@ -321,7 +363,8 @@ export class ServiceContainer implements IServiceContainer {
     console.log('🔄 프리셋 데이터 변환:', {
       id: preset.id,
       name: preset.name,
-      featureStates: preset.featureStates
+      featureStates: preset.featureStates,
+      populationSettings: preset.populationSettings
     })
     
     return {
@@ -334,7 +377,15 @@ export class ServiceContainer implements IServiceContainer {
         },
         population: {
           enabled: preset.featureStates?.[1] || false,
-          settingsMask: 0 // 추후 구현
+          settingsMask: 0, // 인구수는 비트마스크 대신 settings 객체 사용
+          settings: (() => {
+            const converted = this.convertPopulationSettingsForCore(preset.populationSettings)
+            console.log('🔍 전송할 인구수 설정:', {
+              original: preset.populationSettings,
+              converted: converted
+            })
+            return converted
+          })()
         },
         unit: {
           enabled: preset.featureStates?.[2] || false,
@@ -352,6 +403,42 @@ export class ServiceContainer implements IServiceContainer {
     }
   }
   
+  /**
+   * 인구수 설정을 Core 형식으로 변환 (enum 문자열을 int로 변환하고 name 필드 제거)
+   * @param populationSettings UI 인구수 설정
+   * @returns Core 형식 인구수 설정
+   */
+  private convertPopulationSettingsForCore(populationSettings: any): any {
+    if (!populationSettings) {
+      return null
+    }
+
+    const converted = {
+      mode: populationSettings.mode, // "fixed" 또는 "building" - 문자열 그대로
+      fixedSettings: populationSettings.fixedSettings,
+      buildingSettings: populationSettings.buildingSettings ? {
+        race: populationSettings.buildingSettings.race,
+        trackedBuildings: populationSettings.buildingSettings.trackedBuildings?.map((building: any) => ({
+          buildingType: building.buildingType,
+          multiplier: building.multiplier,
+          enabled: building.enabled
+          // name 필드는 제거됨
+        })) || []
+      } : undefined
+    }
+
+    console.log('🔄 인구수 설정 변환:', {
+      원본_race: populationSettings.buildingSettings?.race,
+      변환된_race: converted.buildingSettings?.race,
+      원본_buildings: populationSettings.buildingSettings?.trackedBuildings?.length || 0,
+      변환된_buildings: converted.buildingSettings?.trackedBuildings?.length || 0
+    })
+
+    return converted
+  }
+
+
+
   /**
    * 일꾼 설정을 비트마스크로 변환
    * @param workerSettings 일꾼 설정 객체

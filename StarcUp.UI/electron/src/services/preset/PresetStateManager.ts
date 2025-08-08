@@ -229,6 +229,10 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
         case 'worker':
           updateData = { workerSettings: { ...currentPreset.workerSettings, ...settings } }
           break
+        case 'population':
+          updateData = { populationSettings: { ...currentPreset.populationSettings, ...settings } }
+          console.log('🏘️ 인구수 설정 업데이트:', updateData)
+          break
         case 'race':
           updateData = { selectedRace: settings.selectedRace }
           break
@@ -471,6 +475,7 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
       featureStates: storedPreset.featureStates,
       selectedRace: storedPreset.selectedRace,
       workerSettings: storedPreset.workerSettings,
+      populationSettings: storedPreset.populationSettings,
       createdAt: storedPreset.createdAt,
       updatedAt: storedPreset.updatedAt
     }

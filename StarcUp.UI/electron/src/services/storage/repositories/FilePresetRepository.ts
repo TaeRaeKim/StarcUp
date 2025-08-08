@@ -4,8 +4,10 @@ import {
   PresetCollection, 
   CreatePresetRequest, 
   UpdatePresetRequest,
-  WorkerSettings
+  WorkerSettings,
+  PopulationSettings
 } from './IPresetRepository'
+import { RaceType } from '../../../../../src/types/enums'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { app } from 'electron'
@@ -40,6 +42,21 @@ export class FilePresetRepository implements IPresetRepository {
       workerProductionDetection: true,    // 일꾼 생산 감지 기본 활성화
       workerDeathDetection: true,         // 일꾼 사망 감지 기본 활성화
       gasWorkerCheck: true                // 가스 일꾼 체크 기본 활성화
+    }
+  }
+
+  // 기본 인구수 설정
+  private getDefaultPopulationSettings(): PopulationSettings {
+    return {
+      mode: 'fixed',                     // 고정값 모드가 기본
+      fixedSettings: {
+        thresholdValue: 4,               // 인구 부족 경고 기준값 4
+        timeLimit: {
+          enabled: true,                 // 시간 제한 기본 활성화
+          minutes: 3,                    // 3분
+          seconds: 0                     // 0초
+        }
+      }
     }
   }
   
@@ -96,6 +113,7 @@ export class FilePresetRepository implements IPresetRepository {
       id: this.generateId(),
       ...request,
       workerSettings: request.workerSettings || this.getDefaultWorkerSettings(),
+      populationSettings: request.populationSettings || this.getDefaultPopulationSettings(),
       createdAt: new Date(),
       updatedAt: new Date()
     }
@@ -209,8 +227,9 @@ export class FilePresetRepository implements IPresetRepository {
           name: 'Default Preset',
           description: '기본 프리셋 - 일꾼 기능만 활성화됨',
           featureStates: [true, false, false, false, false], // 일꾼만 활성화
-          selectedRace: 'protoss',
+          selectedRace: RaceType.Protoss,
           workerSettings: this.getDefaultWorkerSettings(),
+          populationSettings: this.getDefaultPopulationSettings(),
           createdAt: new Date(),
           updatedAt: new Date()
         },
@@ -219,8 +238,9 @@ export class FilePresetRepository implements IPresetRepository {
           name: '커공발-운영',
           description: '커세어 + 공중 발업 운영 빌드',
           featureStates: [true, false, false, false, false],
-          selectedRace: 'terran',
+          selectedRace: RaceType.Terran,
           workerSettings: this.getDefaultWorkerSettings(),
+          populationSettings: this.getDefaultPopulationSettings(),
           createdAt: new Date(),
           updatedAt: new Date()
         },
@@ -229,8 +249,9 @@ export class FilePresetRepository implements IPresetRepository {
           name: '패닼아비터',
           description: '패스트 다크템플러 + 아비터 전략',
           featureStates: [true, false, false, false, false],
-          selectedRace: 'protoss',
+          selectedRace: RaceType.Protoss,
           workerSettings: this.getDefaultWorkerSettings(),
+          populationSettings: this.getDefaultPopulationSettings(),
           createdAt: new Date(),
           updatedAt: new Date()
         }

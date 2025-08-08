@@ -10,6 +10,7 @@ export class NamedPipeService implements INamedPipeService {
   private clientSocket: net.Socket | null = null
   private isConnected: boolean = false
   private isReconnecting: boolean = false
+  private connectionEstablishedCallback: (() => void) | null = null
   private pendingCommands: Map<string, { resolve: (value: ICoreResponse) => void; reject: (reason?: any) => void; timeout: NodeJS.Timeout }> = new Map()
   private eventHandlers: Map<string, (data: any) => void> = new Map()
   
@@ -125,6 +126,16 @@ export class NamedPipeService implements INamedPipeService {
     this.clientSocket = socket
     this.isConnected = true
     this.isReconnecting = false
+
+    // 연결 성공 콜백 호출
+    if (this.connectionEstablishedCallback) {
+      console.log('📞 연결 성공 콜백 호출')
+      try {
+        this.connectionEstablishedCallback()
+      } catch (error) {
+        console.error('❌ 연결 성공 콜백 실행 실패:', error)
+      }
+    }
     
     // 데이터 수신 핸들러
     socket.on('data', (data) => {
@@ -289,5 +300,15 @@ export class NamedPipeService implements INamedPipeService {
   // 이벤트 핸들러 제거
   offEvent(eventType: string): void {
     this.eventHandlers.delete(eventType)
+  }
+
+  // 연결 성공 콜백 설정
+  setConnectionEstablishedCallback(callback: () => void): void {
+    this.connectionEstablishedCallback = callback
+  }
+
+  // 연결 성공 콜백 제거
+  clearConnectionEstablishedCallback(): void {
+    this.connectionEstablishedCallback = null
   }
 }

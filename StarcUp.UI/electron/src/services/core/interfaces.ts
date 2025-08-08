@@ -11,6 +11,10 @@ export interface INamedPipeService {
   startConnection(isDevelopment?: boolean): Promise<void>
   stopConnection(): Promise<void>
   
+  // 연결 성공 콜백 관리
+  setConnectionEstablishedCallback(callback: () => void): void
+  clearConnectionEstablishedCallback(): void
+  
   // 이벤트 핸들러 관리
   onEvent(eventType: string, handler: (data: any) => void): void
   offEvent(eventType: string): void
@@ -45,6 +49,10 @@ export interface ICoreCommunicationService {
   // 연결 관리
   startConnection(isDevelopment?: boolean): Promise<void>
   stopConnection(): Promise<void>
+  
+  // 연결 성공 콜백
+  onConnectionEstablished(callback: () => void): void
+  offConnectionEstablished(): void
   
   // 게임 상태 변경 콜백
   onGameStatusChanged(callback: (status: string) => void): void
