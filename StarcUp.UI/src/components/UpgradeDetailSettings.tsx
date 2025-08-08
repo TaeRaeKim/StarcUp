@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Zap, Plus, X, Clock, BarChart, Target, Info, Search, Shield, Home, Building2, Bell } from 'lucide-react';
+import { RaceType, RACE_NAMES } from '../types/enums';
 
 interface UpgradeDetailSettingsProps {
   isOpen: boolean;
   onClose: () => void;
-  initialRace?: 'protoss' | 'terran' | 'zerg';
+  initialRace?: RaceType;
 }
 
 interface UpgradeCategory {
@@ -17,37 +18,37 @@ interface Upgrade {
   id: string;
   name: string;
   icon: string;
-  race: 'protoss' | 'terran' | 'zerg';
+  race: RaceType;
   category: 'combat' | 'economic' | 'defensive' | 'special';
 }
 
-// 종족 정보
+// 종족 정보 (enum 기반)
 const RACES = {
-  protoss: {
-    name: '프로토스',
+  [RaceType.Protoss]: {
+    name: RACE_NAMES[RaceType.Protoss],
     color: '#FFD700',
     icon: Shield,
     description: '첨단 기술과 사이오닉 능력'
   },
-  terran: {
-    name: '테란',
+  [RaceType.Terran]: {
+    name: RACE_NAMES[RaceType.Terran],
     color: '#0099FF', 
     icon: Home,
     description: '다재다능한 인간 문명'
   },
-  zerg: {
-    name: '저그',
+  [RaceType.Zerg]: {
+    name: RACE_NAMES[RaceType.Zerg],
     color: '#9932CC',
     icon: Building2,
     description: '진화와 적응의 외계 종족'
   }
 } as const;
 
-type RaceKey = keyof typeof RACES;
+type RaceKey = RaceType;
 
 export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeDetailSettingsProps) {
   // 종족 상태 관리
-  const [selectedRace, setSelectedRace] = useState<RaceKey>(initialRace || 'protoss');
+  const [selectedRace, setSelectedRace] = useState<RaceKey>(initialRace || RaceType.Protoss);
   
   // 진행률 표기 관련 설정들
   const [showRemainingTime, setShowRemainingTime] = useState(true);
@@ -58,31 +59,31 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
   // 카테고리 및 업그레이드 관리 상태 - 선택된 종족에 맞는 기본 업그레이드로 초기화
   const getDefaultCategory = (race: RaceKey): UpgradeCategory => {
     switch (race) {
-      case 'protoss':
+      case RaceType.Protoss:
         return {
           id: 'combat_upgrades',
           name: '전투 업그레이드',
           upgrades: [
-            { id: 'ground_weapons', name: '지상 무기', icon: '⚔️', race: 'protoss', category: 'combat' },
-            { id: 'ground_armor', name: '지상 방어', icon: '🛡️', race: 'protoss', category: 'combat' }
+            { id: 'ground_weapons', name: '지상 무기', icon: '⚔️', race: RaceType.Protoss, category: 'combat' },
+            { id: 'ground_armor', name: '지상 방어', icon: '🛡️', race: RaceType.Protoss, category: 'combat' }
           ]
         };
-      case 'terran':
+      case RaceType.Terran:
         return {
           id: 'combat_upgrades',
           name: '전투 업그레이드',
           upgrades: [
-            { id: 'infantry_weapons', name: '보병 무기', icon: '🔫', race: 'terran', category: 'combat' },
-            { id: 'infantry_armor', name: '보병 방어', icon: '🛡️', race: 'terran', category: 'combat' }
+            { id: 'infantry_weapons', name: '보병 무기', icon: '🔫', race: RaceType.Terran, category: 'combat' },
+            { id: 'infantry_armor', name: '보병 방어', icon: '🛡️', race: RaceType.Terran, category: 'combat' }
           ]
         };
-      case 'zerg':
+      case RaceType.Zerg:
         return {
           id: 'combat_upgrades',
           name: '전투 업그레이드',
           upgrades: [
-            { id: 'melee_attacks', name: '근접 공격', icon: '🦷', race: 'zerg', category: 'combat' },
-            { id: 'missile_attacks', name: '미사일 공격', icon: '🏹', race: 'zerg', category: 'combat' }
+            { id: 'melee_attacks', name: '근접 공격', icon: '🦷', race: RaceType.Zerg, category: 'combat' },
+            { id: 'missile_attacks', name: '미사일 공격', icon: '🏹', race: RaceType.Zerg, category: 'combat' }
           ]
         };
     }
@@ -101,48 +102,48 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
   // 사용 가능한 모든 업그레이드들
   const availableUpgrades: Upgrade[] = [
     // Protoss
-    { id: 'ground_weapons_1', name: '지상 무기 1단계', icon: '⚔️', race: 'protoss', category: 'combat' },
-    { id: 'ground_weapons_2', name: '지상 무기 2단계', icon: '⚔️', race: 'protoss', category: 'combat' },
-    { id: 'ground_weapons_3', name: '지상 무기 3단계', icon: '⚔️', race: 'protoss', category: 'combat' },
-    { id: 'ground_armor_1', name: '지상 방어 1단계', icon: '🛡️', race: 'protoss', category: 'combat' },
-    { id: 'ground_armor_2', name: '지상 방어 2단계', icon: '🛡️', race: 'protoss', category: 'combat' },
-    { id: 'ground_armor_3', name: '지상 방어 3단계', icon: '🛡️', race: 'protoss', category: 'combat' },
-    { id: 'air_weapons_1', name: '공중 무기 1단계', icon: '✈️', race: 'protoss', category: 'combat' },
-    { id: 'air_weapons_2', name: '공중 무기 2단계', icon: '✈️', race: 'protoss', category: 'combat' },
-    { id: 'air_weapons_3', name: '공중 무기 3단계', icon: '✈️', race: 'protoss', category: 'combat' },
-    { id: 'shields_1', name: '실드 1단계', icon: '⚡', race: 'protoss', category: 'defensive' },
-    { id: 'shields_2', name: '실드 2단계', icon: '⚡', race: 'protoss', category: 'defensive' },
-    { id: 'shields_3', name: '실드 3단계', icon: '⚡', race: 'protoss', category: 'defensive' },
-    { id: 'leg_enhancement', name: '질럿 다리 강화', icon: '🦵', race: 'protoss', category: 'special' },
-    { id: 'range_upgrade', name: '드라군 사정거리', icon: '🎯', race: 'protoss', category: 'special' },
+    { id: 'ground_weapons_1', name: '지상 무기 1단계', icon: '⚔️', race: RaceType.Protoss, category: 'combat' },
+    { id: 'ground_weapons_2', name: '지상 무기 2단계', icon: '⚔️', race: RaceType.Protoss, category: 'combat' },
+    { id: 'ground_weapons_3', name: '지상 무기 3단계', icon: '⚔️', race: RaceType.Protoss, category: 'combat' },
+    { id: 'ground_armor_1', name: '지상 방어 1단계', icon: '🛡️', race: RaceType.Protoss, category: 'combat' },
+    { id: 'ground_armor_2', name: '지상 방어 2단계', icon: '🛡️', race: RaceType.Protoss, category: 'combat' },
+    { id: 'ground_armor_3', name: '지상 방어 3단계', icon: '🛡️', race: RaceType.Protoss, category: 'combat' },
+    { id: 'air_weapons_1', name: '공중 무기 1단계', icon: '✈️', race: RaceType.Protoss, category: 'combat' },
+    { id: 'air_weapons_2', name: '공중 무기 2단계', icon: '✈️', race: RaceType.Protoss, category: 'combat' },
+    { id: 'air_weapons_3', name: '공중 무기 3단계', icon: '✈️', race: RaceType.Protoss, category: 'combat' },
+    { id: 'shields_1', name: '실드 1단계', icon: '⚡', race: RaceType.Protoss, category: 'defensive' },
+    { id: 'shields_2', name: '실드 2단계', icon: '⚡', race: RaceType.Protoss, category: 'defensive' },
+    { id: 'shields_3', name: '실드 3단계', icon: '⚡', race: RaceType.Protoss, category: 'defensive' },
+    { id: 'leg_enhancement', name: '질럿 다리 강화', icon: '🦵', race: RaceType.Protoss, category: 'special' },
+    { id: 'range_upgrade', name: '드라군 사정거리', icon: '🎯', race: RaceType.Protoss, category: 'special' },
     
     // Terran
-    { id: 'infantry_weapons_1', name: '보병 무기 1단계', icon: '🔫', race: 'terran', category: 'combat' },
-    { id: 'infantry_weapons_2', name: '보병 무기 2단계', icon: '🔫', race: 'terran', category: 'combat' },
-    { id: 'infantry_weapons_3', name: '보병 무기 3단계', icon: '🔫', race: 'terran', category: 'combat' },
-    { id: 'infantry_armor_1', name: '보병 방어 1단계', icon: '🛡️', race: 'terran', category: 'combat' },
-    { id: 'infantry_armor_2', name: '보병 방어 2단계', icon: '🛡️', race: 'terran', category: 'combat' },
-    { id: 'infantry_armor_3', name: '보병 방어 3단계', icon: '🛡️', race: 'terran', category: 'combat' },
-    { id: 'vehicle_weapons_1', name: '차량 무기 1단계', icon: '🚗', race: 'terran', category: 'combat' },
-    { id: 'vehicle_weapons_2', name: '차량 무기 2단계', icon: '🚗', race: 'terran', category: 'combat' },
-    { id: 'vehicle_weapons_3', name: '차량 무기 3단계', icon: '🚗', race: 'terran', category: 'combat' },
-    { id: 'ship_weapons_1', name: '함선 무기 1단계', icon: '🚢', race: 'terran', category: 'combat' },
-    { id: 'stim_packs', name: '스팀팩', icon: '💉', race: 'terran', category: 'special' },
-    { id: 'siege_mode', name: '시즈 모드', icon: '🎯', race: 'terran', category: 'special' },
+    { id: 'infantry_weapons_1', name: '보병 무기 1단계', icon: '🔫', race: RaceType.Terran, category: 'combat' },
+    { id: 'infantry_weapons_2', name: '보병 무기 2단계', icon: '🔫', race: RaceType.Terran, category: 'combat' },
+    { id: 'infantry_weapons_3', name: '보병 무기 3단계', icon: '🔫', race: RaceType.Terran, category: 'combat' },
+    { id: 'infantry_armor_1', name: '보병 방어 1단계', icon: '🛡️', race: RaceType.Terran, category: 'combat' },
+    { id: 'infantry_armor_2', name: '보병 방어 2단계', icon: '🛡️', race: RaceType.Terran, category: 'combat' },
+    { id: 'infantry_armor_3', name: '보병 방어 3단계', icon: '🛡️', race: RaceType.Terran, category: 'combat' },
+    { id: 'vehicle_weapons_1', name: '차량 무기 1단계', icon: '🚗', race: RaceType.Terran, category: 'combat' },
+    { id: 'vehicle_weapons_2', name: '차량 무기 2단계', icon: '🚗', race: RaceType.Terran, category: 'combat' },
+    { id: 'vehicle_weapons_3', name: '차량 무기 3단계', icon: '🚗', race: RaceType.Terran, category: 'combat' },
+    { id: 'ship_weapons_1', name: '함선 무기 1단계', icon: '🚢', race: RaceType.Terran, category: 'combat' },
+    { id: 'stim_packs', name: '스팀팩', icon: '💉', race: RaceType.Terran, category: 'special' },
+    { id: 'siege_mode', name: '시즈 모드', icon: '🎯', race: RaceType.Terran, category: 'special' },
     
     // Zerg
-    { id: 'melee_attacks_1', name: '근접 공격 1단계', icon: '🦷', race: 'zerg', category: 'combat' },
-    { id: 'melee_attacks_2', name: '근접 공격 2단계', icon: '🦷', race: 'zerg', category: 'combat' },
-    { id: 'melee_attacks_3', name: '근접 공격 3단계', icon: '🦷', race: 'zerg', category: 'combat' },
-    { id: 'missile_attacks_1', name: '미사일 공격 1단계', icon: '🏹', race: 'zerg', category: 'combat' },
-    { id: 'missile_attacks_2', name: '미사일 공격 2단계', icon: '🏹', race: 'zerg', category: 'combat' },
-    { id: 'missile_attacks_3', name: '미사일 공격 3단계', icon: '🏹', race: 'zerg', category: 'combat' },
-    { id: 'carapace_1', name: '갑피 1단계', icon: '🛡️', race: 'zerg', category: 'defensive' },
-    { id: 'carapace_2', name: '갑피 2단계', icon: '🛡️', race: 'zerg', category: 'defensive' },
-    { id: 'carapace_3', name: '갑피 3단계', icon: '🛡️', race: 'zerg', category: 'defensive' },
-    { id: 'metabolic_boost', name: '대사 촉진', icon: '⚡', race: 'zerg', category: 'special' },
-    { id: 'adrenal_glands', name: '부신', icon: '💪', race: 'zerg', category: 'special' },
-    { id: 'burrow', name: '굴파기', icon: '🕳️', race: 'zerg', category: 'special' }
+    { id: 'melee_attacks_1', name: '근접 공격 1단계', icon: '🦷', race: RaceType.Zerg, category: 'combat' },
+    { id: 'melee_attacks_2', name: '근접 공격 2단계', icon: '🦷', race: RaceType.Zerg, category: 'combat' },
+    { id: 'melee_attacks_3', name: '근접 공격 3단계', icon: '🦷', race: RaceType.Zerg, category: 'combat' },
+    { id: 'missile_attacks_1', name: '미사일 공격 1단계', icon: '🏹', race: RaceType.Zerg, category: 'combat' },
+    { id: 'missile_attacks_2', name: '미사일 공격 2단계', icon: '🏹', race: RaceType.Zerg, category: 'combat' },
+    { id: 'missile_attacks_3', name: '미사일 공격 3단계', icon: '🏹', race: RaceType.Zerg, category: 'combat' },
+    { id: 'carapace_1', name: '갑피 1단계', icon: '🛡️', race: RaceType.Zerg, category: 'defensive' },
+    { id: 'carapace_2', name: '갑피 2단계', icon: '🛡️', race: RaceType.Zerg, category: 'defensive' },
+    { id: 'carapace_3', name: '갑피 3단계', icon: '🛡️', race: RaceType.Zerg, category: 'defensive' },
+    { id: 'metabolic_boost', name: '대사 촉진', icon: '⚡', race: RaceType.Zerg, category: 'special' },
+    { id: 'adrenal_glands', name: '부신', icon: '💪', race: RaceType.Zerg, category: 'special' },
+    { id: 'burrow', name: '굴파기', icon: '🕳️', race: RaceType.Zerg, category: 'special' }
   ];
 
   const progressDisplaySettings = [

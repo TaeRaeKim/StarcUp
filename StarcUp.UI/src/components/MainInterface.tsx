@@ -3,6 +3,7 @@ import { ScrollingText } from "./ScrollingText";
 import { FeatureStatusGrid } from "./FeatureStatusGrid";
 import { Switch } from "./ui/switch";
 import { SlidersHorizontal, Power, WifiOff, Clock, Zap, ChevronLeft, ChevronRight } from "lucide-react";
+import { RaceType } from "../types/enums";
 
 const starcraftTips = [
   "일꾼은 게임의 핵심! 항상 일꾼 생산을 우선하세요.",
@@ -54,7 +55,7 @@ interface MainInterfaceProps {
     name: string;
     description: string;
     featureStates: boolean[];
-    selectedRace?: 'protoss' | 'terran' | 'zerg';
+    selectedRace?: RaceType;
   }>;
   currentPresetIndex: number;
   onPresetIndexChange: (index: number) => void;
