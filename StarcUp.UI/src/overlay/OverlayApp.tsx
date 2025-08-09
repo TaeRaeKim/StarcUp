@@ -6,6 +6,15 @@ import { OverlaySettingsPanel, type OverlaySettings } from './components/Overlay
 import { type EffectType } from './hooks/useEffectSystem'
 import './styles/OverlayApp.css'
 
+/**
+ * OverlayApp - 스타크래프트 게임 위에 표시되는 오버레이 컴포넌트들의 메인 컨테이너
+ * 
+ * 새로운 오버레이 컴포넌트 추가 시 주의사항:
+ * 1. gameStatus가 'playing'이 아닐 때 즉시 사라져야 하는 컴포넌트는 resetAllOverlayStates() 함수에 추가
+ * 2. WorkerStatus처럼 gameStatus 조건으로 표시 여부가 결정되는 컴포넌트는 별도 처리 불필요
+ * 3. PopulationWarning처럼 타이머로 관리되는 컴포넌트는 반드시 resetAllOverlayStates()에서 상태 초기화 필요
+ */
+
 export function OverlayApp() {
   const [centerPosition, setCenterPosition] = useState<CenterPositionData | null>(null)
   const [isVisible, setIsVisible] = useState(true)
@@ -22,6 +31,23 @@ export function OverlayApp() {
   
   // PopulationManager 이벤트 상태
   const [showSupplyAlert, setShowSupplyAlert] = useState(false)
+  
+  // 오버레이 컴포넌트들의 활성 상태를 관리하는 통합 함수
+  const resetAllOverlayStates = useCallback(() => {
+    console.log('🔄 [Overlay] 모든 오버레이 상태 초기화')
+    
+    // PopulationWarning 즉시 숨기기
+    setShowSupplyAlert(false)
+    
+    // 향후 추가될 다른 오버레이 컴포넌트들의 상태도 여기서 초기화
+    // 예시:
+    // setBuildOrderAlert(false)
+    // setUnitCountAlert(false) 
+    // setUpgradeAlert(false)
+    // setResourceAlert(false)
+    
+    // WorkerStatus는 gameStatus 조건에 의해 자동으로 숨겨지므로 별도 처리 불필요
+  }, [])
   const [isEditMode, setIsEditMode] = useState(false)
   const [workerPosition, setWorkerPosition] = useState({ x: 50, y: 50 })
   const [populationWarningPosition, setPopulationWarningPosition] = useState({ x: 100, y: 60 })
@@ -276,6 +302,12 @@ export function OverlayApp() {
         const unsubscribeGameStatus = coreAPI && coreAPI.onGameStatusChanged && coreAPI.onGameStatusChanged((data: { status: string }) => {
           console.log('🎮 [Overlay] 게임 상태 변경:', data.status, '| 현재 workerStatus:', workerStatus ? 'EXISTS' : 'NULL')
           setGameStatus(data.status)
+          
+          // InGame 상태에서 벗어나면 모든 오버레이 컴포넌트 즉시 숨기기
+          // 이렇게 하면 PopulationWarning처럼 타이머로 관리되는 컴포넌트들도 즉시 사라집니다
+          if (data.status !== 'playing') {
+            resetAllOverlayStates()
+          }
         })
         
         return () => {
@@ -288,7 +320,7 @@ export function OverlayApp() {
     } else {
       console.warn('⚠️ Electron API를 찾을 수 없습니다')
     }
-  }, [])
+  }, [resetAllOverlayStates, workerStatus])
 
 
   // 편집모드가 해제될 때 설정창 자동 닫기
