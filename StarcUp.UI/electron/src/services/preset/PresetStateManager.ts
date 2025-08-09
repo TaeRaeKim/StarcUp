@@ -5,7 +5,7 @@ import {
   IPresetState, 
   IPresetChangeEvent,
   IPresetSettingsUpdate,
-  DebounceOptions,
+  IBatchPresetUpdate,
   IPerformanceMetrics,
   IPresetStateManagerState
 } from './interfaces'
@@ -18,20 +18,13 @@ import { IPresetRepository, StoredPreset } from '../storage/repositories/IPreset
  * - 중앙화된 프리셋 상태 관리
  * - 이벤트 기반 상태 변경 알림
  * - FilePresetRepository와 연동
- * - 성능 최적화 (캐싱, 디바운싱)
+ * - 배치 업데이트 지원
  * - 에러 복구 로직
  */
 export class PresetStateManager extends EventEmitter implements IPresetStateManager {
   private state: IPresetStateManagerState
   private repository: IPresetRepository
-  private debounceTimers: Map<string, NodeJS.Timeout> = new Map()
   private performanceMetrics: IPerformanceMetrics[] = []
-  private readonly CACHE_SYNC_INTERVAL = 30000 // 30초
-  private syncTimer: NodeJS.Timeout | null = null
-  
-  // 디바운스 기본 설정
-  private readonly DEFAULT_DEBOUNCE_DELAY = 300
-  private readonly MAX_DEBOUNCE_WAIT = 1000
   
   constructor(repository: IPresetRepository) {
     super()
@@ -42,7 +35,8 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
       selectedIndex: 0,
       isInitialized: false,
       isLoading: false,
-      lastSyncTime: 0
+      lastSyncTime: 0,
+      tempSettings: new Map()
     }
     
     this.setupEventHandlers()
@@ -71,9 +65,6 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
       
       // 현재 선택된 프리셋 설정
       await this.loadCurrentPreset()
-      
-      // 주기적 동기화 시작
-      this.startPeriodicSync()
       
       this.state.isInitialized = true
       this.state.isLoading = false
@@ -249,8 +240,14 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
           break
       }
       
-      // Repository 업데이트 (디바운싱 적용)
-      await this.debouncedRepositoryUpdate(currentPreset.id, updateData)
+      // Repository 즉시 업데이트
+      await this.repository.update({
+        id: currentPreset.id,
+        ...updateData
+      })
+      
+      // 로컬 캐시 동기화
+      await this.syncWithRepository()
       
       const metrics: IPerformanceMetrics = {
         operationName: 'updatePresetSettings',
@@ -266,6 +263,11 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
         updateTime: metrics.executionTime + 'ms'
       })
       
+      // 이벤트 발행
+      this.emitStateChange('settings-updated', currentPreset.id, {
+        settings: updateData
+      })
+      
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
       
@@ -279,6 +281,66 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
       this.recordMetrics(metrics)
       
       console.error('❌ 프리셋 설정 업데이트 실패:', error)
+      throw error
+    }
+  }
+  
+  async updatePresetBatch(updates: IBatchPresetUpdate): Promise<void> {
+    const startTime = Date.now()
+    
+    try {
+      console.log('🔄 프리셋 배치 업데이트:', updates)
+      
+      if (!this.state.currentPresetId) {
+        throw new Error('현재 선택된 프리셋이 없습니다')
+      }
+      
+      const currentPreset = this.getCurrentPreset()
+      if (!currentPreset) {
+        throw new Error('현재 프리셋 데이터를 찾을 수 없습니다')
+      }
+      
+      // 모든 변경사항을 한 번에 Repository에 적용
+      await this.repository.update({
+        id: currentPreset.id,
+        ...updates
+      })
+      
+      // 로컬 캐시 동기화
+      await this.syncWithRepository()
+      
+      const metrics: IPerformanceMetrics = {
+        operationName: 'updatePresetBatch',
+        executionTime: Date.now() - startTime,
+        timestamp: new Date(),
+        success: true
+      }
+      this.recordMetrics(metrics)
+      
+      console.log('✅ 프리셋 배치 업데이트 완료:', {
+        presetId: currentPreset.id,
+        updates,
+        updateTime: metrics.executionTime + 'ms'
+      })
+      
+      // 이벤트 발행
+      this.emitStateChange('settings-updated', currentPreset.id, {
+        settings: updates
+      })
+      
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      
+      const metrics: IPerformanceMetrics = {
+        operationName: 'updatePresetBatch',
+        executionTime: Date.now() - startTime,
+        timestamp: new Date(),
+        success: false,
+        error: errorMsg
+      }
+      this.recordMetrics(metrics)
+      
+      console.error('❌ 프리셋 배치 업데이트 실패:', error)
       throw error
     }
   }
@@ -306,9 +368,18 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
       const newFeatureStates = [...currentPreset.featureStates]
       newFeatureStates[featureIndex] = enabled
       
-      // Repository 업데이트 (디바운싱 적용)
-      await this.debouncedRepositoryUpdate(currentPreset.id, {
+      // Repository 즉시 업데이트
+      await this.repository.update({
+        id: currentPreset.id,
         featureStates: newFeatureStates
+      })
+      
+      // 로컬 캐시 동기화
+      await this.syncWithRepository()
+      
+      // 이벤트 발행
+      this.emitStateChange('feature-toggled', currentPreset.id, {
+        toggledFeature: { index: featureIndex, enabled }
       })
       
       const metrics: IPerformanceMetrics = {
@@ -343,6 +414,135 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
     }
   }
   
+  // ==================== 임시 저장 관리 메서드 ====================
+  
+  updateTempSettings(presetType: string, settings: any): void {
+    console.log('💾 임시 설정 업데이트:', { presetType, settings })
+    
+    // 현재 저장된 임시 설정 가져오기
+    const currentTempSettings = this.state.tempSettings.get(presetType) || {}
+    
+    // 병합하여 저장
+    this.state.tempSettings.set(presetType, {
+      ...currentTempSettings,
+      ...settings
+    })
+    
+    // 임시 설정 변경 이벤트 발행
+    this.emitStateChange('temp-settings-updated', this.state.currentPresetId, {
+      presetType,
+      tempSettings: this.state.tempSettings.get(presetType)
+    })
+  }
+  
+  getTempSettings(presetType: string): any | null {
+    return this.state.tempSettings.get(presetType) || null
+  }
+  
+  clearTempSettings(presetType?: string): void {
+    console.log('🗑️ 임시 설정 초기화:', presetType || '전체')
+    
+    if (presetType) {
+      this.state.tempSettings.delete(presetType)
+    } else {
+      this.state.tempSettings.clear()
+    }
+    
+    // 임시 설정 초기화 이벤트 발행
+    this.emitStateChange('temp-settings-cleared', this.state.currentPresetId, {
+      presetType: presetType || 'all'
+    })
+  }
+  
+  hasTempChanges(presetType?: string): boolean {
+    if (presetType) {
+      return this.state.tempSettings.has(presetType)
+    }
+    return this.state.tempSettings.size > 0
+  }
+  
+  async applyTempSettings(): Promise<void> {
+    const startTime = Date.now()
+    
+    try {
+      console.log('📝 임시 설정 적용 시작')
+      
+      if (this.state.tempSettings.size === 0) {
+        console.log('ℹ️ 적용할 임시 설정이 없습니다')
+        return
+      }
+      
+      if (!this.state.currentPresetId) {
+        throw new Error('현재 선택된 프리셋이 없습니다')
+      }
+      
+      const currentPreset = this.getCurrentPreset()
+      if (!currentPreset) {
+        throw new Error('현재 프리셋 데이터를 찾을 수 없습니다')
+      }
+      
+      // 모든 임시 설정을 배치 업데이트로 변환
+      const batchUpdate: IBatchPresetUpdate = {}
+      
+      for (const [presetType, settings] of this.state.tempSettings) {
+        switch (presetType) {
+          case 'worker':
+            batchUpdate.workerSettings = { ...currentPreset.workerSettings, ...settings }
+            break
+          case 'population':
+            batchUpdate.populationSettings = { ...currentPreset.populationSettings, ...settings }
+            break
+          case 'race':
+            batchUpdate.selectedRace = settings.selectedRace
+            break
+          case 'basic':
+            if (settings.name !== undefined) batchUpdate.name = settings.name
+            if (settings.description !== undefined) batchUpdate.description = settings.description
+            break
+        }
+      }
+      
+      // 배치 업데이트 실행
+      await this.updatePresetBatch(batchUpdate)
+      
+      // 임시 설정 초기화
+      this.state.tempSettings.clear()
+      
+      const metrics: IPerformanceMetrics = {
+        operationName: 'applyTempSettings',
+        executionTime: Date.now() - startTime,
+        timestamp: new Date(),
+        success: true
+      }
+      this.recordMetrics(metrics)
+      
+      console.log('✅ 임시 설정 적용 완료:', {
+        presetId: currentPreset.id,
+        applyTime: metrics.executionTime + 'ms'
+      })
+      
+      // 임시 설정 적용 완료 이벤트 발행
+      this.emitStateChange('temp-settings-applied', this.state.currentPresetId, {
+        appliedSettings: batchUpdate
+      })
+      
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      
+      const metrics: IPerformanceMetrics = {
+        operationName: 'applyTempSettings',
+        executionTime: Date.now() - startTime,
+        timestamp: new Date(),
+        success: false,
+        error: errorMsg
+      }
+      this.recordMetrics(metrics)
+      
+      console.error('❌ 임시 설정 적용 실패:', error)
+      throw error
+    }
+  }
+  
   onStateChanged(callback: (event: IPresetChangeEvent) => void): () => void {
     console.log('👂 상태 변경 리스너 등록')
     
@@ -361,12 +561,6 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
     try {
       console.log('🔄 PresetStateManager 정리 시작')
       
-      // 주기적 동기화 중지
-      this.stopPeriodicSync()
-      
-      // 디바운스 타이머 정리
-      this.clearAllDebounceTimers()
-      
       // 이벤트 리스너 정리
       this.removeAllListeners()
       
@@ -377,7 +571,8 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
         selectedIndex: 0,
         isInitialized: false,
         isLoading: false,
-        lastSyncTime: 0
+        lastSyncTime: 0,
+        tempSettings: new Map()
       }
       
       const metrics: IPerformanceMetrics = {
@@ -426,8 +621,7 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
         lastSyncTime: new Date(this.state.lastSyncTime).toISOString()
       },
       performance: {
-        recentMetrics: this.performanceMetrics.slice(-10),
-        debounceTimers: this.debounceTimers.size
+        recentMetrics: this.performanceMetrics.slice(-10)
       }
     }
   }
@@ -481,40 +675,6 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
     }
   }
   
-  private async debouncedRepositoryUpdate(presetId: string, updateData: any): Promise<void> {
-    const debounceKey = `update-${presetId}`
-    
-    // 기존 타이머 제거
-    if (this.debounceTimers.has(debounceKey)) {
-      clearTimeout(this.debounceTimers.get(debounceKey)!)
-      this.debounceTimers.delete(debounceKey)
-    }
-    
-    // 새로운 타이머 설정
-    const timer = setTimeout(async () => {
-      try {
-        await this.repository.update({
-          id: presetId,
-          ...updateData
-        })
-        
-        // 로컬 캐시 업데이트
-        await this.syncWithRepository()
-        
-        // 이벤트 발행
-        this.emitStateChange('settings-updated', presetId, {
-          settings: updateData
-        })
-        
-      } catch (error) {
-        console.error('❌ 디바운스된 Repository 업데이트 실패:', error)
-      } finally {
-        this.debounceTimers.delete(debounceKey)
-      }
-    }, this.DEFAULT_DEBOUNCE_DELAY)
-    
-    this.debounceTimers.set(debounceKey, timer)
-  }
   
   private async syncWithRepository(): Promise<void> {
     try {
@@ -545,38 +705,6 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
     })
   }
   
-  private startPeriodicSync(): void {
-    if (this.syncTimer) {
-      clearInterval(this.syncTimer)
-    }
-    
-    this.syncTimer = setInterval(async () => {
-      try {
-        console.log('🔄 주기적 Repository 동기화 실행')
-        await this.syncWithRepository()
-      } catch (error) {
-        console.error('❌ 주기적 동기화 실패:', error)
-      }
-    }, this.CACHE_SYNC_INTERVAL)
-    
-    console.log('⏰ 주기적 동기화 시작:', this.CACHE_SYNC_INTERVAL + 'ms 간격')
-  }
-  
-  private stopPeriodicSync(): void {
-    if (this.syncTimer) {
-      clearInterval(this.syncTimer)
-      this.syncTimer = null
-      console.log('⏹️ 주기적 동기화 중지')
-    }
-  }
-  
-  private clearAllDebounceTimers(): void {
-    for (const [key, timer] of this.debounceTimers) {
-      clearTimeout(timer)
-    }
-    this.debounceTimers.clear()
-    console.log('🔄 모든 디바운스 타이머 정리 완료')
-  }
   
   private recordMetrics(metrics: IPerformanceMetrics): void {
     this.performanceMetrics.push(metrics)

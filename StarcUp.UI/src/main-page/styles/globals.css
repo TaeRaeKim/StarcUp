@@ -21,6 +21,13 @@
   box-shadow: 0 0 4px rgba(0, 255, 0, 0.3);
 }
 
+/* 로딩 화면 애니메이션 */
+@keyframes loadingBar {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(0%); }
+  100% { transform: translateX(100%); }
+}
+
 /* Input number 스피너 제거 */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {

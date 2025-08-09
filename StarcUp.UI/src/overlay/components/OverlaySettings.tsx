@@ -1,5 +1,5 @@
 import React from 'react'
-import { Eye, EyeOff, Palette, Construction, X } from 'lucide-react'
+import { Eye, EyeOff, Palette, Construction, X, Users } from 'lucide-react'
 
 interface OverlaySettings {
   showWorkerStatus: boolean
@@ -194,11 +194,36 @@ function Slider({ value, onValueChange, min = 0, max = 100, step = 1 }: {
 export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChange }: OverlaySettingsPanelProps) {
   if (!isOpen) return null
 
-  const handleSettingChange = (key: keyof OverlaySettings, value: boolean | number | string) => {
+  const handleSettingChange = async (key: keyof OverlaySettings, value: boolean | number | string) => {
     onSettingsChange({
       ...settings,
       [key]: value
     })
+
+    // 기능 On/Off 설정이 변경될 때 presetAPI를 통해 Main 페이지와 동기화
+    if (key.startsWith('show') && typeof value === 'boolean') {
+      try {
+        const featureIndex = getFeatureIndexFromKey(key)
+        if (featureIndex !== -1 && window.presetAPI?.toggleFeature) {
+          console.log(`🔄 [Overlay] ${key} 변경 → Main 프리셋과 동기화:`, featureIndex, value)
+          await window.presetAPI.toggleFeature(featureIndex, value)
+        }
+      } catch (error) {
+        console.error('❌ [Overlay] 프리셋 동기화 실패:', error)
+      }
+    }
+  }
+
+  // 설정 키를 기능 인덱스로 변환하는 함수
+  const getFeatureIndexFromKey = (key: keyof OverlaySettings): number => {
+    switch (key) {
+      case 'showWorkerStatus': return 0        // 일꾼 기능
+      case 'showPopulationWarning': return 1   // 인구수 기능
+      case 'showUnitCount': return 2           // 유닛 기능
+      case 'showUpgradeProgress': return 3     // 업그레이드 기능
+      case 'showBuildOrder': return 4          // 빌드오더 기능
+      default: return -1
+    }
   }
 
   return (
@@ -310,7 +335,23 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
                 </div>
                 <Switch
                   checked={settings.showWorkerStatus}
-                  onCheckedChange={(checked) => handleSettingChange('showWorkerStatus', checked)}
+                  onCheckedChange={async (checked) => await handleSettingChange('showWorkerStatus', checked)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px', color: '#ffffff' }}>
+                    인구 경고
+                  </span>
+                  {settings.showPopulationWarning ? 
+                    <Users className="w-4 h-4" style={{ color: '#00ff88' }} /> : 
+                    <Users className="w-4 h-4" style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
+                  }
+                </div>
+                <Switch
+                  checked={settings.showPopulationWarning}
+                  onCheckedChange={async (checked) => await handleSettingChange('showPopulationWarning', checked)}
                 />
               </div>
 
@@ -323,7 +364,7 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
                 </div>
                 <Switch
                   checked={settings.showBuildOrder}
-                  onCheckedChange={(checked) => handleSettingChange('showBuildOrder', checked)}
+                  onCheckedChange={async (checked) => await handleSettingChange('showBuildOrder', checked)}
                   disabled={true}
                 />
               </div>
@@ -337,7 +378,7 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
                 </div>
                 <Switch
                   checked={settings.showUnitCount}
-                  onCheckedChange={(checked) => handleSettingChange('showUnitCount', checked)}
+                  onCheckedChange={async (checked) => await handleSettingChange('showUnitCount', checked)}
                   disabled={true}
                 />
               </div>
@@ -351,21 +392,7 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
                 </div>
                 <Switch
                   checked={settings.showUpgradeProgress}
-                  onCheckedChange={(checked) => handleSettingChange('showUpgradeProgress', checked)}
-                  disabled={true}
-                />
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.5)' }}>
-                    인구 경고
-                  </span>
-                  <Construction className="w-4 h-4" style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
-                </div>
-                <Switch
-                  checked={settings.showPopulationWarning}
-                  onCheckedChange={(checked) => handleSettingChange('showPopulationWarning', checked)}
+                  onCheckedChange={async (checked) => await handleSettingChange('showUpgradeProgress', checked)}
                   disabled={true}
                 />
               </div>
@@ -595,7 +622,7 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
             }}>
               <strong style={{ color: '#ffffff' }}>편집 모드:</strong> Shift + Tab 키를 눌러 오버레이 위치를 드래그로 조정할 수 있습니다.
               <br /><br />
-              <strong style={{ color: '#ffffff' }}>🚧 개발 중:</strong> 빌드 오더, 유닛 수, 업그레이드 진행도, 인구 경고 기능은 현재 개발 중입니다.
+              <strong style={{ color: '#ffffff' }}>🚧 개발 중:</strong> 빌드 오더, 유닛 수, 업그레이드 진행도 기능은 현재 개발 중입니다.
               <br /><br />
               <strong style={{ color: '#ffffff' }}>아이콘 효과:</strong>
               <br />• <strong>White:</strong> 선명한 흰색 효과 (그레이스케일 + 밝기 증가)

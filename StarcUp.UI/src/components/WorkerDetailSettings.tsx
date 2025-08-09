@@ -28,39 +28,50 @@ interface WorkerDetailSettingsProps {
     workerSettings: WorkerSettingsData;
   };
   onSaveWorkerSettings: (presetId: string, workerSettings: WorkerSettings) => void;
+  tempWorkerSettings?: WorkerSettings | null;
+  onTempSave?: (settings: WorkerSettings) => void;
 }
 
 export function WorkerDetailSettings({
   isOpen,
   onClose,
   currentPreset,
-  onSaveWorkerSettings
+  onSaveWorkerSettings,
+  tempWorkerSettings,
+  onTempSave
 }: WorkerDetailSettingsProps) {
+  // 임시 저장된 값이 있으면 사용, 없으면 프리셋값 사용
+  const initialSettings = tempWorkerSettings || currentPreset.workerSettings;
+  
   // 일꾼 관련 설정 상태들 (프리셋값으로 초기화 - 완전한 데이터 보장)
   const [workerCountDisplay, setWorkerCountDisplay] = useState(() =>
-    currentPreset.workerSettings.workerCountDisplay
+    initialSettings.workerCountDisplay
   );
   const [idleWorkerDisplay, setIdleWorkerDisplay] = useState(() =>
-    currentPreset.workerSettings.idleWorkerDisplay
+    initialSettings.idleWorkerDisplay
   );
   const [workerProductionDetection, setWorkerProductionDetection] = useState(() =>
-    currentPreset.workerSettings.workerProductionDetection
+    initialSettings.workerProductionDetection
   );
   const [workerDeathDetection, setWorkerDeathDetection] = useState(() =>
-    currentPreset.workerSettings.workerDeathDetection
+    initialSettings.workerDeathDetection
   );
   const [gasWorkerCheck, setGasWorkerCheck] = useState(() =>
-    currentPreset.workerSettings.gasWorkerCheck
+    initialSettings.gasWorkerCheck
   );
   const [includeProducingWorkers, setIncludeProducingWorkers] = useState(() =>
-    currentPreset.workerSettings.includeProducingWorkers
+    initialSettings.includeProducingWorkers
   );
+
+  // 변경사항 감지 상태
+  const [hasChanges, setHasChanges] = useState(false);
 
   // 프리셋 변경 시 일꾼 설정 업데이트 (완전한 데이터 보장)
   useEffect(() => {
     console.log('🔧 WorkerDetailSettings 프리셋 변경:', currentPreset);
 
-    const settings = currentPreset.workerSettings;
+    // 임시 저장된 값이 있으면 사용, 없으면 프리셋값 사용
+    const settings = tempWorkerSettings || currentPreset.workerSettings;
     console.log('🔧 일꾼 설정 업데이트:', settings);
     setWorkerCountDisplay(settings.workerCountDisplay);
     setIncludeProducingWorkers(settings.includeProducingWorkers);
@@ -68,7 +79,39 @@ export function WorkerDetailSettings({
     setWorkerProductionDetection(settings.workerProductionDetection);
     setWorkerDeathDetection(settings.workerDeathDetection);
     setGasWorkerCheck(settings.gasWorkerCheck);
-  }, [currentPreset]);
+  }, [currentPreset, tempWorkerSettings]);
+
+  // 변경사항 감지 - 원본 프리셋 설정과 현재 설정 비교
+  useEffect(() => {
+    const originalSettings = currentPreset.workerSettings;
+    const currentSettings = {
+      workerCountDisplay,
+      includeProducingWorkers,
+      idleWorkerDisplay,
+      workerProductionDetection,
+      workerDeathDetection,
+      gasWorkerCheck
+    };
+
+    const hasAnyChanges = (
+      originalSettings.workerCountDisplay !== currentSettings.workerCountDisplay ||
+      originalSettings.includeProducingWorkers !== currentSettings.includeProducingWorkers ||
+      originalSettings.idleWorkerDisplay !== currentSettings.idleWorkerDisplay ||
+      originalSettings.workerProductionDetection !== currentSettings.workerProductionDetection ||
+      originalSettings.workerDeathDetection !== currentSettings.workerDeathDetection ||
+      originalSettings.gasWorkerCheck !== currentSettings.gasWorkerCheck
+    );
+
+    setHasChanges(hasAnyChanges);
+  }, [
+    workerCountDisplay,
+    includeProducingWorkers,
+    idleWorkerDisplay,
+    workerProductionDetection,
+    workerDeathDetection,
+    gasWorkerCheck,
+    currentPreset.workerSettings
+  ]);
 
   const settingItems = [
     {
@@ -121,7 +164,7 @@ export function WorkerDetailSettings({
     }
   ];
 
-  const handleSave = async () => {
+  const handleConfirm = async () => {
     // 일꾼 설정 정보 구성
     const settingsToSave: WorkerSettings = {
       workerCountDisplay,
@@ -132,10 +175,15 @@ export function WorkerDetailSettings({
       gasWorkerCheck
     };
 
-    console.log('💾 일꾼 설정 저장:', settingsToSave);
+    console.log('💾 일꾼 설정 임시 저장:', settingsToSave);
 
-    // 프리셋에 일꾼 설정 저장 (완전한 데이터 보장)
-    onSaveWorkerSettings(currentPreset.id, settingsToSave);
+    // 임시 저장 함수가 있으면 임시 저장만 수행
+    if (onTempSave) {
+      onTempSave(settingsToSave);
+    } else {
+      // 임시 저장 함수가 없으면 기존처럼 직접 저장
+      onSaveWorkerSettings(currentPreset.id, settingsToSave);
+    }
 
     // 비트마스크 계산 (Core 전송용)
     const workerMask = calculateWorkerSettingsMask(settingsToSave);
@@ -380,15 +428,20 @@ export function WorkerDetailSettings({
           </button>
 
           <button
-            onClick={handleSave}
-            className="flex items-center gap-2 px-6 py-2 rounded-sm border transition-all duration-300 hover:bg-green-500/20"
+            onClick={handleConfirm}
+            disabled={!hasChanges}
+            className={`flex items-center gap-2 px-6 py-2 rounded-sm border transition-all duration-300 ${
+              hasChanges 
+                ? 'hover:bg-green-500/20' 
+                : 'opacity-50 cursor-not-allowed'
+            }`}
             style={{
-              color: 'var(--starcraft-green)',
-              borderColor: 'var(--starcraft-green)',
-              backgroundColor: 'var(--starcraft-bg-active)'
+              color: hasChanges ? 'var(--starcraft-green)' : 'var(--starcraft-inactive-text)',
+              borderColor: hasChanges ? 'var(--starcraft-green)' : 'var(--starcraft-inactive-border)',
+              backgroundColor: hasChanges ? 'var(--starcraft-bg-active)' : 'transparent'
             }}
           >
-            설정 완료
+            확인
           </button>
         </div>
       </div>

@@ -73,6 +73,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.off('worker-preset-changed', listener)
   },
 
+  // PopulationManager supply-alert 이벤트 리스너
+  onSupplyAlert: (callback: () => void) => {
+    const listener = (_event: any, data: any) => callback()
+    ipcRenderer.on('supply-alert', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('supply-alert', listener)
+  },
+
   // 오버레이 편집 모드 토글 이벤트 리스너
   onToggleEditMode: (callback: (data: { isEditMode: boolean }) => void) => {
     const listener = (_event: any, data: { isEditMode: boolean }) => callback(data)
@@ -153,6 +162,9 @@ contextBridge.exposeInMainWorld('presetAPI', {
   
   updateSettings: (presetType: string, settings: any) => 
     ipcRenderer.invoke('preset:update-settings', { presetType, settings }),
+    
+  updateBatch: (updates: any) => 
+    ipcRenderer.invoke('preset:update-batch', { updates }),
   
   toggleFeature: (featureIndex: number, enabled: boolean) => 
     ipcRenderer.invoke('preset:toggle-feature', { featureIndex, enabled }),
@@ -167,8 +179,8 @@ contextBridge.exposeInMainWorld('presetAPI', {
   },
   
   // Overlay 전용 기능 상태 변경 이벤트 리스너 (성능 최적화)
-  onFeaturesChanged: (callback: (data: { featureStates: boolean[], timestamp: Date }) => void) => {
-    const listener = (_event: any, data: { featureStates: boolean[], timestamp: Date }) => callback(data)
+  onFeaturesChanged: (callback: (data: { featureStates: boolean[], selectedRace: number, timestamp: Date }) => void) => {
+    const listener = (_event: any, data: { featureStates: boolean[], selectedRace: number, timestamp: Date }) => callback(data)
     ipcRenderer.on('preset:features-changed', listener)
     
     // 리스너 정리 함수 반환

@@ -3,6 +3,7 @@ import { IShortcutManager, IWindowManager, WindowManager, ShortcutManager, WINDO
 import { IIPCService, IPCService, ChannelHandlers } from './ipc'
 import { IForegroundWindowService, ForegroundWindowService } from './foreground'
 import { IOverlayAutoManager, OverlayAutoManager } from './overlay'
+import { ICoreProcessService, CoreProcessService } from './process'
 import { DataStorageService } from './storage'
 import { AuthService } from './auth'
 import { IPresetStateManager, PresetStateManager, IPresetChangeEvent } from './preset'
@@ -98,6 +99,10 @@ export class ServiceContainer implements IServiceContainer {
 
     this.registerSingleton('overlayAutoManager', () => {
       return new OverlayAutoManager(this.resolve('windowManager'))
+    })
+    
+    this.registerSingleton('coreProcessService', () => {
+      return new CoreProcessService()
     })
     
     // 프리셋 관련 서비스 등록
@@ -206,10 +211,10 @@ export class ServiceContainer implements IServiceContainer {
       windowManager.sendToOverlayWindow('worker-preset-changed', data)
     })
 
-    // coreService.onSupplyAlert(() => {
-    //   // Overlay 윈도우에 이벤트 전송
-    //   windowManager.sendToOverlayWindow('supply-alert', {})
-    // })
+    coreService.onSupplyAlert(() => {
+      // Overlay 윈도우에 이벤트 전송
+      windowManager.sendToOverlayWindow('supply-alert', {})
+    })
     
     console.log('🔗 게임 이벤트 핸들러 설정 완료')
   }
@@ -472,6 +477,12 @@ export class ServiceContainer implements IServiceContainer {
       const coreService = this.resolve<ICoreCommunicationService>('coreCommunicationService')
       if (coreService && typeof coreService.stopConnection === 'function') {
         await coreService.stopConnection()
+      }
+      
+      // Core 프로세스 종료
+      const coreProcessService = this.resolve<ICoreProcessService>('coreProcessService')
+      if (coreProcessService && typeof coreProcessService.stopCoreProcess === 'function') {
+        await coreProcessService.stopCoreProcess()
       }
       
       

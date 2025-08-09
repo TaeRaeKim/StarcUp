@@ -354,6 +354,27 @@ export class ChannelHandlers {
       }
     })
 
+    this.ipcService.registerHandler('preset:update-batch', async (data) => {
+      try {
+        if (!data?.updates) {
+          throw new Error('updates가 필요합니다')
+        }
+        
+        await this.presetStateManager.updatePresetBatch(data.updates)
+        
+        return {
+          success: true,
+          data: this.presetStateManager.getCurrentPreset()
+        }
+      } catch (error) {
+        console.error('❌ preset:update-batch 실패:', error)
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      }
+    })
+
     this.ipcService.registerHandler('preset:toggle-feature', async (data) => {
       try {
         if (typeof data?.featureIndex !== 'number' || typeof data?.enabled !== 'boolean') {
@@ -375,16 +396,17 @@ export class ChannelHandlers {
       }
     })
 
-    // Overlay 전용 성능 최적화 핸들러
+    // Overlay 전용 성능 최적화 핸들러 (기능 상태 + 종족 정보)
     this.ipcService.registerHandler('preset:get-features-only', async () => {
       try {
         const currentPreset = this.presetStateManager.getCurrentPreset()
         
-        // Overlay가 필요로 하는 기본 기능 On/Off 상태만 반환 (성능 최적화)
+        // Overlay가 필요로 하는 기본 기능 On/Off 상태와 종족 정보 반환 (성능 최적화)
         return {
           success: true,
           data: {
-            featureStates: currentPreset?.featureStates || [false, false, false, false, false]
+            featureStates: currentPreset?.featureStates || [false, false, false, false, false],
+            selectedRace: currentPreset?.selectedRace ?? RaceType.Zerg // undefined인 경우에만 기본값 사용, 0도 유효한 값
           }
         }
       } catch (error) {
@@ -417,16 +439,18 @@ export class ChannelHandlers {
         timestamp: event.timestamp
       })
       
-      // Overlay 전용: 성능 최적화를 위해 기능 상태만 전송
+      // Overlay 전용: 성능 최적화를 위해 기능 상태와 종족 정보 전송
       if (event.type === 'preset-switched' || event.type === 'feature-toggled') {
         this.windowManager.sendToOverlayWindow('preset:features-changed', {
           featureStates: event.preset?.featureStates || [false, false, false, false, false],
+          selectedRace: event.preset?.selectedRace ?? RaceType.Zerg, // undefined인 경우에만 기본값 사용, 0도 유효한 값
           timestamp: event.timestamp
         })
         
         console.log('📡 Overlay에 기능 상태 변경 알림:', {
           type: event.type,
-          featureStates: event.preset?.featureStates || [false, false, false, false, false]
+          featureStates: event.preset?.featureStates || [false, false, false, false, false],
+          selectedRace: event.preset?.selectedRace ?? RaceType.Zerg
         })
       }
       
@@ -436,7 +460,7 @@ export class ChannelHandlers {
           type: event.type,
           presetId: event.presetId,
           featureStates: event.preset?.featureStates || [],
-          selectedRace: event.preset?.selectedRace || RaceType.Protoss,
+          selectedRace: event.preset?.selectedRace ?? RaceType.Zerg, // undefined인 경우에만 기본값 사용, 0도 유효한 값
           timestamp: event.timestamp
         })
       }

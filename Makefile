@@ -1,24 +1,26 @@
-# StarcUp í”„ë¡œì íŠ¸ Makefile
-# ì‚¬ìš©ë²•: make [target]
+# StarcUp ÇÁ·ÎÁ§Æ® Makefile
+# »ç¿ë¹ı: make [target]
 
-.PHONY: help build build-core build-ui build-test run-ui test clean restore dev-setup
+.PHONY: help build build-core build-ui build-test run-ui test clean restore dev-setup release-core release korean-test
 
-# ê¸°ë³¸ íƒ€ê²Ÿ
+# ±âº» Å¸°Ù
 help:
-	@echo "StarcUp í”„ë¡œì íŠ¸ ëª…ë ¹ì–´:"
-	@echo "  build          - ì „ì²´ ì†”ë£¨ì…˜ ë¹Œë“œ"
-	@echo "  build-core     - StarcUp.Core í”„ë¡œì íŠ¸ë§Œ ë¹Œë“œ"
-	@echo "  build-ui       - StarcUp.UI (Electron) í”„ë¡œì íŠ¸ë§Œ ë¹Œë“œ"
-	@echo "  build-test     - StarcUp.Test í”„ë¡œì íŠ¸ë§Œ ë¹Œë“œ"
-	@echo "  run-ui         - UI (Electron) ì•± ì‹¤í–‰"
-	@echo "  test           - í…ŒìŠ¤íŠ¸ ì‹¤í–‰"
-	@echo "  clean          - ë¹Œë“œ ì¶œë ¥ ì •ë¦¬"
-	@echo "  restore        - NuGet íŒ¨í‚¤ì§€ ë³µì›"
-	@echo "  dev-setup      - ê°œë°œ í™˜ê²½ ì„¤ì •"
-	@echo ""
-	@echo "ì°¸ê³ : ì‹¤í–‰ì€ ì‚¬ìš©ìê°€ ì§ì ‘ ìˆ˜í–‰í•©ë‹ˆë‹¤."
+	@printf "StarcUp ÇÁ·ÎÁ§Æ® ¸í·É¾î:"
+	@printf "  build          - ÀüÃ¼ ¼Ö·ç¼Ç ºôµå"
+	@printf "  build-core     - StarcUp.Core ÇÁ·ÎÁ§Æ®¸¸ ºôµå"
+	@printf "  build-ui       - StarcUp.UI (Electron) ÇÁ·ÎÁ§Æ®¸¸ ºôµå"
+	@printf "  build-test     - StarcUp.Test ÇÁ·ÎÁ§Æ®¸¸ ºôµå"
+	@printf "  run-ui         - UI (Electron) ¾Û ½ÇÇà"
+	@printf "  test           - Å×½ºÆ® ½ÇÇà"
+	@printf "  clean          - ºôµå Ãâ·Â Á¤¸®"
+	@printf "  restore        - NuGet ÆĞÅ°Áö º¹¿ø"
+	@printf "  dev-setup      - °³¹ß È¯°æ ¼³Á¤"
+	@printf "  release-core   - StarcUp.Core ¸±¸®½º ºôµå (ÃÖÀûÈ­ Æ÷ÇÔ)"
+	@printf "  release        - ÀüÃ¼ ¸±¸®½º ºôµå (Core + UI)"
+	@printf ""
+	@printf "Âü°í: ½ÇÇàÀº »ç¿ëÀÚ°¡ Á÷Á¢ ¼öÇàÇÕ´Ï´Ù."
 
-# ë¹Œë“œ ëª…ë ¹ì–´ë“¤
+# ºôµå ¸í·É¾îµé
 build:
 	dotnet build StarcUp.sln
 	cd StarcUp.UI && npm install && npm run build
@@ -32,24 +34,35 @@ build-ui:
 build-test:
 	dotnet build StarcUp.Test/StarcUp.Test.csproj
 
-# ì‹¤í–‰ ëª…ë ¹ì–´ë“¤
+# ½ÇÇà ¸í·É¾îµé
 run-ui:
 	cd StarcUp.UI && npm start
 
-# í…ŒìŠ¤íŠ¸
+# Å×½ºÆ®
 test:
 	dotnet test StarcUp.Test/StarcUp.Test.csproj
 
-# ì •ë¦¬ ëª…ë ¹ì–´ë“¤
+# Á¤¸® ¸í·É¾îµé
 clean:
 	dotnet clean StarcUp.sln
 
 restore:
 	dotnet restore StarcUp.sln
 
-# ê°œë°œ í™˜ê²½ ì„¤ì •
+# °³¹ß È¯°æ ¼³Á¤
 dev-setup:
-	@echo "ê°œë°œ í™˜ê²½ ì„¤ì • ì¤‘..."
+	@printf "°³¹ß È¯°æ ¼³Á¤ Áß..."
 	dotnet restore StarcUp.sln
 	dotnet build StarcUp.sln
-	@echo "ê°œë°œ í™˜ê²½ ì„¤ì • ì™„ë£Œ!"
+	@printf "°³¹ß È¯°æ ¼³Á¤ ¿Ï·á!"
+
+# ¸±¸®½º ºôµå
+release-core:
+	@printf "StarcUp.Core ¸±¸®½º ºôµå Áß..."
+	dotnet build StarcUp.Core/StarcUp.Core.csproj -c Release --no-restore
+	@printf "¸±¸®½º ºôµå ¿Ï·á!"
+
+release: release-core
+	@printf "ÀüÃ¼ ¸±¸®½º ºôµå Áß..."
+	cd StarcUp.UI && npm run release
+	@printf "ÀüÃ¼ ¸±¸®½º ºôµå ¿Ï·á!"

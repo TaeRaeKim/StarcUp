@@ -15,7 +15,15 @@ export interface IPresetStateManager {
   // 프리셋 관리  
   switchPreset(presetId: string): Promise<void>
   updatePresetSettings(presetType: string, settings: any): Promise<void>
+  updatePresetBatch(updates: IBatchPresetUpdate): Promise<void>
   toggleFeature(featureIndex: number, enabled: boolean): Promise<void>
+  
+  // 임시 저장 관리
+  updateTempSettings(presetType: string, settings: any): void
+  getTempSettings(presetType: string): any | null
+  clearTempSettings(presetType?: string): void
+  hasTempChanges(presetType?: string): boolean
+  applyTempSettings(): Promise<void>
   
   // 이벤트 관리
   onStateChanged(callback: (event: IPresetChangeEvent) => void): () => void
@@ -66,7 +74,6 @@ export interface BuildingModeSettings {
 
 export interface TrackedBuilding {
   buildingType: string
-  name: string
   multiplier: number
   enabled: boolean
 }
@@ -86,7 +93,8 @@ export interface IPresetState {
  * 프리셋 변경 이벤트 타입 정의
  */
 export interface IPresetChangeEvent {
-  type: 'preset-switched' | 'settings-updated' | 'feature-toggled' | 'presets-loaded'
+  type: 'preset-switched' | 'settings-updated' | 'feature-toggled' | 'presets-loaded' | 
+        'temp-settings-updated' | 'temp-settings-cleared' | 'temp-settings-applied'
   presetId: string
   preset: IPreset | null
   changes: {
@@ -95,6 +103,9 @@ export interface IPresetChangeEvent {
     toggledFeature?: { index: number; enabled: boolean }
     previousPresetId?: string
     allPresets?: IPreset[]
+    presetType?: string
+    tempSettings?: any
+    appliedSettings?: IBatchPresetUpdate
   }
   timestamp: Date
 }
@@ -108,12 +119,17 @@ export interface IPresetSettingsUpdate {
 }
 
 /**
- * 디바운싱 옵션
+ * 배치 프리셋 업데이트 인터페이스
  */
-export interface DebounceOptions {
-  delay: number
-  maxWait?: number
+export interface IBatchPresetUpdate {
+  name?: string
+  description?: string
+  featureStates?: boolean[]
+  selectedRace?: RaceType
+  workerSettings?: WorkerSettings
+  populationSettings?: PopulationSettings
 }
+
 
 /**
  * 성능 메트릭 정보
@@ -136,4 +152,5 @@ export interface IPresetStateManagerState {
   isInitialized: boolean
   isLoading: boolean
   lastSyncTime: number
+  tempSettings: Map<string, any>
 }

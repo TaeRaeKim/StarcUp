@@ -32,6 +32,8 @@ interface PresetSettingsModalProps {
   onOpenUpgradeSettings?: () => void;
   onOpenBuildOrderSettings?: () => void;
   onOpenDevelopmentProgress?: (featureName: string, featureType: 'buildorder' | 'upgrade' | 'population' | 'unit') => void;
+  detailChanges?: Record<number, boolean>;
+  onReset?: () => void;
 }
 
 // 기능 이름 및 설명 매핑
@@ -95,7 +97,9 @@ export function PresetSettingsModal({
   onOpenUnitSettings,
   onOpenUpgradeSettings,
   onOpenBuildOrderSettings,
-  onOpenDevelopmentProgress
+  onOpenDevelopmentProgress,
+  detailChanges = {},
+  onReset
 }: PresetSettingsModalProps) {
   // 편집 데이터가 없으면 현재 프리셋으로 초기화
   const editData = editingPresetData || {
@@ -107,7 +111,7 @@ export function PresetSettingsModal({
   
   const [hasChanges, setHasChanges] = useState(false);
 
-  // 변경사항 감지
+  // 변경사항 감지 (상세 설정 변경사항도 포함)
   useEffect(() => {
     const nameChanged = editData.name !== currentPreset.name;
     const descChanged = editData.description !== currentPreset.description;
@@ -115,9 +119,10 @@ export function PresetSettingsModal({
       feature !== currentPreset.featureStates[index]
     );
     const raceChanged = editData.selectedRace !== (currentPreset.selectedRace ?? RaceType.Protoss);
+    const hasDetailChanges = Object.values(detailChanges).some(v => v === true);
     
-    setHasChanges(nameChanged || descChanged || featuresChanged || raceChanged);
-  }, [editData, currentPreset]);
+    setHasChanges(nameChanged || descChanged || featuresChanged || raceChanged || hasDetailChanges);
+  }, [editData, currentPreset, detailChanges]);
 
   const handleFeatureToggle = (index: number) => {
     // 유닛(2), 업그레이드(3), 빌드오더(4)는 비활성화 - 클릭 불가 (일꾼은 0번, 인구수는 1번으로 활성화)
@@ -167,7 +172,9 @@ export function PresetSettingsModal({
   };
 
   const handleReset = () => {
-    if (onEditingDataChange) {
+    if (onReset) {
+      onReset();
+    } else if (onEditingDataChange) {
       onEditingDataChange({
         name: currentPreset.name,
         description: currentPreset.description,
@@ -486,22 +493,32 @@ export function PresetSettingsModal({
                     </div>
                     
                     <div className="flex items-center gap-3">
-                      {/* 상세설정 버튼 */}
-                      <button
-                        onClick={() => handleFeatureSettings(index)}
-                        className="feature-settings-btn p-2 rounded-sm transition-all duration-300"
-                        style={{
-                          color: isDisabled 
-                            ? 'var(--starcraft-inactive-text)' 
-                            : editData.featureStates[index] 
-                              ? 'var(--starcraft-green)' 
-                              : 'var(--starcraft-inactive-text)',
-                          backgroundColor: 'transparent'
-                        }}
-                        title={`${feature.name} 상세 설정`}
-                      >
-                        <Cog className="cog-icon w-4 h-4 transition-transform duration-300" />
-                      </button>
+                      {/* 상세설정 버튼 및 변경사항 표시 */}
+                      <div className="relative flex items-center">
+                        {/* 변경사항 표시 - 해당 기능에 변경사항이 있을 때만 표시 */}
+                        {detailChanges[index] && (
+                          <div 
+                            className="w-2 h-2 rounded-full animate-pulse mr-1"
+                            style={{ backgroundColor: 'var(--starcraft-yellow)' }}
+                            title="변경사항 있음"
+                          />
+                        )}
+                        <button
+                          onClick={() => handleFeatureSettings(index)}
+                          className="feature-settings-btn p-2 rounded-sm transition-all duration-300"
+                          style={{
+                            color: isDisabled 
+                              ? 'var(--starcraft-inactive-text)' 
+                              : editData.featureStates[index] 
+                                ? 'var(--starcraft-green)' 
+                                : 'var(--starcraft-inactive-text)',
+                            backgroundColor: 'transparent'
+                          }}
+                          title={`${feature.name} 상세 설정`}
+                        >
+                          <Cog className="cog-icon w-4 h-4 transition-transform duration-300" />
+                        </button>
+                      </div>
 
                       {/* On/Off 토글 버튼 */}
                       <button

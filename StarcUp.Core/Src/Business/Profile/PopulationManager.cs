@@ -27,7 +27,7 @@ namespace StarcUp.Business.Profile
         // 이벤트 및 쿨타임 관리
         public event EventHandler<PopulationEventArgs> SupplyAlert;
         private DateTime _lastSupplyAlertTime = DateTime.MinValue;
-        private readonly TimeSpan _supplyAlertCooldown = TimeSpan.FromSeconds(2); // 2초 쿨타임
+        private readonly TimeSpan _supplyAlertCooldown = TimeSpan.FromSeconds(10); // 2초 쿨타임
 
         // 속성
         public PopulationSettings Settings { get; set; } = new PopulationSettings();

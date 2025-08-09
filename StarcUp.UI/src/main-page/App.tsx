@@ -90,6 +90,61 @@ export default function App() {
   // 개발 중 기능 상태
   const [developmentFeatureName, setDevelopmentFeatureName] = useState('');
   const [developmentFeatureType, setDevelopmentFeatureType] = useState<'buildorder' | 'upgrade' | 'population' | 'unit'>('buildorder');
+  
+  // 임시 저장 상태 (상세 설정에서 저장하기 전 임시 데이터)
+  const [tempWorkerSettings, setTempWorkerSettings] = useState<WorkerSettings | null>(null);
+  const [tempPopulationSettings, setTempPopulationSettings] = useState<any | null>(null);
+  
+  // 기능별 변경사항 상태 (0: 일꾼, 1: 인구수, 2: 유닛, 3: 업그레이드, 4: 빌드오더)
+  const [detailChanges, setDetailChanges] = useState<Record<number, boolean>>({});
+  
+  // 종족별 인구수 설정 백업 (종족 변경 시 복원용)
+  const [populationSettingsBackup, setPopulationSettingsBackup] = useState<Map<RaceType, any>>(new Map());
+  const [originalRace, setOriginalRace] = useState<RaceType | null>(null);
+  
+  // 인구수 설정 비교 유틸리티 함수
+  const isPopulationSettingsEqual = (settings1: any, settings2: any): boolean => {
+    if (!settings1 && !settings2) return true;
+    if (!settings1 || !settings2) return false;
+    
+    // 기본적인 비교
+    if (settings1.mode !== settings2.mode) return false;
+    
+    // 모드 A 비교
+    if (settings1.mode === 'fixed') {
+      const fixed1 = settings1.fixedSettings;
+      const fixed2 = settings2.fixedSettings;
+      if (!fixed1 && !fixed2) return true;
+      if (!fixed1 || !fixed2) return false;
+      
+      if (fixed1.thresholdValue !== fixed2.thresholdValue) return false;
+      
+      // 시간 제한 비교
+      const time1 = fixed1.timeLimit;
+      const time2 = fixed2.timeLimit;
+      if (!time1 && !time2) return true;
+      if (!time1 || !time2) return false;
+      
+      return time1.enabled === time2.enabled && 
+             time1.minutes === time2.minutes && 
+             time1.seconds === time2.seconds;
+    }
+    
+    // 모드 B 비교
+    if (settings1.mode === 'building') {
+      const building1 = settings1.buildingSettings;
+      const building2 = settings2.buildingSettings;
+      if (!building1 && !building2) return true;
+      if (!building1 || !building2) return false;
+      
+      if (building1.race !== building2.race) return false;
+      
+      // 건물 설정 비교 (간단하게 JSON 문자열로 비교)
+      return JSON.stringify(building1.trackedBuildings) === JSON.stringify(building2.trackedBuildings);
+    }
+    
+    return true;
+  };
 
   // 윈도우 크기 변경 함수
   const changeWindowSize = (view: CurrentView) => {
@@ -133,11 +188,14 @@ export default function App() {
     };
   }, []);
 
-  // presetAPI를 통한 프리셋 상태 초기화 (단순화)
+  // presetAPI를 통한 프리셋 상태 초기화 (2초 딜레이 시뮬레이션)
   useEffect(() => {
     const initializePresetData = async () => {
       try {
         console.log('🚀 presetAPI를 통한 프리셋 초기화 시작...');
+        
+        // 2초 딜레이 시뮬레이션 (DB 로딩 시뮬레이션)
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
         if (!window.presetAPI?.getState) {
           console.error('❌ presetAPI가 준비되지 않았습니다.');
@@ -325,49 +383,44 @@ export default function App() {
         return;
       }
 
-      console.log('📝 프리셋 저장 시작:', editingPresetData.name, '종족:', editingPresetData.selectedRace);
+      console.log('📝 프리셋 배치 저장 시작:', editingPresetData.name, '종족:', editingPresetData.selectedRace);
       
-      if (!window.presetAPI?.toggleFeature || !window.presetAPI?.updateSettings) {
-        console.error('❌ presetAPI를 사용할 수 없습니다.');
+      if (!window.presetAPI?.updateBatch) {
+        console.error('❌ presetAPI.updateBatch를 사용할 수 없습니다.');
         return;
       }
 
-      // 1. 프리셋 기본 정보 업데이트 (이름, 설명)
-      if (currentPreset.name !== editingPresetData.name || currentPreset.description !== editingPresetData.description) {
-        console.log('📝 프리셋 기본 정보 업데이트:', {
-          name: editingPresetData.name,
-          description: editingPresetData.description
-        });
-        
-        await window.presetAPI.updateSettings('basic', {
-          name: editingPresetData.name,
-          description: editingPresetData.description
-        });
+      // 임시 저장된 상세 설정들도 함께 저장
+      const batchUpdate: any = {
+        name: editingPresetData.name,
+        description: editingPresetData.description,
+        featureStates: editingPresetData.featureStates,
+        selectedRace: editingPresetData.selectedRace
+      };
+      
+      // 임시 저장된 일꾼 설정이 있으면 포함
+      if (tempWorkerSettings) {
+        batchUpdate.workerSettings = tempWorkerSettings;
+      }
+      
+      // 임시 저장된 인구수 설정이 있으면 포함
+      if (tempPopulationSettings) {
+        batchUpdate.populationSettings = tempPopulationSettings;
       }
 
-      // 2. 기능 상태 업데이트
-      const currentFeatureStates = currentPreset.featureStates || [];
+      // 모든 변경사항을 한 번에 배치 업데이트
+      await window.presetAPI.updateBatch(batchUpdate);
       
-      for (let i = 0; i < editingPresetData.featureStates.length; i++) {
-        if (currentFeatureStates[i] !== editingPresetData.featureStates[i]) {
-          console.log('🎛️ 기능 토글:', i, editingPresetData.featureStates[i]);
-          await window.presetAPI.toggleFeature(i, editingPresetData.featureStates[i]);
-        }
-      }
-
-      // 3. 종족 변경이 있는 경우 설정 업데이트
-      if (currentPreset.selectedRace !== editingPresetData.selectedRace) {
-        console.log('🏁 종족 업데이트:', editingPresetData.selectedRace);
-        await window.presetAPI.updateSettings('race', { 
-          selectedRace: editingPresetData.selectedRace 
-        });
-      }
+      console.log('✅ 프리셋 배치 저장 완료');
       
-      console.log('✅ 프리셋 저장 완료');
-      
-      // 저장 후 편집 상태 초기화
+      // 저장 후 편집 상태 및 임시 저장 데이터 초기화
       setCurrentEditingRace(null);
       setEditingPresetData(null);
+      setTempWorkerSettings(null);
+      setTempPopulationSettings(null);
+      setDetailChanges({});
+      setPopulationSettingsBackup(new Map());
+      setOriginalRace(null);
     } catch (error) {
       console.error('❌ 프리셋 저장 중 오류:', error);
     }
@@ -424,11 +477,35 @@ export default function App() {
     setCurrentView('preset-settings');
     changeWindowSize('preset-settings');
   };
+  
+  // 프리셋 설정 초기화 핸들러
+  const handleResetPreset = () => {
+    // 편집 중인 데이터를 현재 프리셋으로 초기화
+    setEditingPresetData({
+      name: currentPreset.name,
+      description: currentPreset.description,
+      featureStates: [...currentPreset.featureStates],
+      selectedRace: currentPreset.selectedRace ?? RaceType.Protoss
+    });
+    setCurrentEditingRace(currentPreset.selectedRace ?? RaceType.Protoss);
+    
+    // 임시 저장 데이터도 초기화 (원래 설정으로 복원)
+    setTempWorkerSettings(null);
+    setTempPopulationSettings(null); // 원래 프리셋 설정을 사용
+    setDetailChanges({});
+    setPopulationSettingsBackup(new Map());
+    setOriginalRace(null);
+  };
 
   const handleBackToMain = () => {
     // 메인으로 돌아갈 때 편집 중인 상태 모두 초기화
     setCurrentEditingRace(null);
     setEditingPresetData(null);
+    setTempWorkerSettings(null);
+    setTempPopulationSettings(null);
+    setDetailChanges({});
+    setPopulationSettingsBackup(new Map());
+    setOriginalRace(null);
     setCurrentView('main');
     changeWindowSize('main');
   };
@@ -442,13 +519,103 @@ export default function App() {
   // 종족 실시간 변경 핸들러
   const handleRaceChange = (race: RaceType) => {
     console.log('실시간 종족 변경:', race);
+    
+    const currentRace = currentEditingRace ?? (currentPreset.selectedRace ?? RaceType.Protoss);
+    
+    // 최초 종족 저장 및 최초 인구수 설정 백업 (복원용)
+    if (originalRace === null) {
+      const originalRaceValue = currentPreset.selectedRace ?? RaceType.Protoss;
+      setOriginalRace(originalRaceValue);
+      
+      // 최초 인구수 설정도 백업 (원래 프리셋 설정)
+      if (currentPreset.populationSettings) {
+        const backup = new Map(populationSettingsBackup);
+        backup.set(originalRaceValue, currentPreset.populationSettings);
+        setPopulationSettingsBackup(backup);
+        console.log(`💾 최초 종족 ${originalRaceValue} 인구수 설정 백업:`, currentPreset.populationSettings);
+      }
+    }
+    
+    // 현재 편집 중인 종족의 인구수 설정 백업 (임시 설정이 있는 경우만)
+    if (tempPopulationSettings && currentRace !== race) {
+      const backup = new Map(populationSettingsBackup);
+      backup.set(currentRace, tempPopulationSettings);
+      setPopulationSettingsBackup(backup);
+      console.log(`💾 종족 ${currentRace} 인구수 설정 백업:`, tempPopulationSettings);
+    }
+    
     setCurrentEditingRace(race);
+    
     // 편집 데이터도 업데이트
     if (editingPresetData) {
       setEditingPresetData({
         ...editingPresetData,
         selectedRace: race
       });
+    }
+    
+    // 종족 변경에 따른 인구수 설정 처리
+    const currentPopulationSettings = tempPopulationSettings || currentPreset.populationSettings;
+    
+    // 1. 백업된 설정이 있는지 확인 (이미 방문한 종족 또는 원래 종족)
+    const backup = populationSettingsBackup.get(race);
+    if (backup) {
+      console.log(`✅ 종족 ${race} 인구수 설정 복원:`, backup);
+      setTempPopulationSettings(backup);
+      
+      // 변경사항 플래그 설정 로직
+      if (race === originalRace) {
+        // 원래 종족으로 돌아왔으면 변경사항 플래그 해제
+        setDetailChanges(prev => ({ ...prev, 1: false }));
+        console.log(`🎆 원래 종족 ${race}로 복귀 - 변경사항 플래그 해제`);
+      } else {
+        // 다른 종족(임시값 복원)으로 갈 때는 변경사항 플래그 유지
+        // 백업된 설정이 원래 프리셋 설정과 다른지 확인
+        const originalPopulationSettings = currentPreset.populationSettings;
+        const isBackupDifferentFromOriginal = !isPopulationSettingsEqual(backup, originalPopulationSettings);
+        if (isBackupDifferentFromOriginal) {
+          setDetailChanges(prev => ({ ...prev, 1: true }));
+          console.log(`🟡 종족 ${race} 임시값 복원 - 변경사항 플래그 유지`);
+        } else {
+          setDetailChanges(prev => ({ ...prev, 1: false }));
+          console.log(`✅ 종족 ${race} 백업값이 원래와 동일 - 변경사항 플래그 해제`);
+        }
+      }
+      return; // 복원되었으면 추가 처리 없이 종료
+    }
+    
+    // 2. 현재 인구수 설정이 모드 B(건물 기반)인 경우만 처리
+    if (currentPopulationSettings?.mode === 'building') {
+      console.log(`⚠️ 모드 B에서 종족 ${race}로 변경 - 모드 A로 초기화`);
+      const defaultSettings = {
+        mode: 'fixed' as const,
+        fixedSettings: {
+          thresholdValue: 4,
+          timeLimit: {
+            enabled: true,
+            minutes: 3,
+            seconds: 0
+          }
+        }
+      };
+      setTempPopulationSettings(defaultSettings);
+      setDetailChanges(prev => ({ ...prev, 1: true })); // 인구수 변경사항 표시
+    } else if (!currentPopulationSettings) {
+      // 3. 인구수 설정이 아예 없는 경우 기본값 설정
+      console.log(`🏘️ 인구수 설정 없음 - 기본 모드 A 설정`);
+      const defaultSettings = {
+        mode: 'fixed' as const,
+        fixedSettings: {
+          thresholdValue: 4,
+          timeLimit: {
+            enabled: true,
+            minutes: 3,
+            seconds: 0
+          }
+        }
+      };
+      setTempPopulationSettings(defaultSettings);
+      setDetailChanges(prev => ({ ...prev, 1: true }));
     }
   };
 
@@ -467,6 +634,19 @@ export default function App() {
     }
   };
 
+  // 임시 저장 핸들러
+  const handleTempSaveWorkerSettings = (settings: WorkerSettings) => {
+    console.log('💾 일꾼 설정 임시 저장:', settings);
+    setTempWorkerSettings(settings);
+    setDetailChanges(prev => ({ ...prev, 0: true })); // 일꾼은 인덱스 0
+  };
+  
+  const handleTempSavePopulationSettings = (settings: any) => {
+    console.log('💾 인구수 설정 임시 저장:', settings);
+    setTempPopulationSettings(settings);
+    setDetailChanges(prev => ({ ...prev, 1: true })); // 인구수는 인덱스 1
+  };
+  
   // 설정 페이지 전환 핸들러들
   const handleOpenPopulationSettings = () => {
     setCurrentView('population-settings');
@@ -507,13 +687,85 @@ export default function App() {
         // preset이 로드되지 않았으면 로딩 화면 표시
         if (!presetsLoaded || presets.length === 0) {
           return (
-            <div className="h-screen w-screen flex items-center justify-center" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
-              <div className="text-center">
-                <div className="text-xl mb-4" style={{ color: 'var(--starcraft-green)' }}>
-                  프리셋 로딩 중...
+            <div className="h-screen w-screen flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
+              {/* 배경 그라데이션 효과 */}
+              <div className="absolute inset-0 opacity-20">
+                <div 
+                  className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-black"
+                  style={{ 
+                    background: `radial-gradient(circle at center, transparent 0%, rgba(0, 255, 146, 0.1) 40%, transparent 80%)`
+                  }}
+                ></div>
+              </div>
+              
+              {/* 메인 로딩 컨테이너 */}
+              <div className="relative z-10 text-center max-w-md mx-auto px-8">
+                {/* 스타크래프트 스타일 로딩 스피너 */}
+                <div className="relative mb-8">
+                  <div className="w-16 h-16 mx-auto relative">
+                    {/* 외부 회전링 */}
+                    <div 
+                      className="absolute inset-0 border-2 border-transparent rounded-full animate-spin"
+                      style={{ 
+                        borderTopColor: 'var(--starcraft-green)',
+                        borderRightColor: 'var(--starcraft-green)',
+                        animationDuration: '2s'
+                      }}
+                    ></div>
+                    {/* 내부 회전링 */}
+                    <div 
+                      className="absolute inset-2 border-2 border-transparent rounded-full animate-spin"
+                      style={{ 
+                        borderLeftColor: 'var(--starcraft-green)',
+                        borderBottomColor: 'var(--starcraft-green)',
+                        animationDuration: '1.5s',
+                        animationDirection: 'reverse'
+                      }}
+                    ></div>
+                    {/* 중앙 펄스 도트 */}
+                    <div 
+                      className="absolute inset-6 rounded-full animate-pulse"
+                      style={{ backgroundColor: 'var(--starcraft-green)' }}
+                    ></div>
+                  </div>
                 </div>
-                <div className="animate-pulse text-sm" style={{ color: 'var(--starcraft-green)' }}>
-                  잠시만 기다려주세요
+                
+                {/* 로딩 텍스트 */}
+                <div className="space-y-3">
+                  <div 
+                    className="text-2xl font-bold tracking-wide"
+                    style={{ color: 'var(--starcraft-green)' }}
+                  >
+                    STARCUP 초기화 중
+                  </div>
+                  <div 
+                    className="text-sm font-mono opacity-80"
+                    style={{ color: 'var(--starcraft-green)' }}
+                  >
+                    프리셋 데이터 로딩...
+                  </div>
+                </div>
+                
+                {/* 하단 프로그레스 바 */}
+                <div className="mt-8">
+                  <div 
+                    className="w-full h-1 rounded-full overflow-hidden"
+                    style={{ backgroundColor: 'var(--starcraft-border)' }}
+                  >
+                    <div 
+                      className="h-full"
+                      style={{ 
+                        background: `linear-gradient(90deg, transparent 0%, var(--starcraft-green) 50%, transparent 100%)`,
+                        animation: 'loadingBar 2s ease-in-out infinite'
+                      }}
+                    ></div>
+                  </div>
+                  <div 
+                    className="text-xs font-mono mt-2 opacity-60"
+                    style={{ color: 'var(--starcraft-inactive-text)' }}
+                  >
+                    시스템 연결 대기 중...
+                  </div>
                 </div>
               </div>
             </div>
@@ -535,10 +787,85 @@ export default function App() {
       case 'preset-settings':
         if (!presetsLoaded || presets.length === 0 || !currentPreset) {
           return (
-            <div className="h-screen w-screen flex items-center justify-center" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
-              <div className="text-center">
-                <div className="text-xl mb-4" style={{ color: 'var(--starcraft-green)' }}>
-                  프리셋 로딩 중...
+            <div className="h-screen w-screen flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
+              {/* 배경 그라데이션 효과 */}
+              <div className="absolute inset-0 opacity-20">
+                <div 
+                  className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-black"
+                  style={{ 
+                    background: `radial-gradient(circle at center, transparent 0%, rgba(0, 255, 146, 0.1) 40%, transparent 80%)`
+                  }}
+                ></div>
+              </div>
+              
+              {/* 메인 로딩 컨테이너 */}
+              <div className="relative z-10 text-center max-w-md mx-auto px-8">
+                {/* 스타크래프트 스타일 로딩 스피너 */}
+                <div className="relative mb-8">
+                  <div className="w-16 h-16 mx-auto relative">
+                    {/* 외부 회전링 */}
+                    <div 
+                      className="absolute inset-0 border-2 border-transparent rounded-full animate-spin"
+                      style={{ 
+                        borderTopColor: 'var(--starcraft-green)',
+                        borderRightColor: 'var(--starcraft-green)',
+                        animationDuration: '2s'
+                      }}
+                    ></div>
+                    {/* 내부 회전링 */}
+                    <div 
+                      className="absolute inset-2 border-2 border-transparent rounded-full animate-spin"
+                      style={{ 
+                        borderLeftColor: 'var(--starcraft-green)',
+                        borderBottomColor: 'var(--starcraft-green)',
+                        animationDuration: '1.5s',
+                        animationDirection: 'reverse'
+                      }}
+                    ></div>
+                    {/* 중앙 펄스 도트 */}
+                    <div 
+                      className="absolute inset-6 rounded-full animate-pulse"
+                      style={{ backgroundColor: 'var(--starcraft-green)' }}
+                    ></div>
+                  </div>
+                </div>
+                
+                {/* 로딩 텍스트 */}
+                <div className="space-y-3">
+                  <div 
+                    className="text-2xl font-bold tracking-wide"
+                    style={{ color: 'var(--starcraft-green)' }}
+                  >
+                    프리셋 설정 로딩 중
+                  </div>
+                  <div 
+                    className="text-sm font-mono opacity-80"
+                    style={{ color: 'var(--starcraft-green)' }}
+                  >
+                    설정 데이터 준비...
+                  </div>
+                </div>
+                
+                {/* 하단 프로그레스 바 */}
+                <div className="mt-8">
+                  <div 
+                    className="w-full h-1 rounded-full overflow-hidden"
+                    style={{ backgroundColor: 'var(--starcraft-border)' }}
+                  >
+                    <div 
+                      className="h-full"
+                      style={{ 
+                        background: `linear-gradient(90deg, transparent 0%, var(--starcraft-green) 50%, transparent 100%)`,
+                        animation: 'loadingBar 2s ease-in-out infinite'
+                      }}
+                    ></div>
+                  </div>
+                  <div 
+                    className="text-xs font-mono mt-2 opacity-60"
+                    style={{ color: 'var(--starcraft-inactive-text)' }}
+                  >
+                    설정 인터페이스 준비 중...
+                  </div>
                 </div>
               </div>
             </div>
@@ -560,6 +887,8 @@ export default function App() {
             onOpenUpgradeSettings={handleOpenUpgradeSettings}
             onOpenBuildOrderSettings={handleOpenBuildOrderSettings}
             onOpenDevelopmentProgress={handleOpenDevelopmentProgress}
+            detailChanges={detailChanges}
+            onReset={handleResetPreset}
           />
         );
 
@@ -571,6 +900,8 @@ export default function App() {
             initialRace={editingPresetData?.selectedRace ?? currentPreset.selectedRace}
             currentPreset={currentPreset}
             onSavePopulationSettings={handleSavePopulationSettings}
+            tempPopulationSettings={tempPopulationSettings}
+            onTempSave={handleTempSavePopulationSettings}
           />
         );
 
@@ -582,6 +913,8 @@ export default function App() {
             onClose={handleBackToPresetSettings}
             currentPreset={currentPreset}
             onSaveWorkerSettings={handleSaveWorkerSettings}
+            tempWorkerSettings={tempWorkerSettings}
+            onTempSave={handleTempSaveWorkerSettings}
           />
         );
 

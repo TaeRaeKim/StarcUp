@@ -1,3 +1,26 @@
+/* CSS Variables - Prototype 정확한 스펙 */
+:root {
+  /* Prototype 기본 색상 변수 */
+  --error: #FF3B30;
+  --text-primary: #FFFFFF;
+  --text-secondary: #E0E0E0;
+  --warning: #FFB800;
+  --success: #00D084;
+  --brand-primary: #0099FF;
+  
+  /* 색상 매핑 변수 */
+  --color-error: var(--error);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-brand-primary: var(--brand-primary);
+  
+  /* 오버레이 관련 변수 */
+  --color-overlay-bg: rgba(0, 0, 0, 0.85);
+  --overlay-border: rgba(255, 255, 255, 0.2);
+}
+
 /* 오버레이 컨테이너 기본 스타일 */
 .overlay-container {
   position: relative;
@@ -12,17 +35,17 @@
   -webkit-backdrop-filter: blur(8px) saturate(1.2);
 }
 
-/* WorkerStatus 기본 스타일 */
+/* WorkerStatus 기본 스타일 - Prototype 정확한 스펙 */
 .worker-status {
   position: absolute;
-  background-color: rgba(0, 0, 0, 0.85);
+  background-color: var(--color-overlay-bg);
   border-radius: 6px;
   padding: 8px 12px;
   display: flex;
   align-items: center;
   gap: 10px;
-  width: auto;
-  min-width: 5.5em;
+  width: 99px;
+  min-height: 36px;
   z-index: 1000;
   cursor: default;
   transition: all 0.2s ease;
@@ -148,4 +171,70 @@
     filter: brightness(1);
     background: rgba(0, 0, 0, 0.85);
   }
+}
+
+/* 인구 경고 알람 애니메이션 */
+@keyframes supplyAlertPulse {
+  0% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 0 20px rgba(220, 38, 38, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.05);
+    box-shadow: 0 0 30px rgba(220, 38, 38, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 0 20px rgba(220, 38, 38, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+}
+
+@keyframes supplyAlertSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes supplyAlertBlink {
+  0% {
+    opacity: 1;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 0, 0.8));
+  }
+  50% {
+    opacity: 0.6;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 0, 1));
+  }
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 0, 0.8));
+  }
+}
+
+/* PopulationWarning 기본 스타일 */
+.population-warning {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* PopulationWarning 편집 모드 스타일 */
+.population-warning.edit-mode {
+  border: 1px solid rgba(0, 153, 255, 0.5) !important;
+  box-shadow: 0 4px 20px rgba(0, 153, 255, 0.3), 0 4px 20px rgba(220, 38, 38, 0.4) !important;
+  z-index: 20001;
+}
+
+/* 드래그 중일 때 */
+.population-warning.dragging {
+  transition: none !important;
+}
+
+/* 인구 경고 알람 기본 스타일 (기존 호환성) */
+.supply-alert {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }

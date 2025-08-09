@@ -3,13 +3,22 @@
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
   "appId": "YourAppID",
   "asar": true,
-  "productName": "YourAppName",
+  "productName": "StarcUp",
   "directories": {
     "output": "release/${version}"
   },
   "files": [
     "dist",
     "dist-electron"
+  ],
+  "extraResources": [
+    {
+      "from": "../StarcUp.Core/bin/Release/net8.0-windows/",
+      "to": "core/",
+      "filter": [
+        "**/*"
+      ]
+    }
   ],
   "mac": {
     "target": [

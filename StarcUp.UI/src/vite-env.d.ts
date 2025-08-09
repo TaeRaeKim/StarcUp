@@ -74,11 +74,12 @@ declare global {
       getAll: () => Promise<{ success: boolean; data?: any[]; error?: string }>
       
       // Overlay 전용 성능 최적화 메서드
-      getFeaturesOnly: () => Promise<{ success: boolean; data?: { featureStates: boolean[] }; error?: string }>
+      getFeaturesOnly: () => Promise<{ success: boolean; data?: { featureStates: boolean[]; selectedRace: number }; error?: string }>
       
       // 프리셋 관리
       switch: (presetId: string) => Promise<{ success: boolean; error?: string }>
       updateSettings: (presetType: string, settings: any) => Promise<{ success: boolean; error?: string }>
+      updateBatch: (updates: any) => Promise<{ success: boolean; error?: string }>
       toggleFeature: (featureIndex: number, enabled: boolean) => Promise<{ success: boolean; error?: string }>
       
       // 이벤트 리스너 (기본 - Main Page용)
@@ -98,6 +99,7 @@ declare global {
       // Overlay 전용 기능 상태 변경 이벤트 리스너 (성능 최적화)
       onFeaturesChanged: (callback: (data: { 
         featureStates: boolean[]
+        selectedRace: number
         timestamp: Date 
       }) => void) => () => void
     }
