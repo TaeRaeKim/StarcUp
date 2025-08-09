@@ -38,5 +38,9 @@ export * from './window/ShortcutManager'
 export * from './foreground/interfaces'
 export * from './foreground/ForegroundWindowService'
 
+// Core 프로세스 서비스
+export * from './process/interfaces'
+export * from './process/CoreProcessService'
+
 // IPC 채널 핸들러
 export * from './ipc/ChannelHandlers'

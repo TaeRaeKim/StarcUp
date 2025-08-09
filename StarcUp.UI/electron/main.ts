@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron'
 import { serviceContainer } from './src/services/ServiceContainer'
 import { IWindowManager, IShortcutManager } from './src/services/window'
 import { ICoreCommunicationService } from './src/services/core'
+import { ICoreProcessService } from './src/services/process'
 
 // 애플리케이션 종료 처리
 app.on('window-all-closed', async () => {
@@ -33,13 +34,14 @@ async function initializeApp(): Promise<void> {
     const isDevelopment = process.env.NODE_ENV === 'development' || !app.isPackaged
     console.log(`🏗️ 애플리케이션 모드: ${isDevelopment ? '개발' : '프로덕션'}`)
 
-    // 서비스 컨테이너 초기화
+    // 서비스 컨테이너 초기화 먼저 수행
     await serviceContainer.initialize()
 
     // 서비스 해결
     const windowManager = serviceContainer.resolve<IWindowManager>('windowManager')
     const shortcutManager = serviceContainer.resolve<IShortcutManager>('shortcutManager')
     const coreService = serviceContainer.resolve<ICoreCommunicationService>('coreCommunicationService')
+    const coreProcessService = serviceContainer.resolve<ICoreProcessService>('coreProcessService')
     
     // IPC 핸들러는 ServiceContainer.initialize()에서 자동으로 등록됨
 
@@ -50,23 +52,28 @@ async function initializeApp(): Promise<void> {
     // 단축키 등록
     shortcutManager.registerShortcuts()
 
-    // Core 프로세스 연결 시도
+    // Core 서비스 연결 시도
     try {
+      await coreProcessService.startCoreProcess(isDevelopment)
       if (isDevelopment) {
         console.log('🔧 개발 모드: 기존 StarcUp.Core 프로세스에 연결 시도...')
       } else {
-        console.log('🚀 프로덕션 모드: StarcUp.Core 프로세스 시작...')
+        console.log('🔗 프로덕션 모드: StarcUp.Core와 통신 연결 시도...')
       }
       
       await coreService.startConnection(isDevelopment)
       
-      console.log('✅ StarcUp.Core 초기화 완료')
+      console.log('✅ StarcUp.Core 통신 초기화 완료')
     } catch (error) {
-      console.error('❌ Core 프로세스 연결 실패:', error)
-      // Core 연결 실패는 치명적이지 않으므로 계속 진행
+      console.error('❌ Core 서비스 연결 실패:', error)
     }
 
     console.log('🎉 애플리케이션 초기화 완료')
+
+    // 애플리케이션 종료 시 Core 프로세스도 정리
+    app.on('before-quit', async () => {
+      await coreProcessService.stopCoreProcess()
+    })
 
   } catch (error) {
     console.error('❌ 애플리케이션 초기화 실패:', error)
