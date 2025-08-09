@@ -146,9 +146,9 @@ export const WorkerStatus = forwardRef<WorkerStatusRef, WorkerStatusProps>(({
       {/* 일꾼 아이콘 */}
       <div style={{
         ...getIconStyle(unitIconStyle, teamColor),
-        // HD 모드일 때 아이콘을 약간 확대
+        // HD 모드일 때 스케일 조정
         ...(unitIconStyle === 'hd' ? {
-          transform: 'scale(1)',
+          transform: 'scale(0.8)',
           transformOrigin: 'center'
         } : {})
       }}>
