@@ -37,7 +37,6 @@ export interface BuildingModeSettings {
 
 export interface TrackedBuilding {
   buildingType: string
-  name: string
   multiplier: number
   enabled: boolean
 }

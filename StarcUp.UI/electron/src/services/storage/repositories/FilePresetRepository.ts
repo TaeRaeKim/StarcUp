@@ -7,7 +7,7 @@ import {
   WorkerSettings,
   PopulationSettings
 } from './IPresetRepository'
-import { RaceType } from '../../../../../src/types/enums'
+import { RaceType, UnitType } from '../../../../../src/types/enums'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { app } from 'electron'
@@ -45,18 +45,64 @@ export class FilePresetRepository implements IPresetRepository {
     }
   }
 
-  // 기본 인구수 설정
-  private getDefaultPopulationSettings(): PopulationSettings {
-    return {
-      mode: 'fixed',                     // 고정값 모드가 기본
-      fixedSettings: {
-        thresholdValue: 4,               // 인구 부족 경고 기준값 4
-        timeLimit: {
-          enabled: true,                 // 시간 제한 기본 활성화
-          minutes: 3,                    // 3분
-          seconds: 0                     // 0초
+  // 기본 인구수 설정 (종족별 모드 B 건물 설정, 인자 없으면 Fixed 모드)
+  private getDefaultPopulationSettings(race?: RaceType): PopulationSettings {
+    // 인자가 없으면 기존처럼 Fixed 모드로 반환
+    if (race === undefined) {
+      return {
+        mode: 'fixed',                     // 고정값 모드가 기본
+        fixedSettings: {
+          thresholdValue: 4,               // 인구 부족 경고 기준값 4
+          timeLimit: {
+            enabled: true,                 // 시간 제한 기본 활성화
+            minutes: 3,                    // 3분
+            seconds: 0                     // 0초
+          }
         }
       }
+    }
+
+    const getBuildingSettings = (race: RaceType) => {
+      switch (race) {
+        case RaceType.Protoss:
+          return {
+            race,
+            trackedBuildings: [
+              { 
+                buildingType: UnitType.ProtossGateway.toString(), 
+                enabled: true, 
+                multiplier: 2 
+              }
+            ]
+          }
+        case RaceType.Terran:
+          return {
+            race,
+            trackedBuildings: [
+              { 
+                buildingType: UnitType.TerranBarracks.toString(), 
+                enabled: true, 
+                multiplier: 1 
+              }
+            ]
+          }
+        case RaceType.Zerg:
+          return {
+            race,
+            trackedBuildings: [
+              { 
+                buildingType: UnitType.ZergHatchery.toString(), 
+                enabled: true, 
+                multiplier: 2 
+              }
+            ]
+          }
+      }
+    }
+
+    return {
+      mode: 'building',                  // 건물 기반 모드
+      buildingSettings: getBuildingSettings(race)
     }
   }
   
@@ -113,7 +159,7 @@ export class FilePresetRepository implements IPresetRepository {
       id: this.generateId(),
       ...request,
       workerSettings: request.workerSettings || this.getDefaultWorkerSettings(),
-      populationSettings: request.populationSettings || this.getDefaultPopulationSettings(),
+      populationSettings: request.populationSettings || this.getDefaultPopulationSettings(request.selectedRace),
       createdAt: new Date(),
       updatedAt: new Date()
     }
@@ -224,34 +270,34 @@ export class FilePresetRepository implements IPresetRepository {
       presets: [
         {
           id: this.generateId(),
-          name: 'Default Preset',
-          description: '기본 프리셋 - 일꾼 기능만 활성화됨',
-          featureStates: [true, false, false, false, false], // 일꾼만 활성화
+          name: 'Default Protoss Preset',
+          description: '기본 프리셋 - 프로토스',
+          featureStates: [true, true, false, false, false], // 일꾼만 활성화
           selectedRace: RaceType.Protoss,
           workerSettings: this.getDefaultWorkerSettings(),
-          populationSettings: this.getDefaultPopulationSettings(),
+          populationSettings: this.getDefaultPopulationSettings(RaceType.Protoss),
           createdAt: new Date(),
           updatedAt: new Date()
         },
         {
           id: this.generateId(),
-          name: '커공발-운영',
-          description: '커세어 + 공중 발업 운영 빌드',
-          featureStates: [true, false, false, false, false],
+          name: 'Default Terran Preset',
+          description: '기본 프리셋 - 테란',
+          featureStates: [true, true, false, false, false],
           selectedRace: RaceType.Terran,
           workerSettings: this.getDefaultWorkerSettings(),
-          populationSettings: this.getDefaultPopulationSettings(),
+          populationSettings: this.getDefaultPopulationSettings(RaceType.Terran),
           createdAt: new Date(),
           updatedAt: new Date()
         },
         {
           id: this.generateId(),
-          name: '패닼아비터',
-          description: '패스트 다크템플러 + 아비터 전략',
-          featureStates: [true, false, false, false, false],
-          selectedRace: RaceType.Protoss,
+          name: 'Default Zerg Preset',
+          description: '기본 프리셋 - 저그',
+          featureStates: [true, true, false, false, false],
+          selectedRace: RaceType.Zerg,
           workerSettings: this.getDefaultWorkerSettings(),
-          populationSettings: this.getDefaultPopulationSettings(),
+          populationSettings: this.getDefaultPopulationSettings(RaceType.Zerg),
           createdAt: new Date(),
           updatedAt: new Date()
         }
