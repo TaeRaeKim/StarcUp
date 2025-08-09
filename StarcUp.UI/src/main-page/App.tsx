@@ -188,11 +188,14 @@ export default function App() {
     };
   }, []);
 
-  // presetAPI를 통한 프리셋 상태 초기화 (단순화)
+  // presetAPI를 통한 프리셋 상태 초기화 (2초 딜레이 시뮬레이션)
   useEffect(() => {
     const initializePresetData = async () => {
       try {
         console.log('🚀 presetAPI를 통한 프리셋 초기화 시작...');
+        
+        // 2초 딜레이 시뮬레이션 (DB 로딩 시뮬레이션)
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
         if (!window.presetAPI?.getState) {
           console.error('❌ presetAPI가 준비되지 않았습니다.');
@@ -684,13 +687,85 @@ export default function App() {
         // preset이 로드되지 않았으면 로딩 화면 표시
         if (!presetsLoaded || presets.length === 0) {
           return (
-            <div className="h-screen w-screen flex items-center justify-center" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
-              <div className="text-center">
-                <div className="text-xl mb-4" style={{ color: 'var(--starcraft-green)' }}>
-                  프리셋 로딩 중...
+            <div className="h-screen w-screen flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
+              {/* 배경 그라데이션 효과 */}
+              <div className="absolute inset-0 opacity-20">
+                <div 
+                  className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-black"
+                  style={{ 
+                    background: `radial-gradient(circle at center, transparent 0%, rgba(0, 255, 146, 0.1) 40%, transparent 80%)`
+                  }}
+                ></div>
+              </div>
+              
+              {/* 메인 로딩 컨테이너 */}
+              <div className="relative z-10 text-center max-w-md mx-auto px-8">
+                {/* 스타크래프트 스타일 로딩 스피너 */}
+                <div className="relative mb-8">
+                  <div className="w-16 h-16 mx-auto relative">
+                    {/* 외부 회전링 */}
+                    <div 
+                      className="absolute inset-0 border-2 border-transparent rounded-full animate-spin"
+                      style={{ 
+                        borderTopColor: 'var(--starcraft-green)',
+                        borderRightColor: 'var(--starcraft-green)',
+                        animationDuration: '2s'
+                      }}
+                    ></div>
+                    {/* 내부 회전링 */}
+                    <div 
+                      className="absolute inset-2 border-2 border-transparent rounded-full animate-spin"
+                      style={{ 
+                        borderLeftColor: 'var(--starcraft-green)',
+                        borderBottomColor: 'var(--starcraft-green)',
+                        animationDuration: '1.5s',
+                        animationDirection: 'reverse'
+                      }}
+                    ></div>
+                    {/* 중앙 펄스 도트 */}
+                    <div 
+                      className="absolute inset-6 rounded-full animate-pulse"
+                      style={{ backgroundColor: 'var(--starcraft-green)' }}
+                    ></div>
+                  </div>
                 </div>
-                <div className="animate-pulse text-sm" style={{ color: 'var(--starcraft-green)' }}>
-                  잠시만 기다려주세요
+                
+                {/* 로딩 텍스트 */}
+                <div className="space-y-3">
+                  <div 
+                    className="text-2xl font-bold tracking-wide"
+                    style={{ color: 'var(--starcraft-green)' }}
+                  >
+                    STARCUP 초기화 중
+                  </div>
+                  <div 
+                    className="text-sm font-mono opacity-80"
+                    style={{ color: 'var(--starcraft-green)' }}
+                  >
+                    프리셋 데이터 로딩...
+                  </div>
+                </div>
+                
+                {/* 하단 프로그레스 바 */}
+                <div className="mt-8">
+                  <div 
+                    className="w-full h-1 rounded-full overflow-hidden"
+                    style={{ backgroundColor: 'var(--starcraft-border)' }}
+                  >
+                    <div 
+                      className="h-full"
+                      style={{ 
+                        background: `linear-gradient(90deg, transparent 0%, var(--starcraft-green) 50%, transparent 100%)`,
+                        animation: 'loadingBar 2s ease-in-out infinite'
+                      }}
+                    ></div>
+                  </div>
+                  <div 
+                    className="text-xs font-mono mt-2 opacity-60"
+                    style={{ color: 'var(--starcraft-inactive-text)' }}
+                  >
+                    시스템 연결 대기 중...
+                  </div>
                 </div>
               </div>
             </div>
@@ -712,10 +787,85 @@ export default function App() {
       case 'preset-settings':
         if (!presetsLoaded || presets.length === 0 || !currentPreset) {
           return (
-            <div className="h-screen w-screen flex items-center justify-center" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
-              <div className="text-center">
-                <div className="text-xl mb-4" style={{ color: 'var(--starcraft-green)' }}>
-                  프리셋 로딩 중...
+            <div className="h-screen w-screen flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
+              {/* 배경 그라데이션 효과 */}
+              <div className="absolute inset-0 opacity-20">
+                <div 
+                  className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-black"
+                  style={{ 
+                    background: `radial-gradient(circle at center, transparent 0%, rgba(0, 255, 146, 0.1) 40%, transparent 80%)`
+                  }}
+                ></div>
+              </div>
+              
+              {/* 메인 로딩 컨테이너 */}
+              <div className="relative z-10 text-center max-w-md mx-auto px-8">
+                {/* 스타크래프트 스타일 로딩 스피너 */}
+                <div className="relative mb-8">
+                  <div className="w-16 h-16 mx-auto relative">
+                    {/* 외부 회전링 */}
+                    <div 
+                      className="absolute inset-0 border-2 border-transparent rounded-full animate-spin"
+                      style={{ 
+                        borderTopColor: 'var(--starcraft-green)',
+                        borderRightColor: 'var(--starcraft-green)',
+                        animationDuration: '2s'
+                      }}
+                    ></div>
+                    {/* 내부 회전링 */}
+                    <div 
+                      className="absolute inset-2 border-2 border-transparent rounded-full animate-spin"
+                      style={{ 
+                        borderLeftColor: 'var(--starcraft-green)',
+                        borderBottomColor: 'var(--starcraft-green)',
+                        animationDuration: '1.5s',
+                        animationDirection: 'reverse'
+                      }}
+                    ></div>
+                    {/* 중앙 펄스 도트 */}
+                    <div 
+                      className="absolute inset-6 rounded-full animate-pulse"
+                      style={{ backgroundColor: 'var(--starcraft-green)' }}
+                    ></div>
+                  </div>
+                </div>
+                
+                {/* 로딩 텍스트 */}
+                <div className="space-y-3">
+                  <div 
+                    className="text-2xl font-bold tracking-wide"
+                    style={{ color: 'var(--starcraft-green)' }}
+                  >
+                    프리셋 설정 로딩 중
+                  </div>
+                  <div 
+                    className="text-sm font-mono opacity-80"
+                    style={{ color: 'var(--starcraft-green)' }}
+                  >
+                    설정 데이터 준비...
+                  </div>
+                </div>
+                
+                {/* 하단 프로그레스 바 */}
+                <div className="mt-8">
+                  <div 
+                    className="w-full h-1 rounded-full overflow-hidden"
+                    style={{ backgroundColor: 'var(--starcraft-border)' }}
+                  >
+                    <div 
+                      className="h-full"
+                      style={{ 
+                        background: `linear-gradient(90deg, transparent 0%, var(--starcraft-green) 50%, transparent 100%)`,
+                        animation: 'loadingBar 2s ease-in-out infinite'
+                      }}
+                    ></div>
+                  </div>
+                  <div 
+                    className="text-xs font-mono mt-2 opacity-60"
+                    style={{ color: 'var(--starcraft-inactive-text)' }}
+                  >
+                    설정 인터페이스 준비 중...
+                  </div>
                 </div>
               </div>
             </div>

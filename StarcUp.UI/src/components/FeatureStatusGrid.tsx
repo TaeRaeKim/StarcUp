@@ -7,34 +7,13 @@ interface Preset {
   featureStates: boolean[];
 }
 
-const presets: Preset[] = [
-  {
-    id: "preset1",
-    name: "공발질-8겟뽕",
-    description: "공중 발업 질럿 러쉬 + 8마리 겟뽕",
-    featureStates: [true, false, false, false, false] // 5개: 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
-  },
-  {
-    id: "preset2", 
-    name: "커공발-운영",
-    description: "커세어 + 공중 발업 운영 빌드",
-    featureStates: [true, false, false, false, false] // 5개: 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
-  },
-  {
-    id: "preset3",
-    name: "패닼아비터",
-    description: "패스트 다크템플러 + 아비터 전략",
-    featureStates: [true, false, false, false, false] // 5개: 일꾼, 인구수(비활성화), 유닛(비활성화), 업그레이드(비활성화), 빌드오더(비활성화)
-  }
-];
-
 interface FeatureStatusGridProps {
   isOverlayActive: boolean;
   gameStatus: 'playing' | 'waiting' | 'error';
   onPresetChange?: (preset: Preset) => void;
   currentPresetIndex?: number;
   onPresetIndexChange?: (index: number) => void;
-  presets?: Preset[]; // 외부에서 프리셋 데이터 전달받기
+  presets: Preset[]; // 외부에서 프리셋 데이터 전달받기 (필수)
 }
 
 export function FeatureStatusGrid({ 
@@ -43,10 +22,10 @@ export function FeatureStatusGrid({
   onPresetChange,
   currentPresetIndex = 0,
   onPresetIndexChange,
-  presets: externalPresets
+  presets
 }: FeatureStatusGridProps) {
-  // 외부 프리셋이 있으면 사용, 없으면 내부 기본 프리셋 사용
-  const activePresets = externalPresets || presets;
+  // 외부 프리셋 사용 (항상 존재함이 보장됨)
+  const activePresets = presets;
   
   // 항상 5개 점으로 고정
   const [featureStates, setFeatureStates] = useState(activePresets[0].featureStates);
