@@ -9,6 +9,8 @@ interface PopulationDetailSettingsProps {
   initialRace?: RaceType;
   currentPreset?: any;
   onSavePopulationSettings?: (presetId: string, populationSettings: PopulationSettings) => Promise<void>;
+  tempPopulationSettings?: PopulationSettings | null;
+  onTempSave?: (settings: PopulationSettings) => void;
 }
 
 // 종족 정보 (enum 기반)
@@ -49,7 +51,9 @@ export function PopulationDetailSettings({
   onClose, 
   initialRace, 
   currentPreset,
-  onSavePopulationSettings 
+  onSavePopulationSettings,
+  tempPopulationSettings,
+  onTempSave
 }: PopulationDetailSettingsProps) {
   const [mode, setMode] = useState<'building' | 'fixed'>('fixed');
   const [selectedRace, setSelectedRace] = useState<RaceKey>(initialRace || RaceType.Protoss);
@@ -57,18 +61,36 @@ export function PopulationDetailSettings({
   // 디버깅: 컴포넌트가 받는 props 확인
   console.log('PopulationDetailSettings props:', { isOpen, initialRace, selectedRace });
   
-  // initialRace가 변경될 때마다 selectedRace 업데이트 및 buildingSettings 초기화
+  // initialRace가 변경될 때마다 selectedRace 업데이트
   useEffect(() => {
-    if (initialRace) {
+    if (initialRace !== undefined) {
       const previousRace = selectedRace;
       setSelectedRace(initialRace);
-      // 종족이 변경되면 이전 건물 설정을 초기화
-      if (previousRace !== initialRace) {
-        setBuildingSettings({});
-        console.log(`실시간 종족 변경: ${RACES[previousRace]?.name || '없음'} → ${RACES[initialRace].name}, 건물 설정 초기화`);
+      
+      // 모드 B이고 종족이 변경될 때만 처리
+      if (mode === 'building' && previousRace !== initialRace) {
+        console.log(`🔄 종족 변경: ${RACES[previousRace]?.name || '없음'} → ${RACES[initialRace].name}`);
+        
+        // 임시 저장된 설정이 있고 해당 종족의 건물 설정이 있는 경우
+        if (tempPopulationSettings?.buildingSettings?.race === initialRace) {
+          // 같은 종족의 임시 설정 복원
+          const buildingSettingsMap: BuildingSettings = {};
+          tempPopulationSettings.buildingSettings.trackedBuildings.forEach((building: TrackedBuilding) => {
+            buildingSettingsMap[building.buildingType] = {
+              enabled: building.enabled,
+              multiplier: building.multiplier
+            };
+          });
+          setBuildingSettings(buildingSettingsMap);
+          console.log(`✅ 종족 ${RACES[initialRace].name} 건물 설정 복원`);
+        } else {
+          // 다른 종족으로 변경 시 건물 설정 초기화
+          setBuildingSettings({});
+          console.log(`⚠️ 종족 ${RACES[initialRace].name} 건물 설정 초기화`);
+        }
       }
     }
-  }, [initialRace]);
+  }, [initialRace, mode, tempPopulationSettings]);
 
   const [buildingSettings, setBuildingSettings] = useState<BuildingSettings>({});
   const [fixedValue, setFixedValue] = useState(4);
@@ -76,15 +98,25 @@ export function PopulationDetailSettings({
   const [timeLimitSeconds, setTimeLimitSeconds] = useState(0);
   const [isTimeLimitEnabled, setIsTimeLimitEnabled] = useState(true);
 
-  // 현재 프리셋에서 인구수 설정 로드
+  // 현재 프리셋에서 인구수 설정 로드 (임시 저장값 우선)
   useEffect(() => {
-    if (currentPreset?.populationSettings) {
-      const settings = currentPreset.populationSettings;
-      console.log('🏘️ 현재 프리셋에서 인구수 설정 로드:', settings);
+    console.log('🔄 인구수 설정 업데이트:', {
+      tempPopulationSettings,
+      currentPresetSettings: currentPreset?.populationSettings,
+      initialRace
+    });
+    
+    // 임시 저장값이 있으면 그것을 우선 사용
+    const settings = tempPopulationSettings || currentPreset?.populationSettings;
+    
+    if (settings) {
+      console.log('🏘️ 인구수 설정 로드:', settings);
       
+      // 모드 설정
       setMode(settings.mode);
       
-      if (settings.fixedSettings) {
+      // 모드 A 설정
+      if (settings.mode === 'fixed' && settings.fixedSettings) {
         setFixedValue(settings.fixedSettings.thresholdValue);
         if (settings.fixedSettings.timeLimit) {
           setIsTimeLimitEnabled(settings.fixedSettings.timeLimit.enabled);
@@ -93,36 +125,53 @@ export function PopulationDetailSettings({
         }
       }
       
-      if (settings.buildingSettings) {
-        console.log('🔄 저장된 종족 설정 로드:', settings.buildingSettings.race);
-        
-        // 실시간 편집 중인 종족(initialRace)이 있으면 그것을 우선 사용
-        // 없으면 저장된 설정의 종족을 사용
-        // RaceType.Zerg (0)는 falsy이므로 !== undefined로 체크
-        const raceToUse: RaceType = initialRace !== undefined ? initialRace : settings.buildingSettings.race;
-        console.log('🎯 사용할 종족 결정:', { 
-          initialRace, 
-          savedRace: settings.buildingSettings.race, 
-          finalRace: raceToUse,
-          raceName: RACES[raceToUse]?.name 
-        });
-        
-        setSelectedRace(raceToUse);
-        
-        // TrackedBuilding 배열을 BuildingSettings 형태로 변환
-        const buildingSettingsMap: BuildingSettings = {};
-        settings.buildingSettings.trackedBuildings.forEach((building: TrackedBuilding) => {
-          buildingSettingsMap[building.buildingType] = {
-            enabled: building.enabled,
-            multiplier: building.multiplier
-          };
-        });
-        setBuildingSettings(buildingSettingsMap);
+      // 모드 B 설정 - 종족 변경 시 주의 깊게 처리
+      if (settings.mode === 'building' && settings.buildingSettings) {
+        // initialRace가 있으면 그것을 우선 사용 (실시간 업데이트)
+        if (initialRace !== undefined) {
+          console.log(`🎯 initialRace ${initialRace} vs settings.race ${settings.buildingSettings.race}`);
+          
+          if (initialRace === settings.buildingSettings.race) {
+            // 같은 종족이면 건물 설정 로드
+            const buildingSettingsMap: BuildingSettings = {};
+            settings.buildingSettings.trackedBuildings.forEach((building: TrackedBuilding) => {
+              buildingSettingsMap[building.buildingType] = {
+                enabled: building.enabled,
+                multiplier: building.multiplier
+              };
+            });
+            setBuildingSettings(buildingSettingsMap);
+            console.log(`✅ 종족 ${RACES[initialRace].name} 건물 설정 로드`);
+          } else {
+            // 다른 종족이면 건물 설정 비우기 (실제로는 initialRace에서 처리됨)
+            setBuildingSettings({});
+            console.log(`⚠️ 종족 불일치 - 건물 설정 초기화`);
+          }
+        } else {
+          // initialRace가 없으면 저장된 종족 사용
+          setSelectedRace(settings.buildingSettings.race);
+          const buildingSettingsMap: BuildingSettings = {};
+          settings.buildingSettings.trackedBuildings.forEach((building: TrackedBuilding) => {
+            buildingSettingsMap[building.buildingType] = {
+              enabled: building.enabled,
+              multiplier: building.multiplier
+            };
+          });
+          setBuildingSettings(buildingSettingsMap);
+          console.log(`🔄 저장된 종족 ${RACES[settings.buildingSettings.race as RaceKey]?.name || '알 수 없음'} 로드`);
+        }
       }
     } else {
-      console.log('🏘️ 현재 프리셋에 인구수 설정이 없음 - 기본값 사용');
+      console.log('🏘️ 인구수 설정 없음 - 기본값 사용');
+      // 기본값 설정
+      setMode('fixed');
+      setFixedValue(4);
+      setTimeLimitMinutes(3);
+      setTimeLimitSeconds(0);
+      setIsTimeLimitEnabled(true);
+      setBuildingSettings({});
     }
-  }, [currentPreset, initialRace]);
+  }, [currentPreset?.populationSettings, tempPopulationSettings, initialRace]);
 
   // 건물 설정 업데이트
   const toggleBuildingEnabled = (unitType: UnitType) => {
@@ -166,13 +215,8 @@ export function PopulationDetailSettings({
     }, 0);
   };
 
-  const handleSave = async () => {
+  const handleConfirm = async () => {
     try {
-      if (!currentPreset || !onSavePopulationSettings) {
-        console.error('❌ 현재 프리셋 또는 저장 핸들러가 없습니다');
-        return;
-      }
-
       // 현재 UI 상태를 PopulationSettings 형식으로 변환
       const populationSettings: PopulationSettings = {
         mode,
@@ -203,10 +247,16 @@ export function PopulationDetailSettings({
         })
       };
       
-      console.log('🏘️ 인구수 설정 저장:', populationSettings);
+      console.log('🏘️ 인구수 설정 임시 저장:', populationSettings);
       
-      await onSavePopulationSettings(currentPreset.id, populationSettings);
-      console.log('✅ 인구수 설정 저장 완료');
+      // 임시 저장 함수가 있으면 임시 저장만 수행
+      if (onTempSave) {
+        onTempSave(populationSettings);
+      } else if (currentPreset && onSavePopulationSettings) {
+        // 임시 저장 함수가 없으면 기존처럼 직접 저장
+        await onSavePopulationSettings(currentPreset.id, populationSettings);
+        console.log('✅ 인구수 설정 저장 완료');
+      }
       
       onClose();
     } catch (error) {
@@ -847,7 +897,7 @@ export function PopulationDetailSettings({
           </button>
           
           <button
-            onClick={handleSave}
+            onClick={handleConfirm}
             className="flex items-center gap-2 px-6 py-2 rounded-sm border transition-all duration-300 hover:bg-green-500/20"
             style={{
               color: 'var(--starcraft-green)',
@@ -856,7 +906,7 @@ export function PopulationDetailSettings({
             }}
           >
             <Settings2 className="w-4 h-4" />
-            저장
+            확인
           </button>
         </div>
       </div>

@@ -35,7 +35,8 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
       selectedIndex: 0,
       isInitialized: false,
       isLoading: false,
-      lastSyncTime: 0
+      lastSyncTime: 0,
+      tempSettings: new Map()
     }
     
     this.setupEventHandlers()
@@ -413,6 +414,135 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
     }
   }
   
+  // ==================== 임시 저장 관리 메서드 ====================
+  
+  updateTempSettings(presetType: string, settings: any): void {
+    console.log('💾 임시 설정 업데이트:', { presetType, settings })
+    
+    // 현재 저장된 임시 설정 가져오기
+    const currentTempSettings = this.state.tempSettings.get(presetType) || {}
+    
+    // 병합하여 저장
+    this.state.tempSettings.set(presetType, {
+      ...currentTempSettings,
+      ...settings
+    })
+    
+    // 임시 설정 변경 이벤트 발행
+    this.emitStateChange('temp-settings-updated', this.state.currentPresetId, {
+      presetType,
+      tempSettings: this.state.tempSettings.get(presetType)
+    })
+  }
+  
+  getTempSettings(presetType: string): any | null {
+    return this.state.tempSettings.get(presetType) || null
+  }
+  
+  clearTempSettings(presetType?: string): void {
+    console.log('🗑️ 임시 설정 초기화:', presetType || '전체')
+    
+    if (presetType) {
+      this.state.tempSettings.delete(presetType)
+    } else {
+      this.state.tempSettings.clear()
+    }
+    
+    // 임시 설정 초기화 이벤트 발행
+    this.emitStateChange('temp-settings-cleared', this.state.currentPresetId, {
+      presetType: presetType || 'all'
+    })
+  }
+  
+  hasTempChanges(presetType?: string): boolean {
+    if (presetType) {
+      return this.state.tempSettings.has(presetType)
+    }
+    return this.state.tempSettings.size > 0
+  }
+  
+  async applyTempSettings(): Promise<void> {
+    const startTime = Date.now()
+    
+    try {
+      console.log('📝 임시 설정 적용 시작')
+      
+      if (this.state.tempSettings.size === 0) {
+        console.log('ℹ️ 적용할 임시 설정이 없습니다')
+        return
+      }
+      
+      if (!this.state.currentPresetId) {
+        throw new Error('현재 선택된 프리셋이 없습니다')
+      }
+      
+      const currentPreset = this.getCurrentPreset()
+      if (!currentPreset) {
+        throw new Error('현재 프리셋 데이터를 찾을 수 없습니다')
+      }
+      
+      // 모든 임시 설정을 배치 업데이트로 변환
+      const batchUpdate: IBatchPresetUpdate = {}
+      
+      for (const [presetType, settings] of this.state.tempSettings) {
+        switch (presetType) {
+          case 'worker':
+            batchUpdate.workerSettings = { ...currentPreset.workerSettings, ...settings }
+            break
+          case 'population':
+            batchUpdate.populationSettings = { ...currentPreset.populationSettings, ...settings }
+            break
+          case 'race':
+            batchUpdate.selectedRace = settings.selectedRace
+            break
+          case 'basic':
+            if (settings.name !== undefined) batchUpdate.name = settings.name
+            if (settings.description !== undefined) batchUpdate.description = settings.description
+            break
+        }
+      }
+      
+      // 배치 업데이트 실행
+      await this.updatePresetBatch(batchUpdate)
+      
+      // 임시 설정 초기화
+      this.state.tempSettings.clear()
+      
+      const metrics: IPerformanceMetrics = {
+        operationName: 'applyTempSettings',
+        executionTime: Date.now() - startTime,
+        timestamp: new Date(),
+        success: true
+      }
+      this.recordMetrics(metrics)
+      
+      console.log('✅ 임시 설정 적용 완료:', {
+        presetId: currentPreset.id,
+        applyTime: metrics.executionTime + 'ms'
+      })
+      
+      // 임시 설정 적용 완료 이벤트 발행
+      this.emitStateChange('temp-settings-applied', this.state.currentPresetId, {
+        appliedSettings: batchUpdate
+      })
+      
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      
+      const metrics: IPerformanceMetrics = {
+        operationName: 'applyTempSettings',
+        executionTime: Date.now() - startTime,
+        timestamp: new Date(),
+        success: false,
+        error: errorMsg
+      }
+      this.recordMetrics(metrics)
+      
+      console.error('❌ 임시 설정 적용 실패:', error)
+      throw error
+    }
+  }
+  
   onStateChanged(callback: (event: IPresetChangeEvent) => void): () => void {
     console.log('👂 상태 변경 리스너 등록')
     
@@ -441,7 +571,8 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
         selectedIndex: 0,
         isInitialized: false,
         isLoading: false,
-        lastSyncTime: 0
+        lastSyncTime: 0,
+        tempSettings: new Map()
       }
       
       const metrics: IPerformanceMetrics = {

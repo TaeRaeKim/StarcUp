@@ -90,6 +90,61 @@ export default function App() {
   // 개발 중 기능 상태
   const [developmentFeatureName, setDevelopmentFeatureName] = useState('');
   const [developmentFeatureType, setDevelopmentFeatureType] = useState<'buildorder' | 'upgrade' | 'population' | 'unit'>('buildorder');
+  
+  // 임시 저장 상태 (상세 설정에서 저장하기 전 임시 데이터)
+  const [tempWorkerSettings, setTempWorkerSettings] = useState<WorkerSettings | null>(null);
+  const [tempPopulationSettings, setTempPopulationSettings] = useState<any | null>(null);
+  
+  // 기능별 변경사항 상태 (0: 일꾼, 1: 인구수, 2: 유닛, 3: 업그레이드, 4: 빌드오더)
+  const [detailChanges, setDetailChanges] = useState<Record<number, boolean>>({});
+  
+  // 종족별 인구수 설정 백업 (종족 변경 시 복원용)
+  const [populationSettingsBackup, setPopulationSettingsBackup] = useState<Map<RaceType, any>>(new Map());
+  const [originalRace, setOriginalRace] = useState<RaceType | null>(null);
+  
+  // 인구수 설정 비교 유틸리티 함수
+  const isPopulationSettingsEqual = (settings1: any, settings2: any): boolean => {
+    if (!settings1 && !settings2) return true;
+    if (!settings1 || !settings2) return false;
+    
+    // 기본적인 비교
+    if (settings1.mode !== settings2.mode) return false;
+    
+    // 모드 A 비교
+    if (settings1.mode === 'fixed') {
+      const fixed1 = settings1.fixedSettings;
+      const fixed2 = settings2.fixedSettings;
+      if (!fixed1 && !fixed2) return true;
+      if (!fixed1 || !fixed2) return false;
+      
+      if (fixed1.thresholdValue !== fixed2.thresholdValue) return false;
+      
+      // 시간 제한 비교
+      const time1 = fixed1.timeLimit;
+      const time2 = fixed2.timeLimit;
+      if (!time1 && !time2) return true;
+      if (!time1 || !time2) return false;
+      
+      return time1.enabled === time2.enabled && 
+             time1.minutes === time2.minutes && 
+             time1.seconds === time2.seconds;
+    }
+    
+    // 모드 B 비교
+    if (settings1.mode === 'building') {
+      const building1 = settings1.buildingSettings;
+      const building2 = settings2.buildingSettings;
+      if (!building1 && !building2) return true;
+      if (!building1 || !building2) return false;
+      
+      if (building1.race !== building2.race) return false;
+      
+      // 건물 설정 비교 (간단하게 JSON 문자열로 비교)
+      return JSON.stringify(building1.trackedBuildings) === JSON.stringify(building2.trackedBuildings);
+    }
+    
+    return true;
+  };
 
   // 윈도우 크기 변경 함수
   const changeWindowSize = (view: CurrentView) => {
@@ -332,19 +387,37 @@ export default function App() {
         return;
       }
 
-      // 모든 변경사항을 한 번에 배치 업데이트
-      await window.presetAPI.updateBatch({
+      // 임시 저장된 상세 설정들도 함께 저장
+      const batchUpdate: any = {
         name: editingPresetData.name,
         description: editingPresetData.description,
         featureStates: editingPresetData.featureStates,
         selectedRace: editingPresetData.selectedRace
-      });
+      };
+      
+      // 임시 저장된 일꾼 설정이 있으면 포함
+      if (tempWorkerSettings) {
+        batchUpdate.workerSettings = tempWorkerSettings;
+      }
+      
+      // 임시 저장된 인구수 설정이 있으면 포함
+      if (tempPopulationSettings) {
+        batchUpdate.populationSettings = tempPopulationSettings;
+      }
+
+      // 모든 변경사항을 한 번에 배치 업데이트
+      await window.presetAPI.updateBatch(batchUpdate);
       
       console.log('✅ 프리셋 배치 저장 완료');
       
-      // 저장 후 편집 상태 초기화
+      // 저장 후 편집 상태 및 임시 저장 데이터 초기화
       setCurrentEditingRace(null);
       setEditingPresetData(null);
+      setTempWorkerSettings(null);
+      setTempPopulationSettings(null);
+      setDetailChanges({});
+      setPopulationSettingsBackup(new Map());
+      setOriginalRace(null);
     } catch (error) {
       console.error('❌ 프리셋 저장 중 오류:', error);
     }
@@ -401,11 +474,35 @@ export default function App() {
     setCurrentView('preset-settings');
     changeWindowSize('preset-settings');
   };
+  
+  // 프리셋 설정 초기화 핸들러
+  const handleResetPreset = () => {
+    // 편집 중인 데이터를 현재 프리셋으로 초기화
+    setEditingPresetData({
+      name: currentPreset.name,
+      description: currentPreset.description,
+      featureStates: [...currentPreset.featureStates],
+      selectedRace: currentPreset.selectedRace ?? RaceType.Protoss
+    });
+    setCurrentEditingRace(currentPreset.selectedRace ?? RaceType.Protoss);
+    
+    // 임시 저장 데이터도 초기화 (원래 설정으로 복원)
+    setTempWorkerSettings(null);
+    setTempPopulationSettings(null); // 원래 프리셋 설정을 사용
+    setDetailChanges({});
+    setPopulationSettingsBackup(new Map());
+    setOriginalRace(null);
+  };
 
   const handleBackToMain = () => {
     // 메인으로 돌아갈 때 편집 중인 상태 모두 초기화
     setCurrentEditingRace(null);
     setEditingPresetData(null);
+    setTempWorkerSettings(null);
+    setTempPopulationSettings(null);
+    setDetailChanges({});
+    setPopulationSettingsBackup(new Map());
+    setOriginalRace(null);
     setCurrentView('main');
     changeWindowSize('main');
   };
@@ -419,13 +516,103 @@ export default function App() {
   // 종족 실시간 변경 핸들러
   const handleRaceChange = (race: RaceType) => {
     console.log('실시간 종족 변경:', race);
+    
+    const currentRace = currentEditingRace ?? (currentPreset.selectedRace ?? RaceType.Protoss);
+    
+    // 최초 종족 저장 및 최초 인구수 설정 백업 (복원용)
+    if (originalRace === null) {
+      const originalRaceValue = currentPreset.selectedRace ?? RaceType.Protoss;
+      setOriginalRace(originalRaceValue);
+      
+      // 최초 인구수 설정도 백업 (원래 프리셋 설정)
+      if (currentPreset.populationSettings) {
+        const backup = new Map(populationSettingsBackup);
+        backup.set(originalRaceValue, currentPreset.populationSettings);
+        setPopulationSettingsBackup(backup);
+        console.log(`💾 최초 종족 ${originalRaceValue} 인구수 설정 백업:`, currentPreset.populationSettings);
+      }
+    }
+    
+    // 현재 편집 중인 종족의 인구수 설정 백업 (임시 설정이 있는 경우만)
+    if (tempPopulationSettings && currentRace !== race) {
+      const backup = new Map(populationSettingsBackup);
+      backup.set(currentRace, tempPopulationSettings);
+      setPopulationSettingsBackup(backup);
+      console.log(`💾 종족 ${currentRace} 인구수 설정 백업:`, tempPopulationSettings);
+    }
+    
     setCurrentEditingRace(race);
+    
     // 편집 데이터도 업데이트
     if (editingPresetData) {
       setEditingPresetData({
         ...editingPresetData,
         selectedRace: race
       });
+    }
+    
+    // 종족 변경에 따른 인구수 설정 처리
+    const currentPopulationSettings = tempPopulationSettings || currentPreset.populationSettings;
+    
+    // 1. 백업된 설정이 있는지 확인 (이미 방문한 종족 또는 원래 종족)
+    const backup = populationSettingsBackup.get(race);
+    if (backup) {
+      console.log(`✅ 종족 ${race} 인구수 설정 복원:`, backup);
+      setTempPopulationSettings(backup);
+      
+      // 변경사항 플래그 설정 로직
+      if (race === originalRace) {
+        // 원래 종족으로 돌아왔으면 변경사항 플래그 해제
+        setDetailChanges(prev => ({ ...prev, 1: false }));
+        console.log(`🎆 원래 종족 ${race}로 복귀 - 변경사항 플래그 해제`);
+      } else {
+        // 다른 종족(임시값 복원)으로 갈 때는 변경사항 플래그 유지
+        // 백업된 설정이 원래 프리셋 설정과 다른지 확인
+        const originalPopulationSettings = currentPreset.populationSettings;
+        const isBackupDifferentFromOriginal = !isPopulationSettingsEqual(backup, originalPopulationSettings);
+        if (isBackupDifferentFromOriginal) {
+          setDetailChanges(prev => ({ ...prev, 1: true }));
+          console.log(`🟡 종족 ${race} 임시값 복원 - 변경사항 플래그 유지`);
+        } else {
+          setDetailChanges(prev => ({ ...prev, 1: false }));
+          console.log(`✅ 종족 ${race} 백업값이 원래와 동일 - 변경사항 플래그 해제`);
+        }
+      }
+      return; // 복원되었으면 추가 처리 없이 종료
+    }
+    
+    // 2. 현재 인구수 설정이 모드 B(건물 기반)인 경우만 처리
+    if (currentPopulationSettings?.mode === 'building') {
+      console.log(`⚠️ 모드 B에서 종족 ${race}로 변경 - 모드 A로 초기화`);
+      const defaultSettings = {
+        mode: 'fixed' as const,
+        fixedSettings: {
+          thresholdValue: 4,
+          timeLimit: {
+            enabled: true,
+            minutes: 3,
+            seconds: 0
+          }
+        }
+      };
+      setTempPopulationSettings(defaultSettings);
+      setDetailChanges(prev => ({ ...prev, 1: true })); // 인구수 변경사항 표시
+    } else if (!currentPopulationSettings) {
+      // 3. 인구수 설정이 아예 없는 경우 기본값 설정
+      console.log(`🏘️ 인구수 설정 없음 - 기본 모드 A 설정`);
+      const defaultSettings = {
+        mode: 'fixed' as const,
+        fixedSettings: {
+          thresholdValue: 4,
+          timeLimit: {
+            enabled: true,
+            minutes: 3,
+            seconds: 0
+          }
+        }
+      };
+      setTempPopulationSettings(defaultSettings);
+      setDetailChanges(prev => ({ ...prev, 1: true }));
     }
   };
 
@@ -444,6 +631,19 @@ export default function App() {
     }
   };
 
+  // 임시 저장 핸들러
+  const handleTempSaveWorkerSettings = (settings: WorkerSettings) => {
+    console.log('💾 일꾼 설정 임시 저장:', settings);
+    setTempWorkerSettings(settings);
+    setDetailChanges(prev => ({ ...prev, 0: true })); // 일꾼은 인덱스 0
+  };
+  
+  const handleTempSavePopulationSettings = (settings: any) => {
+    console.log('💾 인구수 설정 임시 저장:', settings);
+    setTempPopulationSettings(settings);
+    setDetailChanges(prev => ({ ...prev, 1: true })); // 인구수는 인덱스 1
+  };
+  
   // 설정 페이지 전환 핸들러들
   const handleOpenPopulationSettings = () => {
     setCurrentView('population-settings');
@@ -537,6 +737,8 @@ export default function App() {
             onOpenUpgradeSettings={handleOpenUpgradeSettings}
             onOpenBuildOrderSettings={handleOpenBuildOrderSettings}
             onOpenDevelopmentProgress={handleOpenDevelopmentProgress}
+            detailChanges={detailChanges}
+            onReset={handleResetPreset}
           />
         );
 
@@ -548,6 +750,8 @@ export default function App() {
             initialRace={editingPresetData?.selectedRace ?? currentPreset.selectedRace}
             currentPreset={currentPreset}
             onSavePopulationSettings={handleSavePopulationSettings}
+            tempPopulationSettings={tempPopulationSettings}
+            onTempSave={handleTempSavePopulationSettings}
           />
         );
 
@@ -559,6 +763,8 @@ export default function App() {
             onClose={handleBackToPresetSettings}
             currentPreset={currentPreset}
             onSaveWorkerSettings={handleSaveWorkerSettings}
+            tempWorkerSettings={tempWorkerSettings}
+            onTempSave={handleTempSaveWorkerSettings}
           />
         );
 

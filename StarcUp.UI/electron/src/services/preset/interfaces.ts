@@ -18,6 +18,13 @@ export interface IPresetStateManager {
   updatePresetBatch(updates: IBatchPresetUpdate): Promise<void>
   toggleFeature(featureIndex: number, enabled: boolean): Promise<void>
   
+  // 임시 저장 관리
+  updateTempSettings(presetType: string, settings: any): void
+  getTempSettings(presetType: string): any | null
+  clearTempSettings(presetType?: string): void
+  hasTempChanges(presetType?: string): boolean
+  applyTempSettings(): Promise<void>
+  
   // 이벤트 관리
   onStateChanged(callback: (event: IPresetChangeEvent) => void): () => void
   
@@ -87,7 +94,8 @@ export interface IPresetState {
  * 프리셋 변경 이벤트 타입 정의
  */
 export interface IPresetChangeEvent {
-  type: 'preset-switched' | 'settings-updated' | 'feature-toggled' | 'presets-loaded'
+  type: 'preset-switched' | 'settings-updated' | 'feature-toggled' | 'presets-loaded' | 
+        'temp-settings-updated' | 'temp-settings-cleared' | 'temp-settings-applied'
   presetId: string
   preset: IPreset | null
   changes: {
@@ -96,6 +104,9 @@ export interface IPresetChangeEvent {
     toggledFeature?: { index: number; enabled: boolean }
     previousPresetId?: string
     allPresets?: IPreset[]
+    presetType?: string
+    tempSettings?: any
+    appliedSettings?: IBatchPresetUpdate
   }
   timestamp: Date
 }
@@ -142,4 +153,5 @@ export interface IPresetStateManagerState {
   isInitialized: boolean
   isLoading: boolean
   lastSyncTime: number
+  tempSettings: Map<string, any>
 }
