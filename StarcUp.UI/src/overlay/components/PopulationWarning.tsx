@@ -151,7 +151,7 @@ export function PopulationWarning({
           boxShadow: isPreview 
             ? '0 4px 20px rgba(255, 59, 48, 0.4), 0 0 0 2px rgba(0, 153, 255, 0.3), inset 0 0 0 1px rgba(0, 153, 255, 0.2)'
             : '0 4px 20px rgba(255, 59, 48, 0.4)',
-          zIndex: 20000,
+          zIndex: 1000,
           minWidth: '140px',
           fontFamily: 'Arial, sans-serif',
           userSelect: 'none',
@@ -203,7 +203,7 @@ export function PopulationWarning({
             borderRadius: '3px',
             fontWeight: '600',
             whiteSpace: 'nowrap',
-            zIndex: 20001,
+            zIndex: 1001,
             pointerEvents: 'none'
           }}
         >
