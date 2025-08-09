@@ -266,14 +266,27 @@ export function PopulationDetailSettings({
     currentPreset?.populationSettings
   ]);
 
+  // 현재 활성화된 건물 개수 계산
+  const getEnabledBuildingsCount = () => {
+    return Object.values(buildingSettings).filter(setting => setting.enabled).length;
+  };
+
   // 건물 설정 업데이트
   const toggleBuildingEnabled = (unitType: UnitType) => {
     setBuildingSettings(prev => {
       const current = prev[unitType];
+      const isCurrentlyEnabled = current?.enabled || false;
+      
+      // 모드 B에서 마지막 활성화된 건물을 비활성화하려고 할 때 방지
+      if (mode === 'building' && isCurrentlyEnabled && getEnabledBuildingsCount() === 1) {
+        console.warn('⚠️ 모드 B에서는 최소 1개 건물이 활성화되어야 합니다.');
+        return prev; // 변경 없이 현재 상태 유지
+      }
+      
       return {
         ...prev,
         [unitType]: {
-          enabled: !(current?.enabled || false),
+          enabled: !isCurrentlyEnabled,
           multiplier: current?.multiplier || RACES[selectedRace].buildings.find(b => b.unitType === unitType)?.defaultMultiplier || 1
         }
       };
@@ -310,6 +323,13 @@ export function PopulationDetailSettings({
 
   const handleConfirm = async () => {
     try {
+      // 모드 B 유효성 검사: 최소 1개 건물 활성화 필수
+      if (mode === 'building' && getEnabledBuildingsCount() === 0) {
+        console.error('❌ 모드 B에서는 최소 1개 건물이 활성화되어야 합니다.');
+        alert('모드 B에서는 최소 1개 건물이 활성화되어야 합니다.');
+        return;
+      }
+
       // 현재 UI 상태를 PopulationSettings 형식으로 변환
       const populationSettings: PopulationSettings = {
         mode,
@@ -491,7 +511,23 @@ export function PopulationDetailSettings({
                       ? '0 0 10px rgba(0, 255, 0, 0.3)' 
                       : 'none'
                   }}
-                  onClick={() => setMode('building')}
+                  onClick={() => {
+                    setMode('building');
+                    // 모드 B로 전환 시 활성화된 건물이 없으면 첫 번째 건물 자동 활성화
+                    if (getEnabledBuildingsCount() === 0) {
+                      const firstBuilding = RACES[selectedRace].buildings[0];
+                      if (firstBuilding) {
+                        setBuildingSettings(prev => ({
+                          ...prev,
+                          [firstBuilding.unitType]: {
+                            enabled: true,
+                            multiplier: firstBuilding.defaultMultiplier
+                          }
+                        }));
+                        console.log(`🏗️ 모드 B 전환 시 ${firstBuilding.name} 자동 활성화`);
+                      }
+                    }
+                  }}
                 >
                   <div className="flex items-center gap-3 mb-3">
                     <Building2 
@@ -510,6 +546,11 @@ export function PopulationDetailSettings({
                     style={{ color: 'var(--starcraft-green)' }}
                   >
                     추적할 건물을 선택하고 배수를 설정하세요
+                  </p>
+                  <p 
+                    className="text-xs opacity-70 text-yellow-400"
+                  >
+                    ⚠️ 최소 1개 건물은 반드시 활성화되어야 합니다
                   </p>
                   <div 
                     className="text-xs p-2 rounded bg-black/20"
@@ -631,17 +672,24 @@ export function PopulationDetailSettings({
                             </div>
                             
                             {/* 체크박스 */}
-                            <label className="flex items-center cursor-pointer">
+                            <label className={`flex items-center ${
+                              // 마지막 활성화된 건물일 때 커서 변경
+                              config.enabled && getEnabledBuildingsCount() === 1 
+                                ? 'cursor-not-allowed' 
+                                : 'cursor-pointer'
+                            }`}>
                               <input
                                 type="checkbox"
                                 checked={config.enabled}
                                 onChange={() => toggleBuildingEnabled(building.unitType)}
                                 className="sr-only"
+                                disabled={config.enabled && getEnabledBuildingsCount() === 1}
                               />
                               <div
                                 className={`
                                   w-6 h-6 rounded border-2 transition-all duration-300 flex items-center justify-center
                                   ${config.enabled ? 'border-current' : ''}
+                                  ${config.enabled && getEnabledBuildingsCount() === 1 ? 'opacity-70' : ''}
                                 `}
                                 style={{
                                   backgroundColor: config.enabled 
@@ -651,6 +699,11 @@ export function PopulationDetailSettings({
                                     ? RACES[selectedRace].color 
                                     : 'var(--starcraft-border)'
                                 }}
+                                title={
+                                  config.enabled && getEnabledBuildingsCount() === 1 
+                                    ? '모드 B에서는 최소 1개 건물이 활성화되어야 합니다.' 
+                                    : undefined
+                                }
                               >
                                 {config.enabled && (
                                   <div 
