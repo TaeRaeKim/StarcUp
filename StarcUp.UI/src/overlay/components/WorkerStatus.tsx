@@ -2,11 +2,8 @@ import React, { useState, useCallback, useEffect, useRef, useImperativeHandle, f
 import { useEffectSystem, type EffectType } from '../hooks/useEffectSystem'
 import { getIconStyle } from '../utils/iconUtils'
 import { HDIcon } from './HDIcon'
-
-// 정적 애셋 import
-import probeIconUrl from '/resources/Icon/Protoss/Units/ProtossProbe.png'
-import probeDiffuseUrl from '/resources/HD/Protoss/Units/ProtossProbe_diffuse.png'
-import probeTeamColorUrl from '/resources/HD/Protoss/Units/ProtossProbe_teamcolor.png'
+import { getWorkerImagesByRace, getWorkerNameByRace } from '../utils/workerImageUtils'
+import { RaceType } from '../../types/enums'
 
 interface WorkerStatusProps {
   totalWorkers: number
@@ -20,6 +17,7 @@ interface WorkerStatusProps {
   teamColor?: string
   opacity?: number // 오버레이 설정의 투명도 (0-100)
   isPreview?: boolean // 편집 모드에서 미리보기로 표시되는지 여부
+  selectedRace?: RaceType // 선택된 종족
 }
 
 export interface WorkerStatusRef {
@@ -37,12 +35,27 @@ export const WorkerStatus = forwardRef<WorkerStatusRef, WorkerStatusProps>(({
   unitIconStyle = 'default',
   teamColor = '#0099FF',
   opacity = 90,
-  isPreview = false
+  isPreview = false,
+  selectedRace = RaceType.Protoss
 }, ref) => {
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const workerStatusRef = useRef<HTMLDivElement>(null)
   const { triggerEffect } = useEffectSystem()
+  
+  // 종족에 따른 일꾼 이미지 가져오기
+  const workerImages = getWorkerImagesByRace(selectedRace)
+  const workerName = getWorkerNameByRace(selectedRace)
+  
+  // 디버깅용 로그
+  useEffect(() => {
+    console.log('🎮 [WorkerStatus] 종족 정보:', {
+      selectedRace,
+      raceName: selectedRace === 0 ? 'Zerg' : selectedRace === 1 ? 'Terran' : 'Protoss',
+      workerName,
+      iconUrl: workerImages.iconUrl
+    })
+  }, [selectedRace, workerName, workerImages.iconUrl])
 
   // ref를 통해 외부에서 효과를 트리거할 수 있도록 노출
   useImperativeHandle(ref, () => ({
@@ -131,20 +144,27 @@ export const WorkerStatus = forwardRef<WorkerStatusRef, WorkerStatusProps>(({
         }}
       >
       {/* 일꾼 아이콘 */}
-      <div style={getIconStyle(unitIconStyle, teamColor)}>
-        {unitIconStyle === 'hd' ? (
+      <div style={{
+        ...getIconStyle(unitIconStyle, teamColor),
+        // HD 모드일 때 아이콘을 약간 확대
+        ...(unitIconStyle === 'hd' ? {
+          transform: 'scale(1)',
+          transformOrigin: 'center'
+        } : {})
+      }}>
+        {unitIconStyle === 'hd' && workerImages.diffuseUrl && workerImages.teamColorUrl ? (
           <HDIcon
-            diffuseSrc={probeDiffuseUrl}
-            teamColorSrc={probeTeamColorUrl}
+            diffuseSrc={workerImages.diffuseUrl}
+            teamColorSrc={workerImages.teamColorUrl}
             teamColor={teamColor}
             width={27}
             height={27}
-            alt="Protoss Probe HD"
+            alt={`${workerName} HD`}
           />
         ) : (
           <img 
-            src={probeIconUrl}
-            alt="Protoss Probe" 
+            src={workerImages.iconUrl}
+            alt={workerName} 
             style={{ 
               width: '27px', 
               height: '27px',

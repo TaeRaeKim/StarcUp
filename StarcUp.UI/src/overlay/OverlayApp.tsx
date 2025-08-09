@@ -4,6 +4,7 @@ import { WorkerStatus, type WorkerStatusRef } from './components/WorkerStatus'
 import { PopulationWarning } from './components/PopulationWarning'
 import { OverlaySettingsPanel, type OverlaySettings } from './components/OverlaySettings'
 import { type EffectType } from './hooks/useEffectSystem'
+import { RaceType } from '../types/enums'
 import './styles/OverlayApp.css'
 
 /**
@@ -62,6 +63,9 @@ export function OverlayApp() {
     false,  // 업그레이드 기능 (Upgrade)
     false   // 빌드오더 기능 (BuildOrder)
   ])
+  
+  // 프리셋의 선택된 종족
+  const [selectedRace, setSelectedRace] = useState<RaceType>(RaceType.Protoss)
 
   // 오버레이 설정 상태 (프리셋 기능 상태와 연동)
   const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>({
@@ -140,9 +144,9 @@ export function OverlayApp() {
     }
   }, [])
 
-  // 프리셋 기능 상태 초기화 (presetAPI 전용)
+  // 프리셋 기능 상태와 종족 초기화 (presetAPI 전용)
   useEffect(() => {
-    const initializePresetFeatures = async () => {
+    const initializePresetData = async () => {
       try {
         if (!window.presetAPI?.getFeaturesOnly) {
           console.error('❌ [Overlay] presetAPI.getFeaturesOnly를 사용할 수 없습니다')
@@ -150,18 +154,27 @@ export function OverlayApp() {
         }
 
         const result = await window.presetAPI.getFeaturesOnly()
-        if (result?.success && result.data?.featureStates) {
-          console.log('🎯 [Overlay] 초기 프리셋 기능 상태 로드:', result.data.featureStates)
-          setPresetFeatures(result.data.featureStates)
+        console.log('🔍 [Overlay] getFeaturesOnly 결과:', result) // 전체 결과 로그
+        
+        if (result?.success && result.data) {
+          if (result.data.featureStates) {
+            console.log('🎯 [Overlay] 초기 프리셋 기능 상태 로드:', result.data.featureStates)
+            setPresetFeatures(result.data.featureStates)
+          }
+          if (result.data.selectedRace !== undefined) {
+            console.log('🎯 [Overlay] 초기 프리셋 종족 로드:', result.data.selectedRace, 
+              '(', result.data.selectedRace === 0 ? 'Zerg' : result.data.selectedRace === 1 ? 'Terran' : 'Protoss', ')')
+            setSelectedRace(result.data.selectedRace)
+          }
         } else {
-          console.error('❌ [Overlay] 프리셋 기능 상태 로드 실패:', result?.error)
+          console.error('❌ [Overlay] 프리셋 데이터 로드 실패:', result?.error)
         }
       } catch (error) {
-        console.error('❌ [Overlay] 프리셋 기능 상태 초기화 실패:', error)
+        console.error('❌ [Overlay] 프리셋 데이터 초기화 실패:', error)
       }
     }
 
-    initializePresetFeatures()
+    initializePresetData()
   }, [])
 
   // 실시간 프리셋 기능 상태 동기화 (presetAPI 전용)
@@ -173,19 +186,31 @@ export function OverlayApp() {
 
     // Overlay 전용 최적화 이벤트 (빠른 응답)
     const unsubscribeFeaturesChanged = window.presetAPI.onFeaturesChanged((data) => {
-      console.log('🔄 [Overlay] 프리셋 기능 상태 변경 수신 (최적화):', data.featureStates, '| 시간:', data.timestamp)
+      console.log('🔄 [Overlay] 프리셋 기능 상태 변경 수신 (최적화):', data.featureStates, '| 종족:', data.selectedRace, '| 시간:', data.timestamp)
       setPresetFeatures(data.featureStates)
+      
+      // 종족 정보가 있는 경우 업데이트
+      if (data.selectedRace !== undefined) {
+        console.log('🔄 [Overlay] 종족 변경 (features-changed):', data.selectedRace,
+          '(', data.selectedRace === 0 ? 'Zerg' : data.selectedRace === 1 ? 'Terran' : 'Protoss', ')')
+        setSelectedRace(data.selectedRace)
+      }
     })
 
     // Main 페이지 변경사항 감지용 포괄적 이벤트
     const unsubscribeStateChanged = window.presetAPI.onStateChanged((event) => {
       console.log('🔄 [Overlay] 프리셋 상태 변경 수신:', event.type, event)
       
-      if (event.type === 'feature-toggled' || event.type === 'settings-updated') {
+      if (event.type === 'feature-toggled' || event.type === 'settings-updated' || event.type === 'preset-switched') {
         // Main 페이지에서 변경된 경우 현재 프리셋의 기능 상태 동기화
         if (event.preset?.featureStates) {
           console.log('🔄 [Overlay] Main 페이지 변경사항으로 기능 상태 업데이트:', event.preset.featureStates)
           setPresetFeatures(event.preset.featureStates)
+        }
+        // 종족 정보도 업데이트
+        if (event.preset?.selectedRace !== undefined) {
+          console.log('🔄 [Overlay] 프리셋 종족 변경:', event.preset.selectedRace)
+          setSelectedRace(event.preset.selectedRace)
         }
       }
     })
@@ -555,6 +580,7 @@ export function OverlayApp() {
             teamColor={overlaySettings.teamColor}
             opacity={overlaySettings.opacity}
             isPreview={isEditMode && !workerStatus}
+            selectedRace={selectedRace}
           />
         ) : null
       })()}
