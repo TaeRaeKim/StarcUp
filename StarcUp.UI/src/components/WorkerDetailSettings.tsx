@@ -63,6 +63,9 @@ export function WorkerDetailSettings({
     initialSettings.includeProducingWorkers
   );
 
+  // 변경사항 감지 상태
+  const [hasChanges, setHasChanges] = useState(false);
+
   // 프리셋 변경 시 일꾼 설정 업데이트 (완전한 데이터 보장)
   useEffect(() => {
     console.log('🔧 WorkerDetailSettings 프리셋 변경:', currentPreset);
@@ -77,6 +80,38 @@ export function WorkerDetailSettings({
     setWorkerDeathDetection(settings.workerDeathDetection);
     setGasWorkerCheck(settings.gasWorkerCheck);
   }, [currentPreset, tempWorkerSettings]);
+
+  // 변경사항 감지 - 원본 프리셋 설정과 현재 설정 비교
+  useEffect(() => {
+    const originalSettings = currentPreset.workerSettings;
+    const currentSettings = {
+      workerCountDisplay,
+      includeProducingWorkers,
+      idleWorkerDisplay,
+      workerProductionDetection,
+      workerDeathDetection,
+      gasWorkerCheck
+    };
+
+    const hasAnyChanges = (
+      originalSettings.workerCountDisplay !== currentSettings.workerCountDisplay ||
+      originalSettings.includeProducingWorkers !== currentSettings.includeProducingWorkers ||
+      originalSettings.idleWorkerDisplay !== currentSettings.idleWorkerDisplay ||
+      originalSettings.workerProductionDetection !== currentSettings.workerProductionDetection ||
+      originalSettings.workerDeathDetection !== currentSettings.workerDeathDetection ||
+      originalSettings.gasWorkerCheck !== currentSettings.gasWorkerCheck
+    );
+
+    setHasChanges(hasAnyChanges);
+  }, [
+    workerCountDisplay,
+    includeProducingWorkers,
+    idleWorkerDisplay,
+    workerProductionDetection,
+    workerDeathDetection,
+    gasWorkerCheck,
+    currentPreset.workerSettings
+  ]);
 
   const settingItems = [
     {
@@ -394,11 +429,16 @@ export function WorkerDetailSettings({
 
           <button
             onClick={handleConfirm}
-            className="flex items-center gap-2 px-6 py-2 rounded-sm border transition-all duration-300 hover:bg-green-500/20"
+            disabled={!hasChanges}
+            className={`flex items-center gap-2 px-6 py-2 rounded-sm border transition-all duration-300 ${
+              hasChanges 
+                ? 'hover:bg-green-500/20' 
+                : 'opacity-50 cursor-not-allowed'
+            }`}
             style={{
-              color: 'var(--starcraft-green)',
-              borderColor: 'var(--starcraft-green)',
-              backgroundColor: 'var(--starcraft-bg-active)'
+              color: hasChanges ? 'var(--starcraft-green)' : 'var(--starcraft-inactive-text)',
+              borderColor: hasChanges ? 'var(--starcraft-green)' : 'var(--starcraft-inactive-border)',
+              backgroundColor: hasChanges ? 'var(--starcraft-bg-active)' : 'transparent'
             }}
           >
             확인

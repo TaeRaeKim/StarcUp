@@ -97,6 +97,9 @@ export function PopulationDetailSettings({
   const [timeLimitMinutes, setTimeLimitMinutes] = useState(3);
   const [timeLimitSeconds, setTimeLimitSeconds] = useState(0);
   const [isTimeLimitEnabled, setIsTimeLimitEnabled] = useState(true);
+  
+  // 변경사항 감지 상태
+  const [hasChanges, setHasChanges] = useState(false);
 
   // 현재 프리셋에서 인구수 설정 로드 (임시 저장값 우선)
   useEffect(() => {
@@ -172,6 +175,96 @@ export function PopulationDetailSettings({
       setBuildingSettings({});
     }
   }, [currentPreset?.populationSettings, tempPopulationSettings, initialRace]);
+
+  // 변경사항 감지 - 원본 프리셋 설정과 현재 설정 비교
+  useEffect(() => {
+    const originalSettings = currentPreset?.populationSettings;
+    
+    // 현재 설정을 PopulationSettings 형식으로 구성
+    const currentSettings: PopulationSettings = {
+      mode,
+      ...(mode === 'fixed' && {
+        fixedSettings: {
+          thresholdValue: fixedValue,
+          ...(isTimeLimitEnabled && {
+            timeLimit: {
+              enabled: isTimeLimitEnabled,
+              minutes: timeLimitMinutes,
+              seconds: timeLimitSeconds
+            }
+          })
+        }
+      }),
+      ...(mode === 'building' && {
+        buildingSettings: {
+          race: selectedRace,
+          trackedBuildings: Object.entries(buildingSettings).map(([unitTypeStr, settings]) => {
+            const unitType = parseInt(unitTypeStr) as UnitType;
+            return {
+              buildingType: unitType,
+              multiplier: settings.multiplier,
+              enabled: settings.enabled
+            };
+          })
+        }
+      })
+    };
+
+    // 설정 비교 함수
+    const isEqual = (original: PopulationSettings | undefined, current: PopulationSettings): boolean => {
+      if (!original) return false;
+      
+      // 모드 비교
+      if (original.mode !== current.mode) return false;
+      
+      // 모드 A 비교
+      if (current.mode === 'fixed') {
+        const origFixed = original.fixedSettings;
+        const currFixed = current.fixedSettings;
+        if (!origFixed && !currFixed) return true;
+        if (!origFixed || !currFixed) return false;
+        
+        if (origFixed.thresholdValue !== currFixed.thresholdValue) return false;
+        
+        // 시간 제한 비교
+        const origTime = origFixed.timeLimit;
+        const currTime = currFixed.timeLimit;
+        if (!origTime && !currTime) return true;
+        if (!origTime || !currTime) return false;
+        
+        return origTime.enabled === currTime.enabled && 
+               origTime.minutes === currTime.minutes && 
+               origTime.seconds === currTime.seconds;
+      }
+      
+      // 모드 B 비교
+      if (current.mode === 'building') {
+        const origBuilding = original.buildingSettings;
+        const currBuilding = current.buildingSettings;
+        if (!origBuilding && !currBuilding) return true;
+        if (!origBuilding || !currBuilding) return false;
+        
+        if (origBuilding.race !== currBuilding.race) return false;
+        
+        // 건물 설정 비교
+        return JSON.stringify(origBuilding.trackedBuildings) === JSON.stringify(currBuilding.trackedBuildings);
+      }
+      
+      return true;
+    };
+
+    const hasAnyChanges = !isEqual(originalSettings, currentSettings);
+    setHasChanges(hasAnyChanges);
+  }, [
+    mode,
+    fixedValue,
+    timeLimitMinutes,
+    timeLimitSeconds,
+    isTimeLimitEnabled,
+    selectedRace,
+    buildingSettings,
+    currentPreset?.populationSettings
+  ]);
 
   // 건물 설정 업데이트
   const toggleBuildingEnabled = (unitType: UnitType) => {
@@ -898,11 +991,16 @@ export function PopulationDetailSettings({
           
           <button
             onClick={handleConfirm}
-            className="flex items-center gap-2 px-6 py-2 rounded-sm border transition-all duration-300 hover:bg-green-500/20"
+            disabled={!hasChanges}
+            className={`flex items-center gap-2 px-6 py-2 rounded-sm border transition-all duration-300 ${
+              hasChanges 
+                ? 'hover:bg-green-500/20' 
+                : 'opacity-50 cursor-not-allowed'
+            }`}
             style={{
-              color: 'var(--starcraft-green)',
-              borderColor: 'var(--starcraft-green)',
-              backgroundColor: 'var(--starcraft-bg-active)'
+              color: hasChanges ? 'var(--starcraft-green)' : 'var(--starcraft-inactive-text)',
+              borderColor: hasChanges ? 'var(--starcraft-green)' : 'var(--starcraft-inactive-border)',
+              backgroundColor: hasChanges ? 'var(--starcraft-bg-active)' : 'transparent'
             }}
           >
             <Settings2 className="w-4 h-4" />
