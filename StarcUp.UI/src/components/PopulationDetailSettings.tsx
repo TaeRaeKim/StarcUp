@@ -19,7 +19,7 @@ const RACES = {
     name: RACE_NAMES[RaceType.Protoss],
     color: '#FFD700',
     buildings: [
-      { unitType: UnitType.ProtossGateway, name: UNIT_NAMES[UnitType.ProtossGateway], defaultMultiplier: 1, icon: Shield },
+      { unitType: UnitType.ProtossGateway, name: UNIT_NAMES[UnitType.ProtossGateway], defaultMultiplier: 2, icon: Shield },
       { unitType: UnitType.ProtossRoboticsFacility, name: UNIT_NAMES[UnitType.ProtossRoboticsFacility], defaultMultiplier: 2, icon: Bot },
       { unitType: UnitType.ProtossStargate, name: UNIT_NAMES[UnitType.ProtossStargate], defaultMultiplier: 2, icon: Star }
     ]
@@ -37,7 +37,7 @@ const RACES = {
     name: RACE_NAMES[RaceType.Zerg],
     color: '#9932CC',
     buildings: [
-      { unitType: UnitType.ZergHatchery, name: UNIT_NAMES[UnitType.ZergHatchery], defaultMultiplier: 3, icon: Building2 }
+      { unitType: UnitType.ZergHatchery, name: UNIT_NAMES[UnitType.ZergHatchery], defaultMultiplier: 1, icon: Building2 }
     ]
   }
 } as const;
@@ -55,7 +55,13 @@ export function PopulationDetailSettings({
   tempPopulationSettings,
   onTempSave
 }: PopulationDetailSettingsProps) {
-  const [mode, setMode] = useState<'building' | 'fixed'>('fixed');
+  // 초기 모드를 임시 설정이나 현재 프리셋 설정에서 가져오기
+  const getInitialMode = (): 'building' | 'fixed' => {
+    const settings = tempPopulationSettings || currentPreset?.populationSettings;
+    return settings?.mode || 'fixed';
+  };
+  
+  const [mode, setMode] = useState<'building' | 'fixed'>(getInitialMode);
   const [selectedRace, setSelectedRace] = useState<RaceKey>(initialRace || RaceType.Protoss);
   
   // 디버깅: 컴포넌트가 받는 props 확인
@@ -92,89 +98,71 @@ export function PopulationDetailSettings({
     }
   }, [initialRace, mode, tempPopulationSettings]);
 
-  const [buildingSettings, setBuildingSettings] = useState<BuildingSettings>({});
-  const [fixedValue, setFixedValue] = useState(4);
-  const [timeLimitMinutes, setTimeLimitMinutes] = useState(3);
-  const [timeLimitSeconds, setTimeLimitSeconds] = useState(0);
-  const [isTimeLimitEnabled, setIsTimeLimitEnabled] = useState(true);
+  // 초기 건물 설정을 임시 설정이나 현재 프리셋 설정에서 가져오기
+  const getInitialBuildingSettings = (): BuildingSettings => {
+    const settings = tempPopulationSettings || currentPreset?.populationSettings;
+    if (settings?.mode === 'building' && settings.buildingSettings) {
+      const buildingSettingsMap: BuildingSettings = {};
+      settings.buildingSettings.trackedBuildings.forEach((building: any) => {
+        buildingSettingsMap[building.buildingType] = {
+          enabled: building.enabled,
+          multiplier: building.multiplier
+        };
+      });
+      return buildingSettingsMap;
+    }
+    return {};
+  };
+
+  const [buildingSettings, setBuildingSettings] = useState<BuildingSettings>(getInitialBuildingSettings);
+  const [fixedValue, setFixedValue] = useState(() => {
+    const settings = tempPopulationSettings || currentPreset?.populationSettings;
+    return settings?.fixedSettings?.thresholdValue || 4;
+  });
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState(() => {
+    const settings = tempPopulationSettings || currentPreset?.populationSettings;
+    return settings?.fixedSettings?.timeLimit?.minutes || 3;
+  });
+  const [timeLimitSeconds, setTimeLimitSeconds] = useState(() => {
+    const settings = tempPopulationSettings || currentPreset?.populationSettings;
+    return settings?.fixedSettings?.timeLimit?.seconds || 0;
+  });
+  const [isTimeLimitEnabled, setIsTimeLimitEnabled] = useState(() => {
+    const settings = tempPopulationSettings || currentPreset?.populationSettings;
+    return settings?.fixedSettings?.timeLimit?.enabled ?? true;
+  });
   
   // 변경사항 감지 상태
   const [hasChanges, setHasChanges] = useState(false);
 
-  // 현재 프리셋에서 인구수 설정 로드 (임시 저장값 우선)
+  // 현재 프리셋에서 인구수 설정 로드 (임시 저장값 우선) - 종족 변경 시에만 처리
   useEffect(() => {
-    console.log('🔄 인구수 설정 업데이트:', {
-      tempPopulationSettings,
-      currentPresetSettings: currentPreset?.populationSettings,
-      initialRace
-    });
-    
-    // 임시 저장값이 있으면 그것을 우선 사용
-    const settings = tempPopulationSettings || currentPreset?.populationSettings;
-    
-    if (settings) {
-      console.log('🏘️ 인구수 설정 로드:', settings);
+    // 종족 변경 시에만 건물 설정 업데이트 (모드 B인 경우만)
+    if (mode === 'building' && initialRace !== undefined) {
+      const settings = tempPopulationSettings || currentPreset?.populationSettings;
       
-      // 모드 설정
-      setMode(settings.mode);
-      
-      // 모드 A 설정
-      if (settings.mode === 'fixed' && settings.fixedSettings) {
-        setFixedValue(settings.fixedSettings.thresholdValue);
-        if (settings.fixedSettings.timeLimit) {
-          setIsTimeLimitEnabled(settings.fixedSettings.timeLimit.enabled);
-          setTimeLimitMinutes(settings.fixedSettings.timeLimit.minutes);
-          setTimeLimitSeconds(settings.fixedSettings.timeLimit.seconds);
-        }
-      }
-      
-      // 모드 B 설정 - 종족 변경 시 주의 깊게 처리
-      if (settings.mode === 'building' && settings.buildingSettings) {
-        // initialRace가 있으면 그것을 우선 사용 (실시간 업데이트)
-        if (initialRace !== undefined) {
-          console.log(`🎯 initialRace ${initialRace} vs settings.race ${settings.buildingSettings.race}`);
-          
-          if (initialRace === settings.buildingSettings.race) {
-            // 같은 종족이면 건물 설정 로드
-            const buildingSettingsMap: BuildingSettings = {};
-            settings.buildingSettings.trackedBuildings.forEach((building: TrackedBuilding) => {
-              buildingSettingsMap[building.buildingType] = {
-                enabled: building.enabled,
-                multiplier: building.multiplier
-              };
-            });
-            setBuildingSettings(buildingSettingsMap);
-            console.log(`✅ 종족 ${RACES[initialRace].name} 건물 설정 로드`);
-          } else {
-            // 다른 종족이면 건물 설정 비우기 (실제로는 initialRace에서 처리됨)
-            setBuildingSettings({});
-            console.log(`⚠️ 종족 불일치 - 건물 설정 초기화`);
-          }
-        } else {
-          // initialRace가 없으면 저장된 종족 사용
-          setSelectedRace(settings.buildingSettings.race);
+      if (settings?.mode === 'building' && settings.buildingSettings) {
+        console.log(`🎯 종족 변경: initialRace ${initialRace} vs settings.race ${settings.buildingSettings.race}`);
+        
+        if (initialRace === settings.buildingSettings.race) {
+          // 같은 종족이면 건물 설정 로드
           const buildingSettingsMap: BuildingSettings = {};
-          settings.buildingSettings.trackedBuildings.forEach((building: TrackedBuilding) => {
+          settings.buildingSettings.trackedBuildings.forEach((building: any) => {
             buildingSettingsMap[building.buildingType] = {
               enabled: building.enabled,
               multiplier: building.multiplier
             };
           });
           setBuildingSettings(buildingSettingsMap);
-          console.log(`🔄 저장된 종족 ${RACES[settings.buildingSettings.race as RaceKey]?.name || '알 수 없음'} 로드`);
+          console.log(`✅ 종족 ${RACES[initialRace].name} 건물 설정 로드`);
+        } else {
+          // 다른 종족이면 건물 설정 비우기
+          setBuildingSettings({});
+          console.log(`⚠️ 종족 불일치 - 건물 설정 초기화`);
         }
       }
-    } else {
-      console.log('🏘️ 인구수 설정 없음 - 기본값 사용');
-      // 기본값 설정
-      setMode('fixed');
-      setFixedValue(4);
-      setTimeLimitMinutes(3);
-      setTimeLimitSeconds(0);
-      setIsTimeLimitEnabled(true);
-      setBuildingSettings({});
     }
-  }, [currentPreset?.populationSettings, tempPopulationSettings, initialRace]);
+  }, [initialRace]);
 
   // 변경사항 감지 - 원본 프리셋 설정과 현재 설정 비교
   useEffect(() => {
