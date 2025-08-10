@@ -21,6 +21,7 @@ export function ScrollingText({ tips, className = "" }: ScrollingTextProps) {
 
   return (
     <div className={`relative ${className} overflow-hidden rounded-none`}>
+      
       {/* 뉴스 스타일 티커 */}
       <div 
         className="flex items-center h-8 relative"
@@ -35,7 +36,9 @@ export function ScrollingText({ tips, className = "" }: ScrollingTextProps) {
           <div 
             key={currentTipIndex} // 키 변경으로 애니메이션 재시작
             className="absolute whitespace-nowrap text-sm py-1 px-4 scrolling-text-news"
-            style={{ color: 'var(--starcraft-green)' }}
+            style={{ 
+              color: 'var(--starcraft-green)'
+            }}
           >
             {currentTip}
           </div>

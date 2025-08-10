@@ -107,6 +107,9 @@ input[type="number"] {
   --starcraft-inactive-border: #2a2a2a;
   --starcraft-inactive-text: #666666;
   --starcraft-inactive-bg: #151515;
+
+  /* UI Divider Colors */
+  --starcraft-divider: #6b7280;
 }
 
 .dark {
@@ -213,6 +216,9 @@ input[type="number"] {
   --color-starcraft-inactive-border: var(--starcraft-inactive-border);
   --color-starcraft-inactive-text: var(--starcraft-inactive-text);
   --color-starcraft-inactive-bg: var(--starcraft-inactive-bg);
+
+  /* UI Divider Colors */
+  --color-starcraft-divider: var(--starcraft-divider);
 }
 
 @layer base {
@@ -415,5 +421,560 @@ body::-webkit-scrollbar {
   border: 1px solid var(--starcraft-border);
 }
 
+/* Pro 기능 관련 애니메이션 */
+.pro-shimmer-animation {
+  animation: pro-shimmer 4s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.pro-shimmer-animation::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: shimmer-slide 4s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes shimmer-slide {
+  0%, 100% {
+    left: -100%;
+    opacity: 0;
+  }
+  50% {
+    left: 100%;
+    opacity: 1;
+  }
+}
+
+@keyframes pro-shimmer {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+/* Pro 배지 호버 효과 */
+.pro-badge-glow {
+  animation: pro-badge-glow 2s ease-in-out infinite;
+}
+
+@keyframes pro-badge-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.4), inset 0 0 6px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* Pro 골드 펄스 효과 */
+.pro-gold-pulse {
+  animation: pro-gold-pulse 3s ease-in-out infinite;
+}
+
+@keyframes pro-gold-pulse {
+  0%, 100% {
+    box-shadow: 
+      0 0 12px rgba(255, 215, 0, 0.3), 
+      inset 0 0 8px rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    box-shadow: 
+      0 0 20px rgba(255, 215, 0, 0.5), 
+      inset 0 0 12px rgba(255, 255, 255, 0.2),
+      0 0 30px rgba(255, 193, 7, 0.3);
+  }
+}
+
+/* Pro 파티클 애니메이션 */
+.pro-particle-float {
+  animation: particle-float 6s ease-in-out infinite;
+}
+
+@keyframes particle-float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.6;
+  }
+  25% {
+    transform: translateY(-3px) rotate(90deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-1px) rotate(180deg);
+    opacity: 1;
+  }
+  75% {
+    transform: translateY(-2px) rotate(270deg);
+    opacity: 0.7;
+  }
+}
+
+/* Pro 모드 전용 스타일 */
+/* Pro 메인 컨테이너 */
+.pro-main-container {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Pro 배경 애니메이션 */
+.pro-background-shimmer {
+  animation: pro-background-shimmer 8s ease-in-out infinite;
+}
+
+@keyframes pro-background-shimmer {
+  0%, 100% {
+    opacity: 0.15;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.25;
+    transform: scale(1.05);
+  }
+}
+
+/* Pro 타이틀 글로우 효과 */
+.pro-title-glow {
+  animation: pro-title-glow 4s ease-in-out infinite;
+}
+
+@keyframes pro-title-glow {
+  0%, 100% {
+    text-shadow: 0 0 12px rgba(255, 215, 0, 0.8), 0 0 24px rgba(255, 215, 0, 0.4);
+  }
+  50% {
+    text-shadow: 0 0 16px rgba(255, 215, 0, 1), 0 0 32px rgba(255, 215, 0, 0.6), 0 0 48px rgba(255, 215, 0, 0.3);
+  }
+}
+
+/* Pro 설정 버튼 */
+.preset-settings-button-pro {
+  background: transparent;
+  border: none;
+  transition: all 0.3s ease;
+  opacity: 0.8;
+  position: relative;
+}
+
+.preset-settings-button-pro:hover {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 193, 7, 0.15));
+  box-shadow: 
+    0 4px 12px rgba(255, 215, 0, 0.3),
+    inset 0 1px 3px rgba(255, 215, 0, 0.2),
+    0 0 12px rgba(255, 215, 0, 0.4);
+  transform: translateY(-1px);
+  opacity: 1;
+  border-radius: 6px;
+}
+
+/* Pro 메인 버튼 효과 */
+.pro-main-button-active {
+  background: linear-gradient(135deg, 
+    rgba(255, 215, 0, 0.15) 0%,
+    rgba(26, 26, 26, 0.9) 30%,
+    rgba(255, 215, 0, 0.08) 70%,
+    rgba(26, 26, 26, 0.85) 100%
+  ) !important;
+  border-color: #ffd700 !important;
+  position: relative;
+  overflow: visible;
+}
+
+.pro-main-button-inactive {
+  background: linear-gradient(135deg, 
+    rgba(255, 215, 0, 0.05) 0%,
+    rgba(26, 26, 26, 0.9) 30%,
+    rgba(255, 215, 0, 0.02) 70%,
+    rgba(26, 26, 26, 0.85) 100%
+  ) !important;
+  border-color: rgba(255, 215, 0, 0.3) !important;
+}
+
+.pro-main-button-inactive:hover {
+  background: linear-gradient(135deg, 
+    rgba(255, 215, 0, 0.08) 0%,
+    rgba(26, 26, 26, 0.85) 25%,
+    rgba(255, 215, 0, 0.04) 75%,
+    rgba(26, 26, 26, 0.9) 100%
+  ) !important;
+  border-color: rgba(255, 215, 0, 0.5) !important;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.3) !important;
+}
+
+@keyframes pro-main-button-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1.3);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.5);
+  }
+}
+
+/* Pro 스위치 효과 */
+.pro-switch-container {
+  animation: pro-switch-float 5s ease-in-out infinite;
+}
+
+@keyframes pro-switch-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes pro-switch-pulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1.5);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.7);
+  }
+}
+
+.pro-switch {
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.4) !important;
+  border: 1px solid rgba(255, 215, 0, 0.6) !important;
+}
+
+.pro-switch[data-state="checked"] {
+  background: linear-gradient(135deg, #ffd700, #ffb700) !important;
+  box-shadow: 
+    0 0 16px rgba(255, 215, 0, 0.8),
+    inset 0 0 8px rgba(255, 255, 255, 0.3),
+    0 0 24px rgba(255, 215, 0, 0.4) !important;
+}
+
+.pro-switch[data-state="unchecked"] {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 183, 0, 0.2)) !important;
+  border-color: rgba(255, 215, 0, 0.5) !important;
+}
+
+/* Pro 모드 프리셋 네비게이션 글로우 효과 확장 */
+.pro-main-container .preset-indicator-active {
+  animation: pro-preset-indicator-glow 2s ease-in-out infinite;
+}
+
+@keyframes pro-preset-indicator-glow {
+  0%, 100% {
+    box-shadow: 0 0 6px rgba(255, 215, 0, 0.8);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(255, 215, 0, 1), 0 0 18px rgba(255, 215, 0, 0.6);
+    opacity: 0.9;
+  }
+}
+
+/* Pro 모드 네비게이션 버튼 글로우 */
+.pro-main-container .preset-nav-active:hover {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 193, 7, 0.15)) !important;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.4) !important;
+}
+
+/* Pro 스크롤링 텍스트 효과 */
+.pro-scrolling-container {
+  position: relative;
+}
+
+.pro-scrolling-ticker {
+  position: relative;
+  overflow: hidden;
+}
+
+.pro-scrolling-ticker::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 215, 0, 0.05) 30%, 
+    rgba(255, 215, 0, 0.08) 50%, 
+    rgba(255, 215, 0, 0.05) 70%, 
+    transparent 100%
+  );
+  animation: pro-ticker-shimmer 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pro-ticker-shimmer {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.pro-scrolling-text {
+  position: relative;
+  z-index: 2;
+}
+
+/* Pro 모드 향상된 애니메이션 효과 */
+
+/* Pro 타이틀 향상 효과 */
+.pro-title-enhanced {
+  animation: pro-title-enhanced-glow 4s ease-in-out infinite;
+}
+
+@keyframes pro-title-enhanced-glow {
+  0%, 100% {
+    text-shadow: 
+      0 0 12px var(--starcraft-green), 
+      0 0 20px rgba(255, 215, 0, 0.3), 
+      0 0 30px rgba(0, 255, 0, 0.2);
+  }
+  50% {
+    text-shadow: 
+      0 0 16px var(--starcraft-green), 
+      0 0 24px rgba(255, 215, 0, 0.4), 
+      0 0 35px rgba(0, 255, 0, 0.3),
+      0 0 45px rgba(255, 215, 0, 0.2);
+  }
+}
+
+/* Pro 메인 버튼 향상된 펄스 애니메이션 */
+@keyframes pro-main-button-pulse {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(1.2);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(1.4);
+  }
+}
+
+/* Pro 코닉 회전 애니메이션 */
+@keyframes pro-conic-spin {
+  0% {
+    transform: scale(1.1) rotate(0deg);
+  }
+  100% {
+    transform: scale(1.1) rotate(360deg);
+  }
+}
+
+/* Pro 스위치 향상된 펄스 */
+@keyframes pro-switch-pulse {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(1.4);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1.6);
+  }
+}
+
+/* Pro 배경 시머 효과 개선 */
+@keyframes pro-background-shimmer {
+  0%, 100% {
+    opacity: 0.1;
+    transform: scale(1) translateX(0px);
+  }
+  33% {
+    opacity: 0.15;
+    transform: scale(1.02) translateX(2px);
+  }
+  66% {
+    opacity: 0.12;
+    transform: scale(0.98) translateX(-1px);
+  }
+}
+
+/* Pro 프리셋 인디케이터 향상된 글로우 */
+@keyframes pro-preset-indicator-enhanced-glow {
+  0%, 100% {
+    box-shadow: 
+      0 0 8px var(--starcraft-green), 
+      0 0 12px rgba(255, 215, 0, 0.4);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 
+      0 0 12px var(--starcraft-green), 
+      0 0 16px rgba(255, 215, 0, 0.6),
+      0 0 20px rgba(0, 255, 0, 0.3);
+    opacity: 0.9;
+  }
+}
+
+/* Pro 네비게이션 버튼 호버 효과 개선 */
+.pro-nav-button-enhanced:hover {
+  background: linear-gradient(135deg, 
+    rgba(0, 255, 0, 0.1) 0%, 
+    rgba(255, 215, 0, 0.05) 50%, 
+    rgba(0, 255, 0, 0.08) 100%
+  ) !important;
+  box-shadow: 
+    0 0 10px rgba(255, 215, 0, 0.2),
+    0 0 15px rgba(0, 255, 0, 0.1) !important;
+  transform: scale(1.05);
+}
+
+/* Pro 설정 버튼 향상된 효과 */
+.preset-settings-button-pro {
+  background: transparent;
+  border: none;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0.85;
+  position: relative;
+  overflow: hidden;
+}
+
+.preset-settings-button-pro::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 215, 0, 0.1), 
+    transparent
+  );
+  transition: left 0.5s;
+  z-index: 0;
+}
+
+.preset-settings-button-pro:hover::before {
+  left: 100%;
+}
+
+.preset-settings-button-pro:hover {
+  background: linear-gradient(135deg, 
+    rgba(0, 255, 0, 0.05) 0%, 
+    rgba(255, 215, 0, 0.08) 50%, 
+    rgba(0, 255, 0, 0.03) 100%
+  );
+  box-shadow: 
+    0 4px 15px rgba(255, 215, 0, 0.2),
+    inset 0 1px 3px rgba(255, 215, 0, 0.15),
+    0 0 20px rgba(0, 255, 0, 0.1);
+  transform: translateY(-2px) scale(1.05);
+  opacity: 1;
+  border-radius: 8px;
+}
+
+/* Pro 메인 버튼 향상된 비활성 상태 */
+.pro-main-button-inactive {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 215, 0, 0.03) 0%,
+    var(--starcraft-bg-secondary) 40%,
+    var(--starcraft-bg) 100%
+  ) !important;
+  border: 3px solid rgba(255, 215, 0, 0.2) !important;
+  position: relative;
+}
+
+.pro-main-button-inactive::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  padding: 3px;
+  background: conic-gradient(
+    from 180deg, 
+    rgba(255, 215, 0, 0.1), 
+    transparent, 
+    rgba(255, 215, 0, 0.05),
+    transparent,
+    rgba(255, 215, 0, 0.08)
+  );
+  border-radius: inherit;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+  opacity: 0.3;
+  animation: pro-border-rotate 8s linear infinite;
+}
+
+@keyframes pro-border-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.pro-main-button-inactive:hover {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 215, 0, 0.06) 0%,
+    rgba(0, 255, 0, 0.02) 30%,
+    var(--starcraft-bg-secondary) 60%,
+    var(--starcraft-bg) 100%
+  ) !important;
+  border-color: rgba(255, 215, 0, 0.4) !important;
+  box-shadow: 
+    0 0 15px rgba(255, 215, 0, 0.2),
+    inset 0 0 10px rgba(0, 255, 0, 0.05) !important;
+}
+
+.pro-main-button-inactive:hover::before {
+  opacity: 0.5;
+}
+
+/* Pro 스위치 향상된 스타일 */
+.pro-switch {
+  position: relative;
+  overflow: hidden;
+}
+
+.pro-switch::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 215, 0, 0.2),
+    transparent,
+    rgba(0, 255, 0, 0.1),
+    transparent,
+    rgba(255, 215, 0, 0.15)
+  );
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s;
+  animation: pro-switch-border-spin 6s linear infinite;
+  z-index: -1;
+}
+
+.pro-switch[data-state="checked"]::before {
+  opacity: 0.6;
+}
+
+.pro-switch[data-state="unchecked"]::before {
+  opacity: 0.3;
+}
+
+@keyframes pro-switch-border-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
 
 @import "./starcup.css";

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { ScrollingText } from "./ScrollingText";
 import { FeatureStatusGrid } from "./FeatureStatusGrid";
 import { Switch } from "./ui/switch";
-import { SlidersHorizontal, Power, WifiOff, Clock, Zap, ChevronLeft, ChevronRight } from "lucide-react";
+import { SlidersHorizontal, Power, WifiOff, Clock, Zap, ChevronLeft, ChevronRight, Crown } from "lucide-react";
 import { RaceType } from "../types/enums";
 
 const starcraftTips = [
@@ -63,6 +63,7 @@ interface MainInterfaceProps {
   isActive: boolean;
   gameStatus: GameStatus;
   onToggleOverlay: () => void;
+  isPro?: boolean;
 }
 
 export function MainInterface({ 
@@ -72,7 +73,8 @@ export function MainInterface({
   onOpenPresetSettings,
   isActive,
   gameStatus,
-  onToggleOverlay
+  onToggleOverlay,
+  isPro = false
 }: MainInterfaceProps) {
   const handlePresetChange = (preset: any) => {
     // FeatureStatusGrid에서 프리셋 변경을 처리하므로 여기서는 비워둠
@@ -94,32 +96,39 @@ export function MainInterface({
   const currentPreset = presets[currentPresetIndex];
 
   return (
-    <div className="h-screen w-screen flex overflow-hidden" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
+    <div 
+      className="h-screen w-screen flex overflow-hidden relative" 
+      style={{ 
+        backgroundColor: 'var(--starcraft-bg)'
+      }}
+    >
+      
       {/* 메인 애플리케이션 컨테이너 - 전체 화면 채우기 */}
       <div 
-        className="h-full w-full flex flex-col justify-between relative"
-        style={{ backgroundColor: 'var(--starcraft-bg)' }}
+        className="h-full w-full flex flex-col justify-between relative z-10"
+        style={{ 
+          backgroundColor: 'transparent'
+        }}
       >
         {/* 상단 타이틀 바 - 프리셋 네비게이션이 중앙에 위치 */}
         <div 
-          className="flex items-center justify-between p-3 draggable-titlebar"
+          className="flex items-center p-3 draggable-titlebar relative"
           style={{ 
             backgroundColor: 'var(--starcraft-bg-secondary)', 
-            borderBottom: '1px solid var(--starcraft-border)' 
+            borderBottom: '1px solid var(--starcraft-border)'
           }}
         >
-          {/* 왼쪽 빈 공간 */}
-          <div className="w-16"></div>
-          
-          {/* 중앙 프리셋 네비게이션 */}
-          <div className="flex items-center gap-3">
+          {/* 중앙 프리셋 네비게이션 - 절대 중앙 위치 */}
+          <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-3">
             <button
               onClick={handlePrevPreset}
-              className="p-2 rounded-full transition-all duration-300 hover:bg-[color:var(--starcraft-bg-secondary)] preset-nav-active"
+              className="p-2 rounded-full transition-all duration-300 preset-nav-active hover:bg-[color:var(--starcraft-bg-secondary)]"
             >
               <ChevronLeft 
                 className="w-4 h-4" 
-                style={{ color: 'var(--starcraft-green)' }} 
+                style={{ 
+                  color: 'var(--starcraft-green)'
+                }} 
               />
             </button>
 
@@ -145,25 +154,59 @@ export function MainInterface({
 
             <button
               onClick={handleNextPreset}
-              className="p-2 rounded-full transition-all duration-300 hover:bg-[color:var(--starcraft-bg-secondary)] preset-nav-active"
+              className="p-2 rounded-full transition-all duration-300 preset-nav-active hover:bg-[color:var(--starcraft-bg-secondary)]"
             >
               <ChevronRight 
                 className="w-4 h-4" 
-                style={{ color: 'var(--starcraft-green)' }} 
+                style={{ 
+                  color: 'var(--starcraft-green)'
+                }} 
               />
             </button>
           </div>
 
-          {/* 우측 창 컨트롤 버튼들 */}
-          <div className="flex gap-1">
-            <button 
-              className="w-4 h-4 bg-yellow-500 rounded-full hover:bg-yellow-400 transition-colors"
-              onClick={() => window.electronAPI?.minimizeWindow()}
-            ></button>
-            <button 
-              className="w-4 h-4 bg-red-500 rounded-full hover:bg-red-400 transition-colors"
-              onClick={() => window.electronAPI?.closeWindow()}
-            ></button>
+          {/* 우측 영역 - Pro 뱃지와 창 컨트롤 버튼들 */}
+          <div className="flex items-center ml-auto">
+            {/* Pro 뱃지 - isPro가 true일 때만 표시 */}
+            {isPro && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded-full border border-yellow-500/30 bg-yellow-500/10 backdrop-blur-sm">
+                <Crown 
+                  className="w-3 h-3" 
+                  style={{ 
+                    color: '#fbbf24'
+                  }} 
+                />
+                <span 
+                  className="text-xs font-medium tracking-wide"
+                  style={{ 
+                    color: '#fbbf24',
+                    textShadow: '0 0 4px rgba(251, 191, 36, 0.5)'
+                  }}
+                >
+                  PRO
+                </span>
+              </div>
+            )}
+            
+            {/* 시각적 구분선 (Pro 뱃지가 있을 때만) - Pro 뱃지와 버튼 사이 중앙에 위치 */}
+            {isPro && (
+              <div 
+                className="h-4 w-px mx-4 opacity-60"
+                style={{ backgroundColor: 'var(--starcraft-divider)' }}
+              />
+            )}
+            
+            {/* 창 컨트롤 버튼들 */}
+            <div className="flex gap-1">
+              <button 
+                className="w-4 h-4 bg-yellow-500 rounded-full hover:bg-yellow-400 transition-colors"
+                onClick={() => window.electronAPI?.minimizeWindow()}
+              ></button>
+              <button 
+                className="w-4 h-4 bg-red-500 rounded-full hover:bg-red-400 transition-colors"
+                onClick={() => window.electronAPI?.closeWindow()}
+              ></button>
+            </div>
           </div>
         </div>
 
@@ -174,10 +217,10 @@ export function MainInterface({
             {/* 왼쪽 빈 공간 (균형을 위해) */}
             <div className="w-12"></div>
             
-            {/* 중앙 프리셋 이름 - 개선된 스타일 */}
+            {/* 중앙 프리셋 이름 */}
             <div className="flex-1 text-center">
               <h2 
-                className="font-semibold tracking-wide transition-all duration-300" 
+                className="font-medium tracking-wide transition-all duration-300"
                 style={{ 
                   color: 'var(--starcraft-green)',
                   textShadow: '0 0 8px rgba(0, 255, 0, 0.5)'
@@ -187,7 +230,7 @@ export function MainInterface({
               </h2>
             </div>
             
-            {/* 우측 설정 버튼 - 개선된 디자인 */}
+            {/* 우측 설정 버튼 */}
             <div className="w-12 flex justify-end pr-2">
               <button 
                 onClick={onOpenPresetSettings}
@@ -196,13 +239,15 @@ export function MainInterface({
               >
                 <SlidersHorizontal 
                   className="w-5 h-5" 
-                  style={{ color: 'var(--starcraft-green)' }} 
+                  style={{ 
+                    color: 'var(--starcraft-green)'
+                  }} 
                 />
               </button>
             </div>
           </div>
 
-          {/* 기능 상태 표시 그리드 - 프리셋 이름 바로 아래로 이동 */}
+          {/* 기능 상태 표시 그리드 */}
           <div className="mb-4">
             <FeatureStatusGrid 
               isOverlayActive={isActive}
@@ -211,20 +256,18 @@ export function MainInterface({
               currentPresetIndex={currentPresetIndex}
               onPresetIndexChange={onPresetIndexChange}
               presets={presets}
+              isPro={isPro}
             />
           </div>
           
-          {/* 메인 버튼 - 적절한 간격으로 조정 */}
-          <div className="relative flex items-center justify-center my-8 overflow-visible">
+          {/* 메인 버튼 */}
+          <div className="relative flex items-center justify-center my-8">
             <button
               onClick={onToggleOverlay}
               className={`
                 w-84 h-84 rounded-full border-3 flex flex-col items-center justify-center
-                transition-all duration-500 transform active:scale-95 overflow-visible
-                ${isActive 
-                  ? currentStatusInfo.activeClass
-                  : 'starcraft-inactive'
-                }
+                transition-all duration-500 transform active:scale-95
+                ${isActive ? currentStatusInfo.activeClass : 'starcraft-inactive'}
               `}
             >
               <div 
@@ -250,18 +293,22 @@ export function MainInterface({
             </button>
           </div>
 
-          {/* OVERLAY 상태 표시 - Switch 컴포넌트만 사용 */}
+          {/* OVERLAY 상태 표시 */}
           <div className="w-full text-center py-4 h-8 flex items-center justify-center mb-8">
-            <Switch
-              checked={isActive}
-              onCheckedChange={onToggleOverlay}
-              className="starcraft-switch"
-              style={{
-                '--switch-bg-active': currentStatusInfo.color,
-                '--switch-bg-inactive': 'var(--starcraft-inactive-border)',
-                '--switch-glow': isActive ? `0 0 8px ${currentStatusInfo.color}40` : 'none'
-              } as React.CSSProperties}
-            />
+            <div className="relative">
+              <Switch
+                checked={isActive}
+                onCheckedChange={onToggleOverlay}
+                className="starcraft-switch"
+                style={{
+                  '--switch-bg-active': currentStatusInfo.color,
+                  '--switch-bg-inactive': 'var(--starcraft-inactive-border)',
+                  '--switch-glow': isActive 
+                    ? `0 0 8px ${currentStatusInfo.color}40`
+                    : 'none'
+                } as React.CSSProperties}
+              />
+            </div>
           </div>
         </div>
 
@@ -273,12 +320,14 @@ export function MainInterface({
           />
         </div>
 
-        {/* 차분한 오버레이 활성화 효과 */}
+        {/* 전체 화면 활성화 효과 */}
         {isActive && (
-          <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 pointer-events-none z-0">
             <div 
               className="absolute inset-0 opacity-2"
-              style={{ backgroundColor: currentStatusInfo.color }}
+              style={{ 
+                backgroundColor: currentStatusInfo.color 
+              }}
             ></div>
           </div>
         )}
