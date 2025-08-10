@@ -12,6 +12,7 @@ using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Communication;
 using StarcUp.Infrastructure.Windows;
 using StarcUp.Business.Communication;
+using StarcUp.Common.Logging;
 
 namespace StarcUp.DependencyInjection
 {    /// <summary>
@@ -21,8 +22,13 @@ namespace StarcUp.DependencyInjection
     {
         public static void RegisterServices(ServiceContainer container)
         {
-            Console.WriteLine("🚀 싱글톤 서비스 등록 중...");
-            Console.WriteLine();
+            // LoggerFactory 서비스 등록 (가장 먼저)
+            container.RegisterSingleton<ILoggerFactory>(
+                c => new LoggerFactory(LogLevel.Debug, writeToConsole: true));
+            
+            var loggerFactory = container.Resolve<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger(typeof(ServiceRegistration));
+            logger.Info("🚀 싱글톤 서비스 등록 시작...");
 
             // Infrastructure Services
             container.RegisterSingleton<IMemoryReader>(
@@ -106,24 +112,24 @@ namespace StarcUp.DependencyInjection
                     c.Resolve<IWorkerManager>(),
                     c.Resolve<IPopulationManager>()));
 
-            Console.WriteLine("✅ 서비스 등록 완료:");
-            Console.WriteLine("   📖 MemoryReader - 통합된 메모리 읽기 서비스");
-            Console.WriteLine("   🔄 MessageLoopRunner - Windows 메시지 루프 관리 서비스");
-            Console.WriteLine("   🪟 WindowManager - 윈도우 관리 서비스 (이벤트 기반)");
-            Console.WriteLine("   🧠 MemoryService - 메모리 비즈니스 로직");
-            Console.WriteLine("   🎮 GameDetector - 게임 감지 서비스");
-            Console.WriteLine("   📊 InGameStateMonitor - 게임 상태 모니터링 서비스");
-            Console.WriteLine("   🏗️ UnitInfoRepository - 유닛 정적 데이터 저장소");
-            Console.WriteLine("   🔗 UnitMemoryAdapter - 유닛 메모리 접근 어댑터");
-            Console.WriteLine("   ⚙️ UnitService - 유닛 비즈니스 로직 서비스");
-            Console.WriteLine("   🏗️ UnitOffsetRepository - 유닛 오프셋 설정 저장소");
-            Console.WriteLine("   🔢 UnitCountAdapter - 유닛 카운트 메모리 어댑터");
-            Console.WriteLine("   📊 UnitCountService - 유닛 카운트 관리 서비스");
-            Console.WriteLine("   🔗 NamedPipeClient - Named Pipe 통신 클라이언트");
-            Console.WriteLine("   📡 CommunicationService - UI 통신 관리 서비스");
-            Console.WriteLine("   👷 WorkerManager - 일꾼 관리 및 이벤트 서비스");
-            Console.WriteLine("   👥 PopulationManager - 인구수 관리 및 경고 서비스");
-            Console.WriteLine("   🎯 GameManager - 게임 관리 서비스 (자동 유닛 데이터 로딩)");
+            logger.Info("✅ 서비스 등록 완료:");
+            logger.Info("   📖 MemoryReader - 통합된 메모리 읽기 서비스");
+            logger.Info("   🔄 MessageLoopRunner - Windows 메시지 루프 관리 서비스");
+            logger.Info("   🪟 WindowManager - 윈도우 관리 서비스 (이벤트 기반)");
+            logger.Info("   🧠 MemoryService - 메모리 비즈니스 로직");
+            logger.Info("   🎮 GameDetector - 게임 감지 서비스");
+            logger.Info("   📊 InGameStateMonitor - 게임 상태 모니터링 서비스");
+            logger.Info("   🏗️ UnitInfoRepository - 유닛 정적 데이터 저장소");
+            logger.Info("   🔗 UnitMemoryAdapter - 유닛 메모리 접근 어댑터");
+            logger.Info("   ⚙️ UnitService - 유닛 비즈니스 로직 서비스");
+            logger.Info("   🏗️ UnitOffsetRepository - 유닛 오프셋 설정 저장소");
+            logger.Info("   🔢 UnitCountAdapter - 유닛 카운트 메모리 어댑터");
+            logger.Info("   📊 UnitCountService - 유닛 카운트 관리 서비스");
+            logger.Info("   🔗 NamedPipeClient - Named Pipe 통신 클라이언트");
+            logger.Info("   📡 CommunicationService - UI 통신 관리 서비스");
+            logger.Info("   👷 WorkerManager - 일꾼 관리 및 이벤트 서비스");
+            logger.Info("   👥 PopulationManager - 인구수 관리 및 경고 서비스");
+            logger.Info("   🎯 GameManager - 게임 관리 서비스 (자동 유닛 데이터 로딩)");
         }
     }
 }

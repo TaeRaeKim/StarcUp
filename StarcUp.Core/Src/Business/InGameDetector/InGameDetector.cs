@@ -3,6 +3,7 @@ using StarcUp.Business.MemoryService;
 using StarcUp.Business.Units.Runtime.Repositories;
 using StarcUp.Common.Constants;
 using StarcUp.Common.Events;
+using StarcUp.Common.Logging;
 using System;
 
 namespace StarcUp.Business.InGameDetector
@@ -35,13 +36,13 @@ namespace StarcUp.Business.InGameDetector
             if (_isMonitoring)
                 return;
 
-            Console.WriteLine($"InGame 상태 모니터링 시작: PID {processId}");
+            LoggerHelper.Info($"InGame 상태 모니터링 시작: PID {processId}");
 
             try
             {
                 if (GetIsAddress() == 0)
                 {
-                    Console.WriteLine($"[InGameStateMonitor] ❌ InGame 상태 주소를 캐싱할 수 없습니다. 모니터링을 중지합니다.");
+                    LoggerHelper.Error("InGame 상태 주소를 캐싱할 수 없습니다. 모니터링을 중지합니다.");
                     return;
                 }
 
@@ -50,11 +51,11 @@ namespace StarcUp.Business.InGameDetector
                 _monitorTimer.Start();
 
                 _isMonitoring = true;
-                Console.WriteLine("InGame 상태 모니터링 활성화됨");
+                LoggerHelper.Info("InGame 상태 모니터링 활성화됨");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"InGame 모니터링 시작 실패: {ex.Message}");
+                LoggerHelper.Error("InGame 모니터링 시작 실패", ex);
                 StopMonitoring();
             }
         }
@@ -64,7 +65,7 @@ namespace StarcUp.Business.InGameDetector
             if (!_isMonitoring)
                 return;
 
-            Console.WriteLine("InGame 상태 모니터링 중지...");
+            LoggerHelper.Info("InGame 상태 모니터링 중지...");
 
             _monitorTimer?.Stop();
             _monitorTimer?.Dispose();
@@ -73,7 +74,7 @@ namespace StarcUp.Business.InGameDetector
             IsInGame = false;
 
             _isMonitoring = false;
-            Console.WriteLine("InGame 상태 모니터링 중지됨");
+            LoggerHelper.Info("InGame 상태 모니터링 중지됨");
         }
 
         private void CheckInGameState(object sender, System.Timers.ElapsedEventArgs e)
@@ -91,7 +92,7 @@ namespace StarcUp.Business.InGameDetector
                 if (newInGameState != IsInGame)
                 {
                     IsInGame = newInGameState;
-                    Console.WriteLine($"InGame 상태 변경: {IsInGame}");
+                    LoggerHelper.Info($"InGame 상태 변경: {IsInGame}");
 
                     var eventArgs = new InGameEventArgs(IsInGame);
                     InGameStateChanged?.Invoke(this, eventArgs);
@@ -99,7 +100,7 @@ namespace StarcUp.Business.InGameDetector
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"InGame 상태 확인 중 오류: {ex.Message}");
+                LoggerHelper.Error("InGame 상태 확인 중 오류", ex);
             }
         }
 
@@ -124,7 +125,7 @@ namespace StarcUp.Business.InGameDetector
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"InGame 상태 읽기 실패: {ex.Message}");
+                LoggerHelper.Error("InGame 상태 읽기 실패", ex);
                 _isAddressCached = false; // 오류 발생 시 캐시 무효화
                 return false;
             }
@@ -137,12 +138,12 @@ namespace StarcUp.Business.InGameDetector
                 return _cachedInGameAddress;
             }
 
-            Console.WriteLine("[InGameDetector] InGame 주소 계산 중...");
+            LoggerHelper.Debug("InGame 주소 계산 중...");
 
             nint BaseAddress = _memoryService.GetStarCraftModule()?.BaseAddress ?? 0;
             if (BaseAddress == 0)
             {
-                Console.WriteLine("StarCraft 모듈을 찾을 수 없습니다.");
+                LoggerHelper.Error("StarCraft 모듈을 찾을 수 없습니다.");
                 return 0;
             }
             nint finalAddress = BaseAddress + 0x10A1878;
@@ -155,13 +156,13 @@ namespace StarcUp.Business.InGameDetector
 
         private void OnProcessConnect(object sender, ProcessEventArgs e)
         {
-            Console.WriteLine($"InGameMonitoring: 프로세스 연결됨 (PID: {e.ProcessId})");
+            LoggerHelper.Info($"프로세스 연결됨 (PID: {e.ProcessId})");
             StartMonitoring(e.ProcessId);
         }
 
         private void OnProcessDisconnect(object sender, ProcessEventArgs e)
         {
-            Console.WriteLine("InGameMonitoring: 프로세스 연결 해제됨");
+            LoggerHelper.Info("프로세스 연결 해제됨");
             _isAddressCached = false; // 캐시 무효화
             _cachedInGameAddress = 0;
             var eventArgs = new InGameEventArgs(false);

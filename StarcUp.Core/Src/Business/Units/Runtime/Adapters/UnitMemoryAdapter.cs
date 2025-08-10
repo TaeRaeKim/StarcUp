@@ -1,5 +1,6 @@
 using StarcUp.Business.Units.Runtime.Models;
 using StarcUp.Business.MemoryService;
+using StarcUp.Common.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -40,13 +41,13 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             _units = new UnitRaw[_maxUnits];
             _previousUnits = new UnitRaw[_maxUnits];
 
-            Console.WriteLine($"UnitMemoryAdapter 초기화 완료 - 최대 유닛 수: {_maxUnits}, 유닛 크기: {_unitSize}바이트");
+            LoggerHelper.Debug($"UnitMemoryAdapter 초기화 완료 - 최대 유닛 수: {_maxUnits}, 유닛 크기: {_unitSize}바이트");
         }
 
         public void SetUnitArrayBaseAddress(nint baseAddress)
         {
             _unitArrayBaseAddress = baseAddress;
-            Console.WriteLine($"[UnitMemoryAdapter] 유닛 배열 베이스 주소 설정: 0x{baseAddress:X}");
+            LoggerHelper.Debug($"[UnitMemoryAdapter] 유닛 배열 베이스 주소 설정: 0x{baseAddress:X}");
         }
 
         public bool InitializeUnitArrayAddress()
@@ -61,37 +62,37 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 // 캐싱된 주소가 있으면 사용
                 if (_isAddressCached && _cachedUnitArrayAddress != 0)
                 {
-                    Console.WriteLine($"[UnitMemoryAdapter] 캐싱된 유닛 배열 주소 사용: 0x{_cachedUnitArrayAddress:X}");
+                    LoggerHelper.Debug($"[UnitMemoryAdapter] 캐싱된 유닛 배열 주소 사용: 0x{_cachedUnitArrayAddress:X}");
                     _unitArrayBaseAddress = _cachedUnitArrayAddress;
                     
                     if (loadDataAfterInit)
                     {
                         // 캐싱된 주소로 유닛 데이터 로드
-                        Console.WriteLine("[UnitMemoryAdapter] 캐싱된 주소로 유닛 데이터 로드 중...");
+                        LoggerHelper.Debug("[UnitMemoryAdapter] 캐싱된 주소로 유닛 데이터 로드 중...");
                         bool loadSuccess = LoadAllUnits(false); // 재귀 방지
                         if (!loadSuccess)
                         {
-                            Console.WriteLine("[UnitMemoryAdapter] ⚠️ 캐싱된 주소로 유닛 데이터 로드 실패");
+                            LoggerHelper.Debug("[UnitMemoryAdapter] ⚠️ 캐싱된 주소로 유닛 데이터 로드 실패");
                         }
                         return loadSuccess;
                     }
                     else
                     {
-                        Console.WriteLine("[UnitMemoryAdapter] 주소만 설정 (데이터 로드 생략)");
+                        LoggerHelper.Debug("[UnitMemoryAdapter] 주소만 설정 (데이터 로드 생략)");
                         return true;
                     }
                 }
 
-                Console.WriteLine("[UnitMemoryAdapter] 유닛 배열 주소 계산 중...");
+                LoggerHelper.Debug("[UnitMemoryAdapter] 유닛 배열 주소 계산 중...");
 
                 // StarCraft.exe 모듈 찾기
                 if (!_memoryService.FindModule("StarCraft.exe", out var starcraftModule))
                 {
-                    Console.WriteLine("[UnitMemoryAdapter] ❌ StarCraft.exe 모듈을 찾을 수 없습니다.");
+                    LoggerHelper.Debug("[UnitMemoryAdapter] ❌ StarCraft.exe 모듈을 찾을 수 없습니다.");
                     return false;
                 }
 
-                Console.WriteLine($"[UnitMemoryAdapter] StarCraft.exe 베이스 주소: 0x{starcraftModule.BaseAddress:X}");
+                LoggerHelper.Debug($"[UnitMemoryAdapter] StarCraft.exe 베이스 주소: 0x{starcraftModule.BaseAddress:X}");
 
                 // StarCraft 베이스 주소 저장
                 _starcraftBaseAddress = starcraftModule.BaseAddress;
@@ -105,15 +106,15 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 // Step 2: 실제 유닛 배열 주소 읽기
                 nint finalUnitArrayAddress = _memoryService.ReadPointer(pointerAddress);
 
-                Console.WriteLine($"[UnitMemoryAdapter] 올바른 주소 계산:");
-                Console.WriteLine($"  - StarCraft.exe BaseAddr: 0x{starcraftModule.BaseAddress:X}");
-                Console.WriteLine($"  - 포인터 주소 (Base + 0xE77FE0 + 0x80): 0x{pointerAddress:X}");
-                Console.WriteLine($"  - 실제 유닛 배열 주소 (포인터에서 읽은 값): 0x{finalUnitArrayAddress:X}");
+                LoggerHelper.Debug($"[UnitMemoryAdapter] 올바른 주소 계산:");
+                LoggerHelper.Debug($"  - StarCraft.exe BaseAddr: 0x{starcraftModule.BaseAddress:X}");
+                LoggerHelper.Debug($"  - 포인터 주소 (Base + 0xE77FE0 + 0x80): 0x{pointerAddress:X}");
+                LoggerHelper.Debug($"  - 실제 유닛 배열 주소 (포인터에서 읽은 값): 0x{finalUnitArrayAddress:X}");
 
                 // 유효성 검사
                 if (finalUnitArrayAddress == 0)
                 {
-                    Console.WriteLine("[UnitMemoryAdapter] ❌ 포인터에서 읽은 유닛 배열 주소가 0입니다.");
+                    LoggerHelper.Debug("[UnitMemoryAdapter] ❌ 포인터에서 읽은 유닛 배열 주소가 0입니다.");
                     return false;
                 }
 
@@ -122,28 +123,28 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 _isAddressCached = true;
                 _unitArrayBaseAddress = finalUnitArrayAddress;
 
-                Console.WriteLine("[UnitMemoryAdapter] ✅ 유닛 배열 주소 초기화 성공");
+                LoggerHelper.Debug("[UnitMemoryAdapter] ✅ 유닛 배열 주소 초기화 성공");
                 
                 if (loadDataAfterInit)
                 {
                     // 주소 설정 후 유닛 데이터 로드
-                    Console.WriteLine("[UnitMemoryAdapter] 유닛 데이터 로드 중...");
+                    LoggerHelper.Debug("[UnitMemoryAdapter] 유닛 데이터 로드 중...");
                     bool loadSuccess = LoadAllUnits(false); // 재귀 방지
                     if (!loadSuccess)
                     {
-                        Console.WriteLine("[UnitMemoryAdapter] ⚠️ 유닛 데이터 로드 실패");
+                        LoggerHelper.Debug("[UnitMemoryAdapter] ⚠️ 유닛 데이터 로드 실패");
                     }
                     return loadSuccess;
                 }
                 else
                 {
-                    Console.WriteLine("[UnitMemoryAdapter] 주소만 설정 (데이터 로드 생략)");
+                    LoggerHelper.Debug("[UnitMemoryAdapter] 주소만 설정 (데이터 로드 생략)");
                     return true;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UnitMemoryAdapter] 유닛 배열 주소 초기화 실패: {ex.Message}");
+                LoggerHelper.Debug($"[UnitMemoryAdapter] 유닛 배열 주소 초기화 실패: {ex.Message}");
                 _isAddressCached = false;
                 return false;
             }
@@ -163,7 +164,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             // 주소가 설정되지 않았으면 자동으로 초기화 시도 (무한 재귀 방지)
             if (_unitArrayBaseAddress == 0 && allowAutoInitialize)
             {
-                Console.WriteLine("[UnitMemoryAdapter] 주소가 설정되지 않음, 자동 초기화 시도...");
+                LoggerHelper.Debug("[UnitMemoryAdapter] 주소가 설정되지 않음, 자동 초기화 시도...");
                 if (!InitializeUnitArrayAddress())
                 {
                     throw new InvalidOperationException("Unit array base address initialization failed");
@@ -182,7 +183,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
 
                 if (!success)
                 {
-                    Console.WriteLine("[UnitMemoryAdapter] ❌ 유닛 배열 읽기 실패");
+                    LoggerHelper.Debug("[UnitMemoryAdapter] ❌ 유닛 배열 읽기 실패");
                     return false;
                 }
 
@@ -203,7 +204,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                     }
                     else
                     {
-                        Console.WriteLine($"  ❌ 계산된 인덱스가 유효 범위를 벗어남 (0-{_maxUnits-1})");
+                        LoggerHelper.Debug($"  ❌ 계산된 인덱스가 유효 범위를 벗어남 (0-{_maxUnits-1})");
                     }
                 }
 
@@ -215,7 +216,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"유닛 로드 중 오류: {ex.Message}");
+                LoggerHelper.Debug($"유닛 로드 중 오류: {ex.Message}");
                 return false;
             }
         }
@@ -234,12 +235,12 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             {
                 // 연결 리스트 방식으로 활성 유닛들만 효율적으로 반환
                 var activeUnits = GetActiveUnitsFromLinkedList();
-                Console.WriteLine($"[UnitMemoryAdapter] GetAllRawUnits: 연결 리스트에서 {activeUnits.Count}개 유닛 반환");
+                LoggerHelper.Debug($"[UnitMemoryAdapter] GetAllRawUnits: 연결 리스트에서 {activeUnits.Count}개 유닛 반환");
                 return activeUnits.Select(x => x.unit);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UnitMemoryAdapter] GetAllRawUnits 연결 리스트 방식 실패: {ex.Message}");
+                LoggerHelper.Debug($"[UnitMemoryAdapter] GetAllRawUnits 연결 리스트 방식 실패: {ex.Message}");
                 // fallback to old method
                 return _units
                     .Take(_currentUnitCount)
@@ -270,7 +271,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UnitMemoryAdapter] GetPlayerRawUnits 실패: {ex.Message}");
+                LoggerHelper.Debug($"[UnitMemoryAdapter] GetPlayerRawUnits 실패: {ex.Message}");
                 // 마지막 fallback - 전체 스캔
                 return _units
                     .Take(_currentUnitCount)
@@ -361,13 +362,13 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 // 주소 오프셋 유효성 검사
                 if (addressOffset < 0)
                 {
-                    Console.WriteLine($"[UnitMemoryAdapter] ❌ nextPointer가 base address보다 작음: offset={addressOffset}");
+                    LoggerHelper.Debug($"[UnitMemoryAdapter] ❌ nextPointer가 base address보다 작음: offset={addressOffset}");
                     break;
                 }
                 
                 if (addressOffset % _unitSize != 0)
                 {
-                    Console.WriteLine($"[UnitMemoryAdapter] ❌ nextPointer 주소가 유닛 크기에 맞지 않음: offset={addressOffset}, unitSize={_unitSize}");
+                    LoggerHelper.Debug($"[UnitMemoryAdapter] ❌ nextPointer 주소가 유닛 크기에 맞지 않음: offset={addressOffset}, unitSize={_unitSize}");
                     break;
                 }
 
@@ -376,7 +377,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 // 다음 인덱스 유효성 검사
                 if (nextIndex < 0 || nextIndex >= _maxUnits)
                 {
-                    Console.WriteLine($"[UnitMemoryAdapter] ❌ 계산된 다음 인덱스가 범위를 벗어남: {nextIndex} (범위: 0-{_maxUnits-1})");
+                    LoggerHelper.Debug($"[UnitMemoryAdapter] ❌ 계산된 다음 인덱스가 범위를 벗어남: {nextIndex} (범위: 0-{_maxUnits-1})");
                     break;
                 }
                                                 
@@ -403,7 +404,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 }
             }
             
-            Console.WriteLine($"[UnitMemoryAdapter] 전체 스캔 방식 카운팅 완료: {count}개");
+            LoggerHelper.Debug($"[UnitMemoryAdapter] 전체 스캔 방식 카운팅 완료: {count}개");
             return count;
         }
 
@@ -422,7 +423,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UnitMemoryAdapter] 연결 리스트 방식 실패: {ex.Message}, 전체 스캔으로 fallback");
+                LoggerHelper.Debug($"[UnitMemoryAdapter] 연결 리스트 방식 실패: {ex.Message}, 전체 스캔으로 fallback");
                 return CountActiveUnitsFullScan();
             }
         }
@@ -441,7 +442,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
         {
             if (_starcraftBaseAddress == 0)
             {
-                Console.WriteLine("[UnitMemoryAdapter] ❌ StarCraft 베이스 주소가 설정되지 않음");
+                LoggerHelper.Debug("[UnitMemoryAdapter] ❌ StarCraft 베이스 주소가 설정되지 않음");
                 return;
             }
 
@@ -535,7 +536,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UnitMemoryAdapter] Player {playerId} 유닛 순회 중 오류: {ex.Message}");
+                LoggerHelper.Debug($"[UnitMemoryAdapter] Player {playerId} 유닛 순회 중 오류: {ex.Message}");
                 return Enumerable.Empty<UnitRaw>();
             }
         }
@@ -630,14 +631,14 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UnitMemoryAdapter] Player {playerId} 유닛 버퍼 복사 중 오류: {ex.Message}");
+                LoggerHelper.Debug($"[UnitMemoryAdapter] Player {playerId} 유닛 버퍼 복사 중 오류: {ex.Message}");
                 return unitCount; // 지금까지 복사된 개수 반환
             }
         }
 
         public void InvalidateAddressCache()
         {
-            Console.WriteLine("[UnitMemoryAdapter] 주소 캐시 무효화");
+            LoggerHelper.Debug("[UnitMemoryAdapter] 주소 캐시 무효화");
             _isAddressCached = false;
             _cachedUnitArrayAddress = 0;
             _unitArrayBaseAddress = 0;
@@ -660,7 +661,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             _playerUnitPointers.Clear();
 
             _disposed = true;
-            Console.WriteLine("UnitMemoryAdapter 리소스 정리 완료");
+            LoggerHelper.Debug("UnitMemoryAdapter 리소스 정리 완료");
         }
     }
 }

@@ -125,8 +125,8 @@ export function PresetSettingsModal({
   }, [editData, currentPreset, detailChanges]);
 
   const handleFeatureToggle = (index: number) => {
-    // 유닛(2), 업그레이드(3), 빌드오더(4)는 비활성화 - 클릭 불가 (일꾼은 0번, 인구수는 1번으로 활성화)
-    if (index === 2 || index === 3 || index === 4) {
+    // 유닛(2), 빌드오더(4)는 비활성화 - 클릭 불가 (일꾼은 0번, 인구수는 1번, 업그레이드는 3번으로 활성화)
+    if (index === 2 || index === 4) {
       return;
     }
     
@@ -146,6 +146,8 @@ export function PresetSettingsModal({
       onOpenWorkerSettings();
     } else if (featureName === "인구 수" && onOpenPopulationSettings) {
       onOpenPopulationSettings();
+    } else if (featureName === "업그레이드" && onOpenUpgradeSettings) {
+      onOpenUpgradeSettings();
     } else {
       // 나머지 기능들은 개발 중 페이지로 이동
       if (onOpenDevelopmentProgress) {
@@ -153,8 +155,6 @@ export function PresetSettingsModal({
         
         if (featureName === "유닛") {
           featureType = 'unit';
-        } else if (featureName === "업그레이드") {
-          featureType = 'upgrade';
         } else if (featureName === "빌드 오더") {
           featureType = 'buildorder';
         } else {
@@ -444,7 +444,7 @@ export function PresetSettingsModal({
                   const isUnit = index === 2; // 유닛은 인덱스 2
                   const isUpgrade = index === 3; // 업그레이드는 인덱스 3
                   const isBuildOrder = index === 4; // 빌드오더는 인덱스 4
-                  const isDisabled = isUnit || isUpgrade || isBuildOrder; // 일꾼과 인구수만 활성화
+                  const isDisabled = isUnit || isBuildOrder; // 일꾼, 인구수, 업그레이드 활성화
                   
                   return (
                   <div

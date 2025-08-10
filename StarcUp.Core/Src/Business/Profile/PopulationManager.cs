@@ -7,6 +7,7 @@ using StarcUp.Business.Units.Runtime.Services;
 using StarcUp.Business.Units.Types;
 using StarcUp.Business.MemoryService;
 using StarcUp.Common.Events;
+using StarcUp.Common.Logging;
 
 namespace StarcUp.Business.Profile
 {
@@ -58,7 +59,7 @@ namespace StarcUp.Business.Profile
         {
             LocalPlayerId = localPlayerId;
             LocalPlayerRace = localPlayerRace;
-            Console.WriteLine($"[PopulationManager] ✅ 인구수 관리자 초기화 - 플레이어 ID: {localPlayerId}, 종족: {localPlayerRace}");
+            LoggerHelper.Info($"인구수 관리자 초기화 - 플레이어 ID: {localPlayerId}, 종족: {localPlayerRace}");
             
             // 통계 초기화
             lock (_lock)
@@ -100,7 +101,7 @@ namespace StarcUp.Business.Profile
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [PopulationManager] 인구수 데이터 업데이트 실패: {ex.Message}");
+                LoggerHelper.Error($"인구수 데이터 업데이트 실패: {ex.Message}");
             }
         }
 
@@ -122,14 +123,14 @@ namespace StarcUp.Business.Profile
         {
             if (settings == null)
             {
-                Console.WriteLine("[PopulationManager] ⚠️ 인구수 설정이 null입니다. 기본 설정을 사용합니다.");
+                LoggerHelper.Warning("인구수 설정이 null입니다. 기본 설정을 사용합니다.");
                 Settings = new PopulationSettings();
                 return;
             }
 
-            Console.WriteLine($"[PopulationManager] 🔄 인구수 설정 초기화 시작 - 모드: {settings.Mode}");
+            LoggerHelper.Info($"인구수 설정 초기화 시작 - 모드: {settings.Mode}");
             Settings = settings;
-            Console.WriteLine("[PopulationManager] ✅ 인구수 설정 초기화 완료");
+            LoggerHelper.Info("인구수 설정 초기화 완료");
         }
 
         /// <summary>
@@ -141,7 +142,7 @@ namespace StarcUp.Business.Profile
         public PopulationSettings UpdatePopulationSettings(PopulationSettings newSettings)
         {
             var previousSettings = Settings;
-            Console.WriteLine($"[PopulationManager] ✅ 인구수 설정 업데이트: {previousSettings.Mode} → {newSettings.Mode}");
+            LoggerHelper.Info($"인구수 설정 업데이트: {previousSettings.Mode} → {newSettings.Mode}");
             Settings = newSettings ?? new PopulationSettings();
             return previousSettings;
         }
@@ -289,7 +290,7 @@ namespace StarcUp.Business.Profile
                 AlertMessage = alertMessage
             };
 
-            Console.WriteLine($"🚨 [PopulationManager] {alertMessage}");
+            LoggerHelper.Warning($"{alertMessage}");
             SupplyAlert?.Invoke(this, eventArgs);
         }
 
@@ -340,7 +341,7 @@ namespace StarcUp.Business.Profile
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [PopulationManager] 건물 개수 업데이트 실패: {ex.Message}");
+                LoggerHelper.Error($"건물 개수 업데이트 실패: {ex.Message}");
             }
         }
 

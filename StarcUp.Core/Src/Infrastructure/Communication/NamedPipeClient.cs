@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using StarcUp.Common.Events;
+using StarcUp.Common.Logging;
 
 namespace StarcUp.Infrastructure.Communication
 {
@@ -74,7 +75,7 @@ namespace StarcUp.Infrastructure.Communication
                 _currentPipeName = pipeName;
                 var pipePath = $@"\\.\pipe\{pipeName}";
                 
-                Console.WriteLine($"🔌 Named Pipe 서버에 연결 시도: {pipePath}");
+                LoggerHelper.Info($"🔌 Named Pipe 서버에 연결 시도: {pipePath}");
                 
                 _pipeClient = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
                 
@@ -85,14 +86,14 @@ namespace StarcUp.Infrastructure.Communication
                 
                 if (completedTask == timeoutTask)
                 {
-                    Console.WriteLine($"❌ Named Pipe 연결 타임아웃: {timeout}ms");
+                    LoggerHelper.Error($" Named Pipe 연결 타임아웃: {timeout}ms");
                     _pipeClient = null;
                     return false;
                 }
                 
                 if (!_pipeClient.IsConnected)
                 {
-                    Console.WriteLine("❌ Named Pipe 연결 실패");
+                    LoggerHelper.Error(" Named Pipe 연결 실패");
                     _pipeClient = null;
                     return false;
                 }
@@ -106,14 +107,14 @@ namespace StarcUp.Infrastructure.Communication
                 _isConnected = true;
                 _retryCount = 0;
                 
-                Console.WriteLine($"✅ Named Pipe 서버에 연결 성공: {pipePath}");
+                LoggerHelper.Info($"✅ Named Pipe 서버에 연결 성공: {pipePath}");
                 ConnectionStateChanged?.Invoke(this, true);
                 
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Named Pipe 연결 오류: {ex.Message}");
+                LoggerHelper.Error($" Named Pipe 연결 오류: {ex.Message}");
                 await CleanupConnectionAsync();
                 return false;
             }
@@ -124,7 +125,7 @@ namespace StarcUp.Infrastructure.Communication
             if (!_isConnected)
                 return;
 
-            Console.WriteLine("🔌 Named Pipe 연결 종료");
+            LoggerHelper.Info("🔌 Named Pipe 연결 종료");
             CleanupConnectionAsync().Wait();
         }
 
@@ -146,7 +147,7 @@ namespace StarcUp.Infrastructure.Communication
             try
             {
                 var jsonMessage = JsonSerializer.Serialize(request, SerializeOptions);
-                Console.WriteLine($"📤 Request: {{ type: \"{NamedPipeProtocol.MessageType.Request}\", command: \"{command}\", id: \"{request.Id}\", timestamp: {request.Timestamp} }}");
+                LoggerHelper.Info($"📤 Request: {{ type: \"{NamedPipeProtocol.MessageType.Request}\", command: \"{command}\", id: \"{request.Id}\", timestamp: {request.Timestamp} }}");
                 
                 lock (_lockObject)
                 {
@@ -176,7 +177,7 @@ namespace StarcUp.Infrastructure.Communication
             catch (Exception ex)
             {
                 _pendingCommands.TryRemove(request.Id, out _);
-                Console.WriteLine($"❌ [SendCommandAsync] 명령 전송 실패: {ex.Message}");
+                LoggerHelper.Error($" [SendCommandAsync] 명령 전송 실패: {ex.Message}");
                 return NamedPipeResponse.CreateError(request.Id, ex.Message);
             }
         }
@@ -196,7 +197,7 @@ namespace StarcUp.Infrastructure.Communication
                 
                 // 데이터를 직렬화하여 로그에 표시
                 var dataText = data != null ? JsonSerializer.Serialize(data, LogOptions) : "null";
-                Console.WriteLine($"📡 Event: {{ type: \"{NamedPipeProtocol.MessageType.Event}\", event: \"{eventType}\", id: \"{eventMessage.Id}\", timestamp: {eventMessage.Timestamp}, data: {dataText} }}");
+                LoggerHelper.Info($"📡 Event: {{ type: \"{NamedPipeProtocol.MessageType.Event}\", event: \"{eventType}\", id: \"{eventMessage.Id}\", timestamp: {eventMessage.Timestamp}, data: {dataText} }}");
                 
                 lock (_lockObject)
                 {
@@ -211,7 +212,7 @@ namespace StarcUp.Infrastructure.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 이벤트 전송 실패: {ex.Message}");
+                LoggerHelper.Error($" 이벤트 전송 실패: {ex.Message}");
                 return false;
             }
         }
@@ -223,20 +224,20 @@ namespace StarcUp.Infrastructure.Communication
             _maxRetries = maxRetries;
             _autoReconnectEnabled = true;
             
-            Console.WriteLine($"🔄 자동 재연결 시작: {pipeName} (간격: {reconnectInterval}ms, 최대 재시도: {maxRetries})");
+            LoggerHelper.Debug($" 자동 재연결 시작: {pipeName} (간격: {reconnectInterval}ms, 최대 재시도: {maxRetries})");
         }
 
         public void StopAutoReconnect()
         {
             _autoReconnectEnabled = false;
-            Console.WriteLine("🔄 자동 재연결 중지");
+            LoggerHelper.Debug(" 자동 재연결 중지");
         }
 
         public void TriggerReconnect()
         {
             if (_autoReconnectEnabled && !_isConnected && !_isReconnecting && !_disposed)
             {
-                Console.WriteLine("🔄 수동 재연결 트리거");
+                LoggerHelper.Debug(" 수동 재연결 트리거");
                 _isReconnecting = true;
                 _ = Task.Run(ReconnectLoop);
             }
@@ -260,7 +261,7 @@ namespace StarcUp.Infrastructure.Communication
             }
             catch (Exception ex) when (!_cancellationTokenSource.Token.IsCancellationRequested)
             {
-                Console.WriteLine($"❌ 메시지 읽기 오류: {ex.Message}");
+                LoggerHelper.Error($" 메시지 읽기 오류: {ex.Message}");
             }
             finally
             {
@@ -281,7 +282,7 @@ namespace StarcUp.Infrastructure.Communication
                 // 메시지 타입 확인
                 if (!root.TryGetProperty("type", out var typeElement))
                 {
-                    Console.WriteLine($"⚠️ 메시지 타입이 없음 - 무시");
+                    LoggerHelper.Info($"⚠️ 메시지 타입이 없음 - 무시");
                     return;
                 }
 
@@ -300,13 +301,13 @@ namespace StarcUp.Infrastructure.Communication
                         HandleIncomingEvent(root);
                         break;
                     default:
-                        Console.WriteLine($"⚠️ 알 수 없는 메시지 타입: {messageType} ({messageTypeValue})");
+                        LoggerHelper.Info($"⚠️ 알 수 없는 메시지 타입: {messageType} ({messageTypeValue})");
                         break;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 메시지 처리 오류: {ex.Message}");
+                LoggerHelper.Error($" 메시지 처리 오류: {ex.Message}");
             }
         }
 
@@ -320,7 +321,7 @@ namespace StarcUp.Infrastructure.Communication
                 var requestId = root.GetProperty("id").GetString();
                 var command = root.GetProperty("command").GetString();
                 
-                Console.WriteLine($"📨 Request: {{ type: \"{NamedPipeProtocol.MessageType.Request}\", command: \"{command}\", id: \"{requestId}\" }}");
+                LoggerHelper.Info($"📨 Request: {{ type: \"{NamedPipeProtocol.MessageType.Request}\", command: \"{command}\", id: \"{requestId}\" }}");
                 
                 // 페이로드 추출 (있는 경우)
                 object payload = null;
@@ -339,7 +340,7 @@ namespace StarcUp.Infrastructure.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 요청 처리 오류: {ex.Message}");
+                LoggerHelper.Error($" 요청 처리 오류: {ex.Message}");
                 
                 // 오류 발생 시 에러 응답 전송
                 try
@@ -350,7 +351,7 @@ namespace StarcUp.Infrastructure.Communication
                 }
                 catch
                 {
-                    Console.WriteLine("❌ 에러 응답 전송 실패");
+                    LoggerHelper.Error(" 에러 응답 전송 실패");
                 }
             }
         }
@@ -368,7 +369,7 @@ namespace StarcUp.Infrastructure.Communication
                 
                 var responseId = root.TryGetProperty("id", out var idElement) ? idElement.GetString() : "unknown";
                 var timestamp = root.TryGetProperty("timestamp", out var timestampElement) ? timestampElement.GetInt64() : 0;
-                Console.WriteLine($"📥 Response: {{ type: \"{NamedPipeProtocol.MessageType.Response}\", id: \"{responseId}\", requestId: \"{requestId}\", success: {success.ToString().ToLower()}, timestamp: {timestamp}, data: {dataText} }}");
+                LoggerHelper.Info($"📥 Response: {{ type: \"{NamedPipeProtocol.MessageType.Response}\", id: \"{responseId}\", requestId: \"{requestId}\", success: {success.ToString().ToLower()}, timestamp: {timestamp}, data: {dataText} }}");
                 
                 if (_pendingCommands.TryRemove(requestId, out var tcs))
                 {
@@ -385,12 +386,12 @@ namespace StarcUp.Infrastructure.Communication
                 }
                 else
                 {
-                    Console.WriteLine($"⚠️ 대기중인 명령을 찾을 수 없음 - RequestID: {requestId}");
+                    LoggerHelper.Info($"⚠️ 대기중인 명령을 찾을 수 없음 - RequestID: {requestId}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 응답 처리 오류: {ex.Message}");
+                LoggerHelper.Error($" 응답 처리 오류: {ex.Message}");
             }
         }
 
@@ -402,13 +403,13 @@ namespace StarcUp.Infrastructure.Communication
             try
             {
                 var eventName = root.GetProperty("event").GetString();
-                Console.WriteLine($"📢 [HandleIncomingEvent] 이벤트 처리: {eventName}");
+                LoggerHelper.Info($"📢 [HandleIncomingEvent] 이벤트 처리: {eventName}");
                 
                 // Event 메시지는 현재 특별한 처리 없이 로그만 출력
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [HandleIncomingEvent] 이벤트 처리 오류: {ex.Message}");
+                LoggerHelper.Error($" [HandleIncomingEvent] 이벤트 처리 오류: {ex.Message}");
             }
         }
 
@@ -421,20 +422,20 @@ namespace StarcUp.Infrastructure.Communication
             {
                 // 직렬화 전에 로그 출력 (한글이 정상적으로 보임)
                 var dataText = response.Data != null ? JsonSerializer.Serialize(response.Data, LogOptions) : "null";
-                Console.WriteLine($"📤 Response: {{ type: \"{NamedPipeProtocol.MessageType.Response}\", id: \"{response.Id}\", requestId: \"{response.RequestId}\", success: {response.Success.ToString().ToLower()}, timestamp: {response.Timestamp}, data: {dataText} }}");
+                LoggerHelper.Info($"📤 Response: {{ type: \"{NamedPipeProtocol.MessageType.Response}\", id: \"{response.Id}\", requestId: \"{response.RequestId}\", success: {response.Success.ToString().ToLower()}, timestamp: {response.Timestamp}, data: {dataText} }}");
                 
                 var responseJson = JsonSerializer.Serialize(response, SerializeOptions);
                 await _writer.WriteLineAsync(responseJson);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 응답 전송 실패: {ex.Message}");
+                LoggerHelper.Error($" 응답 전송 실패: {ex.Message}");
             }
         }
 
         private async Task HandleDisconnection()
         {
-            Console.WriteLine("🔌 Named Pipe 연결이 끊어졌습니다");
+            LoggerHelper.Info("🔌 Named Pipe 연결이 끊어졌습니다");
             
             await CleanupConnectionAsync();
             
@@ -447,7 +448,7 @@ namespace StarcUp.Infrastructure.Communication
         private async Task ReconnectLoop()
         {
             _isReconnecting = true;
-            Console.WriteLine("🔄 자동 재연결 시작");
+            LoggerHelper.Debug(" 자동 재연결 시작");
             
             while (_autoReconnectEnabled && !_disposed && !_isConnected)
             {
@@ -455,16 +456,16 @@ namespace StarcUp.Infrastructure.Communication
                 
                 if (_maxRetries > 0 && _retryCount > _maxRetries)
                 {
-                    Console.WriteLine($"❌ 최대 재연결 횟수 초과: {_maxRetries}");
+                    LoggerHelper.Error($" 최대 재연결 횟수 초과: {_maxRetries}");
                     break;
                 }
 
-                Console.WriteLine($"🔄 재연결 시도 #{_retryCount}");
+                LoggerHelper.Debug($" 재연결 시도 #{_retryCount}");
                 
                 var success = await ConnectAsync(_currentPipeName, 2000);
                 if (success)
                 {
-                    Console.WriteLine("✅ 재연결 성공");
+                    LoggerHelper.Info("✅ 재연결 성공");
                     _isReconnecting = false;
                     return;
                 }
@@ -473,7 +474,7 @@ namespace StarcUp.Infrastructure.Communication
             }
             
             _isReconnecting = false;
-            Console.WriteLine("🔄 자동 재연결 중지");
+            LoggerHelper.Debug(" 자동 재연결 중지");
         }
 
         private async Task CleanupConnectionAsync()
@@ -503,7 +504,7 @@ namespace StarcUp.Infrastructure.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 읽기 작업 종료 오류: {ex.Message}");
+                LoggerHelper.Error($" 읽기 작업 종료 오류: {ex.Message}");
             }
 
             // 리소스 정리
@@ -514,7 +515,7 @@ namespace StarcUp.Infrastructure.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 리소스 정리 오류: {ex.Message}");
+                LoggerHelper.Error($" 리소스 정리 오류: {ex.Message}");
             }
             finally
             {
@@ -542,7 +543,7 @@ namespace StarcUp.Infrastructure.Communication
             _disposed = true;
             _autoReconnectEnabled = false;
             
-            Console.WriteLine("🗑️ Named Pipe 클라이언트 종료");
+            LoggerHelper.Info("🗑️ Named Pipe 클라이언트 종료");
             
             CleanupConnectionAsync().Wait();
             

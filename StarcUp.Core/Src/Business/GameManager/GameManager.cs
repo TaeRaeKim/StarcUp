@@ -14,12 +14,14 @@ using StarcUp.Common.Events;
 using Timer = System.Timers.Timer;
 using StarcUp.Business.Units.Types;
 using System.Security.Principal;
+using StarcUp.Common.Logging;
 
 namespace StarcUp.Business.Game
 {
     public class GameManager : IGameManager, IDisposable
     {
         private const int MAX_PLAYERS = 8;
+        
         public GameManager(IInGameDetector inGameDetector, IUnitService unitService, IMemoryService memoryService, IUnitCountService unitCountService, IWorkerManager workerManager, IPopulationManager populationManager)
         {
             _inGameDetector = inGameDetector ?? throw new ArgumentNullException(nameof(inGameDetector));
@@ -63,7 +65,7 @@ namespace StarcUp.Business.Game
             if (_disposed)
                 throw new ObjectDisposedException(nameof(GameManager));
 
-            Console.WriteLine("GameManager: 게임 초기화 시작");
+            LoggerHelper.Info("게임 초기화 시작");
 
             for (int i = 0; i < Players.Length; i++)
             {
@@ -83,43 +85,43 @@ namespace StarcUp.Business.Game
             // PopulationManager 초기화
             _populationManager.Initialize(LocalGameData.LocalPlayerIndex, LocalGameData.LocalPlayerRace);
 
-            Console.WriteLine("GameManager: PopulationManager 초기화 완료");
+            LoggerHelper.Info("PopulationManager 초기화 완료");
 
             // 통합 타이머 시작
             _isGameActive = true;
             _updateTimer.Start();
-            Console.WriteLine("GameManager: 게임 초기화 완료");
+            LoggerHelper.Info("게임 초기화 완료");
         }
         public void GameExit()
         {
             if (_disposed)
                 return;
 
-            Console.WriteLine("GameManager: 게임 종료 시작");
+            LoggerHelper.Info("게임 종료 시작");
 
             _isGameActive = false;
             _updateTimer.Stop();
 
             // UnitCountService 정지
             _unitCountService?.Stop();
-            Console.WriteLine("GameManager: UnitCountService 정지 완료");
+            LoggerHelper.Info("UnitCountService 정지 완료");
 
             // 유닛 서비스 캐시 무효화
             _unitService?.InvalidateAddressCache();
 
-            Console.WriteLine("GameManager: 게임 종료 완료");
+            LoggerHelper.Info("게임 종료 완료");
         }
 
         private void OnInGameStateChanged(object? sender, InGameEventArgs e)
         {
             if (e.IsInGame && !_isGameActive)
             {
-                Console.WriteLine($"GameManager: 인게임 상태 감지됨 - {e.Timestamp}");
+                LoggerHelper.Info($"인게임 상태 감지됨 - {e.Timestamp}");
                 GameInit();
             }
             else if (!e.IsInGame && _isGameActive)
             {
-                Console.WriteLine($"GameManager: 게임 종료 상태 감지됨 - {e.Timestamp}");
+                LoggerHelper.Info($"게임 종료 상태 감지됨 - {e.Timestamp}");
                 GameExit();
             }
         }
@@ -141,7 +143,7 @@ namespace StarcUp.Business.Game
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GameManager: Update 중 오류 발생 - {ex.Message}");
+                LoggerHelper.Error("Update 중 오류 발생", ex);
             }
         }
 
@@ -162,7 +164,7 @@ namespace StarcUp.Business.Game
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GameManager: 유닛 데이터 로드 중 오류 발생 - {ex.Message}");
+                LoggerHelper.Error("유닛 데이터 로드 중 오류 발생", ex);
             }
         }
 
@@ -173,13 +175,13 @@ namespace StarcUp.Business.Game
                 // UnitCountService 데이터 새로고침
                 if (!_unitCountService.UpdateData())
                 {
-                    Console.WriteLine("GameManager: UnitCountService 데이터 새로고침 실패");
+                    LoggerHelper.Warning("UnitCountService 데이터 새로고침 실패");
                     return;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GameManager: 유닛 데이터 업데이트 중 오류 발생 - {ex.Message}");
+                LoggerHelper.Error("유닛 데이터 업데이트 중 오류 발생", ex);
             }
         }
 
@@ -196,7 +198,7 @@ namespace StarcUp.Business.Game
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GameManager: PopulationManager 업데이트 중 오류 발생 - {ex.Message}");
+                LoggerHelper.Error("PopulationManager 업데이트 중 오류 발생", ex);
             }
         }
 
@@ -215,16 +217,16 @@ namespace StarcUp.Business.Game
                     localGameData.LocalPlayerRace = _memoryService.ReadPlayerRace(localPlayerIndex);
 
                     LocalGameData = localGameData;
-                    Console.WriteLine($"GameManager: LocalPlayerIndex 설정 완료 - {localPlayerIndex}, 종족: {localGameData.LocalPlayerRace}");
+                    LoggerHelper.Info($"LocalPlayerIndex 설정 완료 - {localPlayerIndex}, 종족: {localGameData.LocalPlayerRace}");
                 }
                 else
                 {
-                    Console.WriteLine($"GameManager: 잘못된 LocalPlayerIndex 값 - {localPlayerIndex}");
+                    LoggerHelper.Warning($"잘못된 LocalPlayerIndex 값 - {localPlayerIndex}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GameManager: LocalPlayerIndex 로드 중 오류 발생 - {ex.Message}");
+                LoggerHelper.Error("LocalPlayerIndex 로드 중 오류 발생", ex);
             }
         }
 
@@ -243,7 +245,7 @@ namespace StarcUp.Business.Game
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GameManager: GameTime 로드 중 오류 발생 - {ex.Message}");
+                LoggerHelper.Error("GameTime 로드 중 오류 발생", ex);
             }
         }
         public void Dispose()
@@ -270,7 +272,7 @@ namespace StarcUp.Business.Game
             }
 
             _disposed = true;
-            Console.WriteLine("GameManager: 리소스 정리 완료");
+            LoggerHelper.Info("리소스 정리 완료");
         }
     }
 }

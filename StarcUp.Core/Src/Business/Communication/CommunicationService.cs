@@ -6,6 +6,7 @@ using System.Text.Json;
 using StarcUp.Infrastructure.Communication;
 using StarcUp.Infrastructure.Windows;
 using StarcUp.Common.Events;
+using StarcUp.Common.Logging;
 using StarcUp.Business.GameDetection;
 using StarcUp.Business.InGameDetector;
 using StarcUp.Business.Profile;
@@ -64,7 +65,7 @@ namespace StarcUp.Business.Communication
                     pipeName = NamedPipeConfig.GetPipeNameForCurrentEnvironment();
                 }
 
-                Console.WriteLine($"🚀 통신 서비스 시작: {pipeName}");
+                LoggerHelper.Info($"통신 서비스 시작: {pipeName}");
 
                 // 연결 상태 변경 이벤트 구독
                 _pipeClient.ConnectionStateChanged += OnConnectionStateChanged;
@@ -104,11 +105,11 @@ namespace StarcUp.Business.Communication
                 
                 if (connected)
                 {
-                    Console.WriteLine("✅ StarcUp.UI 서버에 연결 성공");
+                    LoggerHelper.Info("StarcUp.UI 서버에 연결 성공");
                 }
                 else
                 {
-                    Console.WriteLine("❌ StarcUp.UI 서버 연결 실패 - 자동 재연결 시작");
+                    LoggerHelper.Warning("StarcUp.UI 서버 연결 실패 - 자동 재연결 시작");
                     
                     // 첫 연결 실패 시 즉시 재연결 루프 시작
                     if (_pipeClient.IsReconnecting == false)
@@ -121,7 +122,7 @@ namespace StarcUp.Business.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 통신 서비스 시작 실패: {ex.Message}");
+                LoggerHelper.Error($"통신 서비스 시작 실패: {ex.Message}");
                 return false;
             }
         }
@@ -133,7 +134,7 @@ namespace StarcUp.Business.Communication
 
             try
             {
-                Console.WriteLine("🛑 통신 서비스 중지");
+                LoggerHelper.Info("통신 서비스 중지");
 
                 // 자동 재연결 중지
                 _pipeClient.StopAutoReconnect();
@@ -175,11 +176,11 @@ namespace StarcUp.Business.Communication
                     _pendingWindowPosition = null;
                 }
 
-                Console.WriteLine("✅ 통신 서비스 중지 완료");
+                LoggerHelper.Info("통신 서비스 중지 완료");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 통신 서비스 중지 오류: {ex.Message}");
+                LoggerHelper.Error($"통신 서비스 중지 오류: {ex.Message}");
             }
         }
 
@@ -207,13 +208,13 @@ namespace StarcUp.Business.Communication
                         break;
                         
                     default:
-                        Console.WriteLine($"⚠️ 알 수 없는 명령: {e.Command}");
+                        LoggerHelper.Warning($" 알 수 없는 명령: {e.Command}");
                         break;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 명령 처리 중 오류 발생: {e.Command} - {ex.Message}");
+                LoggerHelper.Error($" 명령 처리 중 오류 발생: {e.Command} - {ex.Message}");
             }
         }
         private void OnInGameStatus(object sender, InGameEventArgs e){
@@ -232,7 +233,7 @@ namespace StarcUp.Business.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 게임 중 이벤트 전송 실패: {ex.Message}");
+                LoggerHelper.Error($" 게임 중 이벤트 전송 실패: {ex.Message}");
             }
         }
 
@@ -283,19 +284,19 @@ namespace StarcUp.Business.Communication
                         SendWindowPositionEvent(_pendingWindowPosition, eventType);
                         _pendingWindowPosition = null;
                         ClearDebounceTimer();
-                        //Console.WriteLine("✅ Core: 즉시 위치 이벤트 전송");
+                        //LoggerHelper.Info("✅ Core: 즉시 위치 이벤트 전송");
                     }
                     else
                     {
                         // Throttling으로 인해 지연, debounce 타이머 설정
                         SetupDebounceTimer();
-                        //Console.WriteLine("⏳ Core: Throttling으로 인해 debounce 타이머 설정");
+                        //LoggerHelper.Info("⏳ Core: Throttling으로 인해 debounce 타이머 설정");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 윈도우 위치 변경 이벤트 처리 실패: {ex.Message}");
+                LoggerHelper.Error($" 윈도우 위치 변경 이벤트 처리 실패: {ex.Message}");
             }
         }
 
@@ -327,7 +328,7 @@ namespace StarcUp.Business.Communication
             {
                 if (_pendingWindowPosition != null)
                 {
-                    Console.WriteLine("⏰ Core: Debounce 타이머로 마지막 위치 이벤트 전송");
+                    LoggerHelper.Info("⏰ Core: Debounce 타이머로 마지막 위치 이벤트 전송");
                     SendWindowPositionEvent(_pendingWindowPosition, _pendingWindowPosition.EventType ?? "window-position-changed");
                     _pendingWindowPosition = null;
                 }
@@ -368,7 +369,7 @@ namespace StarcUp.Business.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 윈도우 위치 이벤트 전송 실패: {ex.Message}");
+                LoggerHelper.Error($" 윈도우 위치 이벤트 전송 실패: {ex.Message}");
             }
         }
         private void OnGameDetected(object sender, GameEventArgs e)
@@ -391,7 +392,7 @@ namespace StarcUp.Business.Communication
                 // 스타크래프트 윈도우 모니터링 시작
                 if (_windowManager.StartMonitoring(e.GameInfo.ProcessId))
                 {
-                    Console.WriteLine($"🪟 스타크래프트 윈도우 모니터링 시작 (PID: {e.GameInfo.ProcessId})");
+                    LoggerHelper.Info($"🪟 스타크래프트 윈도우 모니터링 시작 (PID: {e.GameInfo.ProcessId})");
                     
                     // 윈도우 정보 가져와서 window-overlay-init 이벤트 전송
                     var currentWindowInfo = _windowManager.GetCurrentWindowInfo();
@@ -404,12 +405,12 @@ namespace StarcUp.Business.Communication
                 }
                 else
                 {
-                    Console.WriteLine($"❌ 스타크래프트 윈도우 모니터링 시작 실패 (PID: {e.GameInfo.ProcessId})");
+                    LoggerHelper.Error($" 스타크래프트 윈도우 모니터링 시작 실패 (PID: {e.GameInfo.ProcessId})");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 게임 발견 이벤트 전송 실패: {ex.Message}");
+                LoggerHelper.Error($" 게임 발견 이벤트 전송 실패: {ex.Message}");
             }
         }
         private void OnGameEnded(object sender, GameEventArgs e)
@@ -432,30 +433,30 @@ namespace StarcUp.Business.Communication
 
                 // 스타크래프트 윈도우 모니터링 중지
                 _windowManager.StopMonitoring();
-                Console.WriteLine($"🪟 스타크래프트 윈도우 모니터링 중지 (PID: {e.GameInfo.ProcessId})");
+                LoggerHelper.Info($"🪟 스타크래프트 윈도우 모니터링 중지 (PID: {e.GameInfo.ProcessId})");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 게임 종료 이벤트 전송 실패: {ex.Message}");
+                LoggerHelper.Error($" 게임 종료 이벤트 전송 실패: {ex.Message}");
             }
         }
         private async void OnConnectionStateChanged(object sender, bool isConnected)
         {
             if (isConnected)
             {
-                Console.WriteLine("✅ StarcUp.UI 서버에 연결되었습니다");
+                LoggerHelper.Info("✅ StarcUp.UI 서버에 연결되었습니다");
                 try
                 {
                     var pingResponse = await _pipeClient.SendCommandAsync("ping", new[] { "core-ready" });
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"❌ 핑 전송 실패: {ex.Message}");
+                    LoggerHelper.Error($" 핑 전송 실패: {ex.Message}");
                 }
             }
             else
             {
-                Console.WriteLine("❌ StarcUp.UI 서버와의 연결이 끊어졌습니다");
+                LoggerHelper.Error(" StarcUp.UI 서버와의 연결이 끊어졌습니다");
             }
 
             ConnectionStateChanged?.Invoke(this, isConnected);
@@ -468,11 +469,11 @@ namespace StarcUp.Business.Communication
         {
             try
             {
-                Console.WriteLine("🚀 프리셋 초기화 요청 수신");
+                LoggerHelper.Info("🚀 프리셋 초기화 요청 수신");
                 
                 if (e.Payload == null)
                 {
-                    Console.WriteLine("❌ 프리셋 초기화 데이터가 없습니다");
+                    LoggerHelper.Error(" 프리셋 초기화 데이터가 없습니다");
                     return;
                 }
 
@@ -489,7 +490,7 @@ namespace StarcUp.Business.Communication
                 }
                 else
                 {
-                    Console.WriteLine($"❌ 지원되지 않는 페이로드 타입: {e.Payload.GetType()}");
+                    LoggerHelper.Error($" 지원되지 않는 페이로드 타입: {e.Payload.GetType()}");
                     return;
                 }
                 
@@ -517,7 +518,7 @@ namespace StarcUp.Business.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 프리셋 초기화 실패: {ex.Message}");
+                LoggerHelper.Error($" 프리셋 초기화 실패: {ex.Message}");
             }
         }
 
@@ -528,11 +529,11 @@ namespace StarcUp.Business.Communication
         {
             try
             {
-                Console.WriteLine("🔄 프리셋 업데이트 요청 수신");
+                LoggerHelper.Info("🔄 프리셋 업데이트 요청 수신");
                 
                 if (e.Payload == null)
                 {
-                    Console.WriteLine("❌ 프리셋 업데이트 데이터가 없습니다");
+                    LoggerHelper.Error(" 프리셋 업데이트 데이터가 없습니다");
                     return;
                 }
 
@@ -549,7 +550,7 @@ namespace StarcUp.Business.Communication
                 }
                 else
                 {
-                    Console.WriteLine($"❌ 지원되지 않는 페이로드 타입: {e.Payload.GetType()}");
+                    LoggerHelper.Error($" 지원되지 않는 페이로드 타입: {e.Payload.GetType()}");
                     return;
                 }
                 
@@ -573,28 +574,28 @@ namespace StarcUp.Business.Communication
                         
                     case "unit":
                         // 향후 구현
-                        Console.WriteLine("⚠️ 유닛 프리셋은 아직 구현되지 않았습니다");
+                        LoggerHelper.Warning(" 유닛 프리셋은 아직 구현되지 않았습니다");
                         break;
                         
                     case "upgrade":
                         // 향후 구현
-                        Console.WriteLine("⚠️ 업그레이드 프리셋은 아직 구현되지 않았습니다");
+                        LoggerHelper.Warning(" 업그레이드 프리셋은 아직 구현되지 않았습니다");
                         break;
                         
                     case "buildorder":
                         // 향후 구현
-                        Console.WriteLine("⚠️ 빌드오더 프리셋은 아직 구현되지 않았습니다");
+                        LoggerHelper.Warning(" 빌드오더 프리셋은 아직 구현되지 않았습니다");
                         break;
                         
                     default:
-                        Console.WriteLine($"⚠️ 알 수 없는 프리셋 타입: {updateData.PresetType}");
+                        LoggerHelper.Warning($" 알 수 없는 프리셋 타입: {updateData.PresetType}");
                         return;
                 }
                 
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 프리셋 업데이트 실패: {ex.Message}");
+                LoggerHelper.Error($" 프리셋 업데이트 실패: {ex.Message}");
             }
         }
 
@@ -606,7 +607,7 @@ namespace StarcUp.Business.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 일꾼 이벤트 전송 실패: {ex.Message}");
+                LoggerHelper.Error($" 일꾼 이벤트 전송 실패: {ex.Message}");
             }
         }
 
@@ -625,7 +626,7 @@ namespace StarcUp.Business.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 유휴 일꾼 변경 이벤트 전송 실패: {ex.Message}");
+                LoggerHelper.Error($" 유휴 일꾼 변경 이벤트 전송 실패: {ex.Message}");
             }
         }
 
@@ -646,7 +647,7 @@ namespace StarcUp.Business.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 가스 건물 알림 이벤트 전송 실패: {ex.Message}");
+                LoggerHelper.Error($" 가스 건물 알림 이벤트 전송 실패: {ex.Message}");
             }
         }
 
@@ -663,7 +664,7 @@ namespace StarcUp.Business.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 인구수 부족 알림 이벤트 전송 실패: {ex.Message}");
+                LoggerHelper.Error($" 인구수 부족 알림 이벤트 전송 실패: {ex.Message}");
             }
         }
 
@@ -705,7 +706,7 @@ namespace StarcUp.Business.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 일꾼 프리셋 변경 이벤트 전송 실패: {ex.Message}");
+                LoggerHelper.Error($" 일꾼 프리셋 변경 이벤트 전송 실패: {ex.Message}");
             }
         }
 
@@ -716,11 +717,11 @@ namespace StarcUp.Business.Communication
         {
             try
             {
-                Console.WriteLine($"🏘️ 인구수 프리셋 처리: enabled={populationPreset.Enabled}");
+                LoggerHelper.Info($"🏘️ 인구수 프리셋 처리: enabled={populationPreset.Enabled}");
                 
                 if (!populationPreset.Enabled)
                 {
-                    Console.WriteLine("⚠️ 인구수 기능이 비활성화되어 있습니다");
+                    LoggerHelper.Warning(" 인구수 기능이 비활성화되어 있습니다");
                     return;
                 }
 
@@ -736,23 +737,23 @@ namespace StarcUp.Business.Communication
                     }
                     else
                     {
-                        Console.WriteLine($"❌ 지원되지 않는 인구수 설정 타입: {populationPreset.Settings.GetType()}");
+                        LoggerHelper.Error($" 지원되지 않는 인구수 설정 타입: {populationPreset.Settings.GetType()}");
                         return;
                     }
                     
                     // PopulationManager에 설정 적용
                     _populationManager.InitializePopulationSettings(populationSettings);
-                    Console.WriteLine($"✅ 인구수 설정 적용 완료: {populationSettings.Mode}");
+                    LoggerHelper.Info($"✅ 인구수 설정 적용 완료: {populationSettings.Mode}");
                 }
                 else
                 {
-                    Console.WriteLine("⚠️ 인구수 설정 데이터가 없습니다. 기본 설정 사용");
+                    LoggerHelper.Warning(" 인구수 설정 데이터가 없습니다. 기본 설정 사용");
                     _populationManager.InitializePopulationSettings(new PopulationSettings());
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 인구수 프리셋 처리 실패: {ex.Message}");
+                LoggerHelper.Error($" 인구수 프리셋 처리 실패: {ex.Message}");
             }
         }
 
@@ -789,7 +790,7 @@ namespace StarcUp.Business.Communication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ 통신 서비스 종료 오류: {ex.Message}");
+                LoggerHelper.Error($" 통신 서비스 종료 오류: {ex.Message}");
             }
 
             ConnectionStateChanged = null;

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using StarcUp.Common.Logging;
 
 namespace StarcUp.Infrastructure.Windows
 {
@@ -62,7 +63,7 @@ namespace StarcUp.Infrastructure.Windows
                     var windowHandle = FindMainWindowWithRetry(processId);
                     if (windowHandle == IntPtr.Zero)
                     {
-                        Console.WriteLine($"[WindowManager] 프로세스 ID {processId}의 메인 윈도우를 찾을 수 없습니다. (50회 재시도 완료)");
+                        LoggerHelper.Info($"[WindowManager] 프로세스 ID {processId}의 메인 윈도우를 찾을 수 없습니다. (50회 재시도 완료)");
                         return false;
                     }
 
@@ -73,12 +74,12 @@ namespace StarcUp.Infrastructure.Windows
                     StartEventBasedMonitoring();
                     _isMonitoring = true;
 
-                    Console.WriteLine($"[WindowManager] 윈도우 모니터링 시작: {_currentWindowInfo}");
+                    LoggerHelper.Info($"[WindowManager] 윈도우 모니터링 시작: {_currentWindowInfo}");
                     return true;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[WindowManager] 모니터링 시작 실패 (PID: {processId}): {ex.Message}");
+                    LoggerHelper.Info($"[WindowManager] 모니터링 시작 실패 (PID: {processId}): {ex.Message}");
                     return false;
                 }
             }
@@ -93,7 +94,7 @@ namespace StarcUp.Infrastructure.Windows
                 var processes = Process.GetProcessesByName(processName);
                 if (processes.Length == 0)
                 {
-                    Console.WriteLine($"[WindowManager] 프로세스 '{processName}'을 찾을 수 없습니다.");
+                    LoggerHelper.Info($"[WindowManager] 프로세스 '{processName}'을 찾을 수 없습니다.");
                     return false;
                 }
 
@@ -109,7 +110,7 @@ namespace StarcUp.Infrastructure.Windows
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WindowManager] 모니터링 시작 실패 (프로세스명: {processName}): {ex.Message}");
+                LoggerHelper.Info($"[WindowManager] 모니터링 시작 실패 (프로세스명: {processName}): {ex.Message}");
                 return false;
             }
         }
@@ -129,7 +130,7 @@ namespace StarcUp.Infrastructure.Windows
                 _previousWindowInfo = null;
                 _isMonitoring = false;
 
-                Console.WriteLine("[WindowManager] 윈도우 모니터링 중지");
+                LoggerHelper.Info("[WindowManager] 윈도우 모니터링 중지");
             }
         }
 
@@ -204,7 +205,7 @@ namespace StarcUp.Infrastructure.Windows
         {
             if (_currentWindowInfo != null)
             {
-                Console.WriteLine("[WindowManager] 대상 윈도우가 손실되었습니다.");
+                LoggerHelper.Info("[WindowManager] 대상 윈도우가 손실되었습니다.");
                 WindowLost?.Invoke(this, new WindowChangedEventArgs(_currentWindowInfo, null, WindowChangeType.WindowLost));
             }
             
@@ -223,7 +224,7 @@ namespace StarcUp.Infrastructure.Windows
                 {
                     if (attempt > 1)
                     {
-                        Console.WriteLine($"[WindowManager] 프로세스 ID {processId}의 메인 윈도우를 {attempt}번째 시도에서 찾았습니다.");
+                        LoggerHelper.Info($"[WindowManager] 프로세스 ID {processId}의 메인 윈도우를 {attempt}번째 시도에서 찾았습니다.");
                     }
                     return windowHandle;
                 }
@@ -234,7 +235,7 @@ namespace StarcUp.Infrastructure.Windows
                 }
             }
             
-            Console.WriteLine($"[WindowManager] 프로세스 ID {processId}의 메인 윈도우를 {maxRetryCount}회 재시도 후에도 찾지 못했습니다.");
+            LoggerHelper.Info($"[WindowManager] 프로세스 ID {processId}의 메인 윈도우를 {maxRetryCount}회 재시도 후에도 찾지 못했습니다.");
             return IntPtr.Zero;
         }
 
@@ -293,7 +294,7 @@ namespace StarcUp.Infrastructure.Windows
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WindowManager] 윈도우 정보 가져오기 실패: {ex.Message}");
+                LoggerHelper.Info($"[WindowManager] 윈도우 정보 가져오기 실패: {ex.Message}");
                 return null;
             }
         }
@@ -353,7 +354,7 @@ namespace StarcUp.Infrastructure.Windows
 
             if (unhookCount > 0)
             {
-                Console.WriteLine($"[WindowManager] 이벤트 기반 모니터링 중지 ({unhookCount}개 훅 해제)");
+                LoggerHelper.Info($"[WindowManager] 이벤트 기반 모니터링 중지 ({unhookCount}개 훅 해제)");
             }
             
             // 메시지 루프 중지
@@ -382,7 +383,7 @@ namespace StarcUp.Infrastructure.Windows
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WindowManager] 이벤트 처리 중 오류: {ex.Message}");
+                LoggerHelper.Info($"[WindowManager] 이벤트 처리 중 오류: {ex.Message}");
             }
         }
 
@@ -404,7 +405,7 @@ namespace StarcUp.Infrastructure.Windows
             uint processId = (uint)_targetProcessId;
             uint currentThreadId = WindowsAPI.GetCurrentThreadId();
 
-            Console.WriteLine($"[WindowManager] 훅 설정 시작 (스레드 ID: {currentThreadId}, 대상 PID: {processId})");
+            LoggerHelper.Info($"[WindowManager] 훅 설정 시작 (스레드 ID: {currentThreadId}, 대상 PID: {processId})");
 
             _winEventLocationHook = WindowsAPI.SetWinEventHook(
                 WindowsAPI.EVENT_OBJECT_LOCATIONCHANGE,
@@ -448,7 +449,7 @@ namespace StarcUp.Infrastructure.Windows
             if (_winEventMoveStartHook != IntPtr.Zero) hookCount++;
             if (_winEventMoveEndHook != IntPtr.Zero) hookCount++;
 
-            Console.WriteLine($"[WindowManager] 이벤트 훅 설정 완료 ({hookCount}/4 훅 등록 성공)");
+            LoggerHelper.Info($"[WindowManager] 이벤트 훅 설정 완료 ({hookCount}/4 훅 등록 성공)");
         }
 
 

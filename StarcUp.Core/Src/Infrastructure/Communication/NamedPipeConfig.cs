@@ -1,4 +1,5 @@
 using System;
+using StarcUp.Common.Logging;
 
 namespace StarcUp.Infrastructure.Communication
 {
@@ -49,13 +50,13 @@ namespace StarcUp.Infrastructure.Communication
             var pipeName = GetPipeNameForCurrentEnvironment();
             var environment = isDev ? "Development" : "Production";
 
-            Console.WriteLine($"🌐 실행 환경: {environment}");
-            Console.WriteLine($"📡 Named Pipe: {pipeName}");
+            LoggerHelper.Info($"🌐 실행 환경: {environment}");
+            LoggerHelper.Info($"📡 Named Pipe: {pipeName}");
             
             #if DEBUG
-            Console.WriteLine("   빌드 구성: DEBUG");
+            LoggerHelper.Info("   빌드 구성: DEBUG");
             #else
-            Console.WriteLine("   빌드 구성: RELEASE");
+            LoggerHelper.Info("   빌드 구성: RELEASE");
             #endif
         }
     }

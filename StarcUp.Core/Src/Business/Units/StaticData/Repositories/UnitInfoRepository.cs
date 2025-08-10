@@ -1,5 +1,6 @@
 using StarcUp.Business.Units.StaticData.Models;
 using StarcUp.Business.Units.Types;
+using StarcUp.Common.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -54,7 +55,7 @@ namespace StarcUp.Business.Units.StaticData.Repositories
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading units: {ex.Message}");
+                LoggerHelper.Error($"Error loading units: {ex.Message}");
                 return new List<UnitInfo>();
             }
         }

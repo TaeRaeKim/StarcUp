@@ -1,6 +1,7 @@
 using StarcUp.Business.Units.Runtime.Adapters;
 using StarcUp.Business.Units.Runtime.Models;
 using StarcUp.Business.Units.Types;
+using StarcUp.Common.Logging;
 
 namespace StarcUp.Business.Units.Runtime.Services
 {
@@ -24,7 +25,7 @@ namespace StarcUp.Business.Units.Runtime.Services
         {
             _unitCountAdapter = unitCountAdapter ?? throw new ArgumentNullException(nameof(unitCountAdapter));
 
-            Console.WriteLine("[UnitCountService] 초기화 완료 - 수동 업데이트 방식");
+            LoggerHelper.Info("초기화 완료 - 수동 업데이트 방식");
         }
 
         public bool Initialize()
@@ -37,25 +38,25 @@ namespace StarcUp.Business.Units.Runtime.Services
                 // 어댑터 초기화
                 if (!_unitCountAdapter.InitializeBaseAddress())
                 {
-                    Console.WriteLine("[UnitCountService] ❌ UnitCountAdapter 초기화 실패");
+                    LoggerHelper.Error("UnitCountAdapter 초기화 실패");
                     return false;
                 }
 
                 // 초기 데이터 로드
                 if (!UpdateData())
                 {
-                    Console.WriteLine("[UnitCountService] ❌ 초기 데이터 로드 실패");
+                    LoggerHelper.Error("초기 데이터 로드 실패");
                     return false;
                 }
 
                 _isInitialized = true;
 
-                Console.WriteLine("[UnitCountService] ✅ 서비스 초기화 완료");
+                LoggerHelper.Info("서비스 초기화 완료");
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UnitCountService] 초기화 중 오류: {ex.Message}");
+                LoggerHelper.Error($"초기화 중 오류: {ex.Message}");
                 return false;
             }
         }
@@ -66,7 +67,7 @@ namespace StarcUp.Business.Units.Runtime.Services
                 return;
 
             _isInitialized = false;
-            Console.WriteLine("[UnitCountService] 서비스 중지됨");
+            LoggerHelper.Info("서비스 중지됨");
         }
 
         public bool UpdateData()
@@ -95,7 +96,7 @@ namespace StarcUp.Business.Units.Runtime.Services
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[UnitCountService] 데이터 새로고침 중 오류: {ex.Message}");
+                    LoggerHelper.Error($"데이터 새로고침 중 오류: {ex.Message}");
                     return false;
                 }
             }
@@ -174,7 +175,7 @@ namespace StarcUp.Business.Units.Runtime.Services
             _cachedProductionCounts.Clear();
 
             _disposed = true;
-            Console.WriteLine("[UnitCountService] 리소스 정리 완료");
+            LoggerHelper.Info("리소스 정리 완료");
         }
     }
 }

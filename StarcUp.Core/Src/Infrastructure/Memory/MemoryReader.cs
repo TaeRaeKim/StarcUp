@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using StarcUp.Common.Logging;
 
 namespace StarcUp.Infrastructure.Memory
 {
@@ -350,7 +351,7 @@ namespace StarcUp.Infrastructure.Memory
                 }
                 else
                 {
-                    Console.WriteLine($"[MemoryReader] NtQueryInformationThread 실패, 상태: {status}");
+                    LoggerHelper.Error($"NtQueryInformationThread 실패, 상태: {status}");
                     return 0;
                 }
             }
@@ -412,7 +413,7 @@ namespace StarcUp.Infrastructure.Memory
         {
             if (!IsConnected || _processHandle == IntPtr.Zero)
             {
-                Console.WriteLine("[MemoryReader] GetProcessHandle: 프로세스에 연결되지 않음");
+                LoggerHelper.Warning("GetProcessHandle: 프로세스에 연결되지 않음");
                 return IntPtr.Zero;
             }
 

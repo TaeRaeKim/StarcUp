@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using StarcUp.Business.GameDetection;
 using StarcUp.Business.InGameDetector;
 using StarcUp.Business.MemoryService;
+using StarcUp.Common.Logging;
 using StarcUp.Infrastructure.Memory;
 
 namespace StarcUp.DependencyInjection
@@ -102,8 +103,8 @@ namespace StarcUp.DependencyInjection
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"{service.GetType().Name} 정리 실패 ");
-                        Console.WriteLine($"서비스 정리 중 오류: {ex.Message}");
+                        LoggerHelper.Error($"{service.GetType().Name} 정리 실패");
+                        LoggerHelper.Error($"서비스 정리 중 오류: {ex.Message}");
                     }
                 }
             }

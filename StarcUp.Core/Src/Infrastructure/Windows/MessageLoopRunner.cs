@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using StarcUp.Common.Logging;
 
 namespace StarcUp.Infrastructure.Windows
 {
@@ -27,7 +28,7 @@ namespace StarcUp.Infrastructure.Windows
             _messageLoopTask = Task.Run(() =>
             {
                 _threadId = WindowsAPI.GetCurrentThreadId();
-                Console.WriteLine($"[MessageLoopRunner] 메시지 루프 시작 (스레드 ID: {_threadId})");
+                LoggerHelper.Debug($"[MessageLoopRunner] 메시지 루프 시작 (스레드 ID: {_threadId})");
                 
                 try
                 {
@@ -39,11 +40,11 @@ namespace StarcUp.Infrastructure.Windows
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[MessageLoopRunner] 메시지 루프 오류: {ex.Message}");
+                    LoggerHelper.Debug($"[MessageLoopRunner] 메시지 루프 오류: {ex.Message}");
                 }
                 finally
                 {
-                    Console.WriteLine("[MessageLoopRunner] 메시지 루프 종료");
+                    LoggerHelper.Debug("[MessageLoopRunner] 메시지 루프 종료");
                 }
             });
 
@@ -67,7 +68,7 @@ namespace StarcUp.Infrastructure.Windows
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[MessageLoopRunner] 메시지 루프 종료 대기 중 오류: {ex.Message}");
+                    LoggerHelper.Debug($"[MessageLoopRunner] 메시지 루프 종료 대기 중 오류: {ex.Message}");
                 }
                 finally
                 {
@@ -93,7 +94,7 @@ namespace StarcUp.Infrastructure.Windows
             WindowsAPI.MSG msg;
             int messageCount = 0;
             
-            Console.WriteLine("[MessageLoopRunner] 메시지 루프 실행 중...");
+            LoggerHelper.Debug("[MessageLoopRunner] 메시지 루프 실행 중...");
             
             while (!cancellationToken.IsCancellationRequested)
             {
@@ -101,7 +102,7 @@ namespace StarcUp.Infrastructure.Windows
                 
                 if (!hasMessage || msg.message == WindowsAPI.WM_QUIT)
                 {
-                    Console.WriteLine($"[MessageLoopRunner] 메시지 루프 종료 신호 수신 (총 {messageCount}개 메시지 처리)");
+                    LoggerHelper.Debug($"[MessageLoopRunner] 메시지 루프 종료 신호 수신 (총 {messageCount}개 메시지 처리)");
                     break;
                 }
                 
@@ -110,14 +111,14 @@ namespace StarcUp.Infrastructure.Windows
                 // 주요 메시지만 로그 출력 (처음 5개와 100개마다)
                 if (messageCount <= 5 || messageCount % 100 == 0)
                 {
-                    Console.WriteLine($"[MessageLoopRunner] 메시지 처리 #{messageCount}: 0x{msg.message:X} (hwnd: 0x{msg.hwnd:X})");
+                    LoggerHelper.Debug($"[MessageLoopRunner] 메시지 처리 #{messageCount}: 0x{msg.message:X} (hwnd: 0x{msg.hwnd:X})");
                 }
                 
                 WindowsAPI.TranslateMessage(ref msg);
                 WindowsAPI.DispatchMessage(ref msg);
             }
             
-            Console.WriteLine($"[MessageLoopRunner] 메시지 루프 완료 (총 {messageCount}개 메시지 처리됨)");
+            LoggerHelper.Debug($"[MessageLoopRunner] 메시지 루프 완료 (총 {messageCount}개 메시지 처리됨)");
         }
 
         public void Dispose()

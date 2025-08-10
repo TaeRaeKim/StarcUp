@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using StarcUp.Common.Constants;
 using StarcUp.Common.Events;
+using StarcUp.Common.Logging;
 using Timer = System.Threading.Timer;
 
 namespace StarcUp.Business.GameDetection
@@ -48,7 +49,7 @@ namespace StarcUp.Business.GameDetection
             if (_isDetecting)
                 return;
 
-            Console.WriteLine("[GameDetector] 🚀 스타크래프트 감지 시작");
+            LoggerHelper.Info("스타크래프트 감지 시작");
             try
             {
                 StartPollingMode();
@@ -56,7 +57,7 @@ namespace StarcUp.Business.GameDetection
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GameDetector] ❌ 감지 시작 실패: {ex.Message}");
+                LoggerHelper.Error($"감지 시작 실패: {ex.Message}");
             }
         }
 
@@ -84,7 +85,7 @@ namespace StarcUp.Business.GameDetection
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GameDetector] ❌ 감지 중지 실패: {ex.Message}");
+                LoggerHelper.Error($"감지 중지 실패: {ex.Message}");
             }
         }
 
@@ -127,7 +128,7 @@ namespace StarcUp.Business.GameDetection
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GameDetector] 폴링 중 오류: {ex.Message}");
+                LoggerHelper.Error($"폴링 중 오류: {ex.Message}");
             }
         }
 
@@ -160,7 +161,7 @@ namespace StarcUp.Business.GameDetection
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[GameDetector] 프로세스 확인 실패 ({processName}): {ex.Message}");
+                    LoggerHelper.Error($"프로세스 확인 실패 ({processName}): {ex.Message}");
                 }
             }
 
@@ -175,7 +176,7 @@ namespace StarcUp.Business.GameDetection
         {
             lock (_lockObject)
             {
-                Console.WriteLine($"[GameDetector] 🎮 게임 프로세스 발견: {processName} (PID: {process.Id})");   
+                LoggerHelper.Info($"게임 프로세스 발견: {processName} (PID: {process.Id})");   
                 try
                 {
                     _currentGame = new GameInfo(process.Id, processName)
@@ -191,7 +192,7 @@ namespace StarcUp.Business.GameDetection
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[GameDetector] 게임 정보 생성 실패: {ex.Message}");
+                    LoggerHelper.Error($"게임 정보 생성 실패: {ex.Message}");
                 }
             }
         }
@@ -205,7 +206,7 @@ namespace StarcUp.Business.GameDetection
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GameDetector] ❌ RegistProcessExitedEvent 실패: {ex.Message}");
+                LoggerHelper.Error($"RegistProcessExitedEvent 실패: {ex.Message}");
             }
         }
 
@@ -222,7 +223,7 @@ namespace StarcUp.Business.GameDetection
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GameDetector] 이벤트 모드 중지 실패: {ex.Message}");
+                LoggerHelper.Error($"이벤트 모드 중지 실패: {ex.Message}");
             }
         }
 
@@ -249,7 +250,7 @@ namespace StarcUp.Business.GameDetection
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GameDetector] 게임 종료 처리 실패: {ex.Message}");
+                LoggerHelper.Error($"게임 종료 처리 실패: {ex.Message}");
             }
         }
 

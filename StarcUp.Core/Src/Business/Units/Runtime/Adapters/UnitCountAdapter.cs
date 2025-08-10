@@ -2,6 +2,7 @@ using StarcUp.Business.Units.Runtime.Models;
 using StarcUp.Business.Units.Runtime.Repositories;
 using StarcUp.Business.Units.Types;
 using StarcUp.Business.MemoryService;
+using StarcUp.Common.Logging;
 using System.Diagnostics;
 
 namespace StarcUp.Business.Units.Runtime.Adapters
@@ -35,7 +36,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             // 버퍼 초기화
             _buffer = new byte[_bufferSize];
 
-            Console.WriteLine($"[UnitCountAdapter] 초기화 완료 - 버퍼 크기: {_bufferSize} bytes, 지원 유닛 수: {_completedOffsets.Count}");
+            LoggerHelper.Debug($"[UnitCountAdapter] 초기화 완료 - 버퍼 크기: {_bufferSize} bytes, 지원 유닛 수: {_completedOffsets.Count}");
         }
 
         public bool InitializeBaseAddress()
@@ -44,36 +45,36 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             {
                 if (!_memoryService.IsConnected)
                 {
-                    Console.WriteLine("[UnitCountAdapter] ❌ MemoryService가 연결되지 않음");
+                    LoggerHelper.Debug("[UnitCountAdapter] ❌ MemoryService가 연결되지 않음");
                     return false;
                 }
 
                 // MemoryService의 GetThreadStackAddress 사용
                 var threadStackAddress = _memoryService.GetThreadStackAddress(0);
-                Console.WriteLine($"[UnitCountAdapter] THREADSTACK0 주소: 0x{threadStackAddress:X}");
+                LoggerHelper.Debug($"[UnitCountAdapter] THREADSTACK0 주소: 0x{threadStackAddress:X}");
 
                 if (threadStackAddress == 0)
                 {
-                    Console.WriteLine("[UnitCountAdapter] ❌ THREADSTACK0 주소를 찾을 수 없습니다.");
+                    LoggerHelper.Debug("[UnitCountAdapter] ❌ THREADSTACK0 주소를 찾을 수 없습니다.");
                     return false;
                 }
 
-                Console.WriteLine($"[UnitCountAdapter] 포인터 읽기 시도: 0x{threadStackAddress - _baseOffset:X}");
+                LoggerHelper.Debug($"[UnitCountAdapter] 포인터 읽기 시도: 0x{threadStackAddress - _baseOffset:X}");
 
                 nint pointerAddress = _memoryService.ReadPointer(threadStackAddress - _baseOffset);
                 if (pointerAddress == 0)
                 {
-                    Console.WriteLine("[UnitCountAdapter] ❌ 포인터 읽기 실패");
+                    LoggerHelper.Debug("[UnitCountAdapter] ❌ 포인터 읽기 실패");
                     return false;
                 }
 
                 _baseAddress = pointerAddress;
-                Console.WriteLine($"[UnitCountAdapter] ✅ 베이스 주소 설정: 0x{_baseAddress:X}");
+                LoggerHelper.Debug($"[UnitCountAdapter] ✅ 베이스 주소 설정: 0x{_baseAddress:X}");
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UnitCountAdapter] 베이스 주소 초기화 실패: {ex.Message}");
+                LoggerHelper.Debug($"[UnitCountAdapter] 베이스 주소 초기화 실패: {ex.Message}");
                 return false;
             }
         }
@@ -85,13 +86,13 @@ namespace StarcUp.Business.Units.Runtime.Adapters
 
             if (!_memoryService.IsConnected)
             {
-                Console.WriteLine("[UnitCountAdapter] ❌ MemoryService가 연결되지 않음");
+                LoggerHelper.Debug("[UnitCountAdapter] ❌ MemoryService가 연결되지 않음");
                 return false;
             }
 
             if (_baseAddress == 0)
             {
-                Console.WriteLine("[UnitCountAdapter] 베이스 주소가 설정되지 않음, 자동 초기화 시도...");
+                LoggerHelper.Debug("[UnitCountAdapter] 베이스 주소가 설정되지 않음, 자동 초기화 시도...");
                 if (!InitializeBaseAddress())
                 {
                     throw new InvalidOperationException("Base address initialization failed");
@@ -108,14 +109,14 @@ namespace StarcUp.Business.Units.Runtime.Adapters
 
                 if (!success)
                 {
-                    Console.WriteLine("[UnitCountAdapter] ❌ 유닛 카운트 버퍼 읽기 실패");
+                    LoggerHelper.Debug("[UnitCountAdapter] ❌ 유닛 카운트 버퍼 읽기 실패");
                     return false;
                 }
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UnitCountAdapter] 유닛 카운트 로드 중 오류: {ex.Message}");
+                LoggerHelper.Debug($"[UnitCountAdapter] 유닛 카운트 로드 중 오류: {ex.Message}");
                 return false;
             }
         }
@@ -143,7 +144,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                 // 버퍼 범위 검사
                 if (bufferOffset < 0 || bufferOffset + 4 > _bufferSize)
                 {
-                    Console.WriteLine($"[UnitCountAdapter] ❌ 버퍼 범위 초과: offset={bufferOffset}, bufferSize={_bufferSize}");
+                    LoggerHelper.Debug($"[UnitCountAdapter] ❌ 버퍼 범위 초과: offset={bufferOffset}, bufferSize={_bufferSize}");
                     return 0;
                 }
 
@@ -153,7 +154,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UnitCountAdapter] GetUnitCount 오류 ({unitType}, Player {playerIndex}): {ex.Message}");
+                LoggerHelper.Debug($"[UnitCountAdapter] GetUnitCount 오류 ({unitType}, Player {playerIndex}): {ex.Message}");
                 return 0;
             }
         }
@@ -200,7 +201,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
 
         public void InvalidateCache()
         {
-            Console.WriteLine("[UnitCountAdapter] 캐시 무효화");
+            LoggerHelper.Debug("[UnitCountAdapter] 캐시 무효화");
             _baseAddress = 0;
         }
 
@@ -212,7 +213,7 @@ namespace StarcUp.Business.Units.Runtime.Adapters
             _baseAddress = 0;
             _disposed = true;
 
-            Console.WriteLine("[UnitCountAdapter] 리소스 정리 완료");
+            LoggerHelper.Debug("[UnitCountAdapter] 리소스 정리 완료");
         }
     }
 }

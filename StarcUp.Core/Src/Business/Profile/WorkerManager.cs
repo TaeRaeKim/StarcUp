@@ -5,6 +5,7 @@ using StarcUp.Business.Profile.Models;
 using StarcUp.Business.Units.Runtime.Models;
 using StarcUp.Business.Units.Types;
 using StarcUp.Common.Events;
+using StarcUp.Common.Logging;
 
 namespace StarcUp.Business.Profile
 {
@@ -98,7 +99,7 @@ namespace StarcUp.Business.Profile
                 }
                 else
                 {
-                    Console.WriteLine($"새로운 가스 건물 등록: UnitId {unitId}, 위치: ({building.CurrentX}, {building.CurrentY})");
+                    LoggerHelper.Debug($"새로운 가스 건물 등록: UnitId {unitId}, 위치: ({building.CurrentX}, {building.CurrentY})");
                     _gasBuildingStates[unitId] = new GasBuildingState
                     {
                         UnitId = unitId,
@@ -250,7 +251,7 @@ namespace StarcUp.Business.Profile
                 Timestamp = DateTime.Now
             };
 
-            Console.WriteLine($"🚨 가스 건물 채취 중단 알림! - UnitId: {state.UnitId}, 지속시간: {state.StateDuration.TotalMilliseconds:F0}ms");
+            LoggerHelper.Warning($"가스 건물 채취 중단 알림! - UnitId: {state.UnitId}, 지속시간: {state.StateDuration.TotalMilliseconds:F0}ms");
             GasBuildingAlert?.Invoke(this, eventArgs);
         }
 
@@ -261,7 +262,7 @@ namespace StarcUp.Business.Profile
 
         public void InitializeWorkerPreset(WorkerPresetEnum preset)
         {
-            Console.WriteLine($"[WorkerManager] ✅ 일꾼 프리셋 초기화: {preset}");
+            LoggerHelper.Info($"일꾼 프리셋 초기화: {preset}");
             WorkerPreset = preset;
             OnPresetChanged();
         }
@@ -269,7 +270,7 @@ namespace StarcUp.Business.Profile
         public WorkerPresetEnum UpdateWorkerPreset(WorkerPresetEnum newPreset)
         {
             var previousPreset = WorkerPreset;
-            Console.WriteLine($"[WorkerManager] ✅ 일꾼 프리셋 업데이트: {previousPreset} → {newPreset}");
+            LoggerHelper.Info($"일꾼 프리셋 업데이트: {previousPreset} → {newPreset}");
             WorkerPreset = newPreset;
             OnPresetChanged();
             return previousPreset;

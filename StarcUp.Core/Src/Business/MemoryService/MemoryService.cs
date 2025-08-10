@@ -2,6 +2,7 @@ using StarcUp.Business.GameDetection;
 using StarcUp.Business.Units.Runtime.Repositories;
 using StarcUp.Business.Units.Types;
 using StarcUp.Common.Events;
+using StarcUp.Common.Logging;
 using StarcUp.Infrastructure.Memory;
 using System;
 using System.Collections.Generic;
@@ -40,20 +41,20 @@ namespace StarcUp.Business.MemoryService
             _gameDetector.HandleFound += (object sender, GameEventArgs e) => ConnectToProcess(e.GameInfo.ProcessId);
             _gameDetector.HandleLost += (object sender, GameEventArgs e) => Disconnect();
 
-            Console.WriteLine("[MemoryService] 초기화 완료");
+            LoggerHelper.Info("초기화 완료");
             RefreshAllCache();
         }
         public bool ConnectToProcess(int processId)
         {
             if (_isDisposed)
             {
-                Console.WriteLine("[MemoryService] ConnectToProcess: 서비스가 이미 해제됨");
+                LoggerHelper.Warning("ConnectToProcess: 서비스가 이미 해제됨");
                 return false;
             }
 
             if (processId <= 0)
             {
-                Console.WriteLine("[MemoryService] ConnectToProcess: 잘못된 프로세스 ID");
+                LoggerHelper.Error("ConnectToProcess: 잘못된 프로세스 ID");
                 return false;
             }
 
@@ -64,28 +65,28 @@ namespace StarcUp.Business.MemoryService
 
                 if (wasConnected)
                 {
-                    Console.WriteLine("[MemoryService] 기존 연결 해제 중...");
+                    LoggerHelper.Info("기존 연결 해제 중...");
                     Disconnect();
                 }
 
-                Console.WriteLine($"[MemoryService] 프로세스 {processId}에 연결 시도...");
+                LoggerHelper.Info($"프로세스 {processId}에 연결 시도...");
 
                 if (_memoryReader.ConnectToProcess(processId))
                 {
                     RefreshAllCache();
-                    Console.WriteLine($"[MemoryService] 프로세스 {processId} 연결 성공");
+                    LoggerHelper.Info($"프로세스 {processId} 연결 성공");
                     ProcessConnect?.Invoke(this, new ProcessEventArgs(processId));
                     return true;
                 }
                 else
                 {
-                    Console.WriteLine($"[MemoryService] 프로세스 {processId} 연결 실패");
+                    LoggerHelper.Error($"프로세스 {processId} 연결 실패");
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ConnectToProcess 예외: {ex.Message}");
+                LoggerHelper.Error($"ConnectToProcess 예외: {ex.Message}");
                 return false;
             }
         }
@@ -99,12 +100,12 @@ namespace StarcUp.Business.MemoryService
                 int processId = ConnectedProcessId;
                 _memoryReader.Disconnect();
                 RefreshAllCache();
-                Console.WriteLine($"[MemoryService] 프로세스 {processId} 연결 해제됨");
+                LoggerHelper.Info($"프로세스 {processId} 연결 해제됨");
                 ProcessDisconnect?.Invoke(this, new ProcessEventArgs(processId));
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] Disconnect 예외: {ex.Message}");
+                LoggerHelper.Error($"Disconnect 예외: {ex.Message}");
             }
         }
 
@@ -112,13 +113,13 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadInt: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("ReadInt: 프로세스에 연결되지 않음");
                 return 0;
             }
 
             if (!IsValidAddress(address))
             {
-                Console.WriteLine($"[MemoryService] ReadInt: 잘못된 주소 0x{address:X}");
+                LoggerHelper.Debug($"ReadInt: 잘못된 주소 0x{address:X}");
                 return 0;
             }
 
@@ -128,7 +129,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadInt 오류: {ex.Message}");
+                LoggerHelper.Error($"ReadInt 오류: {ex.Message}");
                 return 0;
             }
         }
@@ -137,13 +138,13 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadFloat: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("ReadFloat: 프로세스에 연결되지 않음");
                 return 0f;
             }
 
             if (!IsValidAddress(address))
             {
-                Console.WriteLine($"[MemoryService] ReadFloat: 잘못된 주소 0x{address:X}");
+                LoggerHelper.Debug($"ReadFloat: 잘못된 주소 0x{address:X}");
                 return 0f;
             }
 
@@ -153,7 +154,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadFloat 오류: {ex.Message}");
+                LoggerHelper.Error($"ReadFloat 오류: {ex.Message}");
                 return 0f;
             }
         }
@@ -162,13 +163,13 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadDouble: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("ReadDouble: 프로세스에 연결되지 않음");
                 return 0.0;
             }
 
             if (!IsValidAddress(address))
             {
-                Console.WriteLine($"[MemoryService] ReadDouble: 잘못된 주소 0x{address:X}");
+                LoggerHelper.Debug($"ReadDouble: 잘못된 주소 0x{address:X}");
                 return 0.0;
             }
 
@@ -178,7 +179,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadDouble 오류: {ex.Message}");
+                LoggerHelper.Error($"ReadDouble 오류: {ex.Message}");
                 return 0.0;
             }
         }
@@ -187,13 +188,13 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadByte: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("ReadByte: 프로세스에 연결되지 않음");
                 return 0;
             }
 
             if (!IsValidAddress(address))
             {
-                Console.WriteLine($"[MemoryService] ReadByte: 잘못된 주소 0x{address:X}");
+                LoggerHelper.Debug($"ReadByte: 잘못된 주소 0x{address:X}");
                 return 0;
             }
 
@@ -203,7 +204,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadByte 오류: {ex.Message}");
+                LoggerHelper.Error($"ReadByte 오류: {ex.Message}");
                 return 0;
             }
         }
@@ -212,13 +213,13 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadShort: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("ReadShort: 프로세스에 연결되지 않음");
                 return 0;
             }
 
             if (!IsValidAddress(address))
             {
-                Console.WriteLine($"[MemoryService] ReadShort: 잘못된 주소 0x{address:X}");
+                LoggerHelper.Debug($"ReadShort: 잘못된 주소 0x{address:X}");
                 return 0;
             }
 
@@ -228,7 +229,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadShort 오류: {ex.Message}");
+                LoggerHelper.Error($"ReadShort 오류: {ex.Message}");
                 return 0;
             }
         }
@@ -237,13 +238,13 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadLong: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("ReadLong: 프로세스에 연결되지 않음");
                 return 0L;
             }
 
             if (!IsValidAddress(address))
             {
-                Console.WriteLine($"[MemoryService] ReadLong: 잘못된 주소 0x{address:X}");
+                LoggerHelper.Debug($"ReadLong: 잘못된 주소 0x{address:X}");
                 return 0L;
             }
 
@@ -253,7 +254,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadLong 오류: {ex.Message}");
+                LoggerHelper.Error($"ReadLong 오류: {ex.Message}");
                 return 0L;
             }
         }
@@ -262,13 +263,13 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadBool: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("ReadBool: 프로세스에 연결되지 않음");
                 return false;
             }
 
             if (!IsValidAddress(address))
             {
-                Console.WriteLine($"[MemoryService] ReadBool: 잘못된 주소 0x{address:X}");
+                LoggerHelper.Debug($"ReadBool: 잘못된 주소 0x{address:X}");
                 return false;
             }
 
@@ -278,7 +279,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadBool 오류: {ex.Message}");
+                LoggerHelper.Error($"ReadBool 오류: {ex.Message}");
                 return false;
             }
         }
@@ -287,13 +288,13 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadPointer: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("ReadPointer: 프로세스에 연결되지 않음");
                 return 0;
             }
 
             if (!IsValidAddress(address))
             {
-                Console.WriteLine($"[MemoryService] ReadPointer: 잘못된 주소 0x{address:X}");
+                LoggerHelper.Debug($"ReadPointer: 잘못된 주소 0x{address:X}");
                 return 0;
             }
 
@@ -303,7 +304,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadPointer 오류: {ex.Message}");
+                LoggerHelper.Error($"ReadPointer 오류: {ex.Message}");
                 return 0;
             }
         }
@@ -312,19 +313,19 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadString: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("ReadString: 프로세스에 연결되지 않음");
                 return string.Empty;
             }
 
             if (!IsValidAddress(address))
             {
-                Console.WriteLine($"[MemoryService] ReadString: 잘못된 주소 0x{address:X}");
+                LoggerHelper.Debug($"ReadString: 잘못된 주소 0x{address:X}");
                 return string.Empty;
             }
 
             if (maxLength <= 0)
             {
-                Console.WriteLine("[MemoryService] ReadString: 잘못된 최대 길이");
+                LoggerHelper.Debug("ReadString: 잘못된 최대 길이");
                 return string.Empty;
             }
 
@@ -334,7 +335,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadString 오류: {ex.Message}");
+                LoggerHelper.Error($"ReadString 오류: {ex.Message}");
                 return string.Empty;
             }
         }
@@ -343,13 +344,13 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadStructure: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("ReadStructure: 프로세스에 연결되지 않음");
                 return default(T);
             }
 
             if (!IsValidAddress(address))
             {
-                Console.WriteLine($"[MemoryService] ReadStructure: 잘못된 주소 0x{address:X}");
+                LoggerHelper.Debug($"ReadStructure: 잘못된 주소 0x{address:X}");
                 return default(T);
             }
 
@@ -359,7 +360,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadStructure 오류: {ex.Message}");
+                LoggerHelper.Error($"ReadStructure 오류: {ex.Message}");
                 return default(T);
             }
         }
@@ -368,19 +369,19 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadStructureArray: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("ReadStructureArray: 프로세스에 연결되지 않음");
                 return new T[0];
             }
 
             if (!IsValidAddress(address))
             {
-                Console.WriteLine($"[MemoryService] ReadStructureArray: 잘못된 주소 0x{address:X}");
+                LoggerHelper.Debug($"ReadStructureArray: 잘못된 주소 0x{address:X}");
                 return new T[0];
             }
 
             if (count <= 0)
             {
-                Console.WriteLine("[MemoryService] ReadStructureArray: 잘못된 카운트");
+                LoggerHelper.Debug("ReadStructureArray: 잘못된 카운트");
                 return new T[0];
             }
 
@@ -390,7 +391,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadStructureArray 오류: {ex.Message}");
+                LoggerHelper.Error($"ReadStructureArray 오류: {ex.Message}");
                 return new T[0];
             }
         }
@@ -399,7 +400,7 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] GetPebAddress: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("GetPebAddress: 프로세스에 연결되지 않음");
                 return 0;
             }
 
@@ -408,18 +409,18 @@ namespace StarcUp.Business.MemoryService
                 int status = _memoryReader.QueryProcessInformation(out var processInfo);
                 if (status == 0)
                 {
-                    Console.WriteLine($"[MemoryService] PEB 주소: 0x{processInfo.PebBaseAddress:X}");
+                    LoggerHelper.Debug($"PEB 주소: 0x{processInfo.PebBaseAddress:X}");
                     return processInfo.PebBaseAddress;
                 }
                 else
                 {
-                    Console.WriteLine($"[MemoryService] GetPebAddress: NtQueryInformationProcess 실패, 상태: {status}");
+                    LoggerHelper.Error($"GetPebAddress: NtQueryInformationProcess 실패, 상태: {status}");
                     return 0;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] GetPebAddress 오류: {ex.Message}");
+                LoggerHelper.Error($"GetPebAddress 오류: {ex.Message}");
                 return 0;
             }
         }
@@ -435,7 +436,7 @@ namespace StarcUp.Business.MemoryService
 
                 if (!IsConnected)
                 {
-                    Console.WriteLine("[MemoryService] GetTebAddresses: 프로세스에 연결되지 않음");
+                    LoggerHelper.Debug("GetTebAddresses: 프로세스에 연결되지 않음");
                     return new List<TebInfo>();
                 }
 
@@ -446,7 +447,7 @@ namespace StarcUp.Business.MemoryService
                     nint snapshot = _memoryReader.CreateThreadSnapshot();
                     if (snapshot == 0)
                     {
-                        Console.WriteLine("[MemoryService] 스레드 스냅샷 생성 실패");
+                        LoggerHelper.Error("스레드 스냅샷 생성 실패");
                         return tebList;
                     }
 
@@ -476,11 +477,11 @@ namespace StarcUp.Business.MemoryService
                     }
 
                     _cachedTebList = new List<TebInfo>(tebList);
-                    Console.WriteLine($"[MemoryService] TEB 캐시 생성: {tebList.Count}개");
+                    LoggerHelper.Debug($"TEB 캐시 생성: {tebList.Count}개");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[MemoryService] GetTebAddresses 오류: {ex.Message}");
+                    LoggerHelper.Error($"GetTebAddresses 오류: {ex.Message}");
                 }
 
                 return tebList;
@@ -492,7 +493,7 @@ namespace StarcUp.Business.MemoryService
             var tebList = GetTebAddresses();
             if (threadIndex < 0 || threadIndex >= tebList.Count)
             {
-                Console.WriteLine($"[MemoryService] GetStackTop: 잘못된 스레드 인덱스 {threadIndex} (최대: {tebList.Count - 1})");
+                LoggerHelper.Error($"GetStackTop: 잘못된 스레드 인덱스 {threadIndex} (최대: {tebList.Count - 1})");
                 return 0;
             }
 
@@ -505,7 +506,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] GetStackTop 오류: {ex.Message}");
+                LoggerHelper.Error($"GetStackTop 오류: {ex.Message}");
                 return 0;
             }
         }
@@ -515,7 +516,7 @@ namespace StarcUp.Business.MemoryService
             var tebList = GetTebAddresses();
             if (threadIndex < 0 || threadIndex >= tebList.Count)
             {
-                Console.WriteLine($"[MemoryService] GetStackBottom: 잘못된 스레드 인덱스 {threadIndex} (최대: {tebList.Count - 1})");
+                LoggerHelper.Error($"GetStackBottom: 잘못된 스레드 인덱스 {threadIndex} (최대: {tebList.Count - 1})");
                 return 0;
             }
 
@@ -524,12 +525,12 @@ namespace StarcUp.Business.MemoryService
                 nint tebAddress = tebList[threadIndex].TebAddress;
                 nint stackBottomPtr = tebAddress + 0x10;
                 nint stackBottom = ReadPointer(stackBottomPtr);
-                Console.WriteLine($"[MemoryService] 스레드 {threadIndex} 스택 하단: 0x{stackBottom:X}");
+                LoggerHelper.Debug($"스레드 {threadIndex} 스택 하단: 0x{stackBottom:X}");
                 return stackBottom;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] GetStackBottom 오류: {ex.Message}");
+                LoggerHelper.Error($"GetStackBottom 오류: {ex.Message}");
                 return 0;
             }
         }
@@ -538,7 +539,7 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] GetThreadStackAddress: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("GetThreadStackAddress: 프로세스에 연결되지 않음");
                 return 0;
             }
 
@@ -547,14 +548,14 @@ namespace StarcUp.Business.MemoryService
                 var kernel32Module = GetKernel32Module();
                 if (kernel32Module == null)
                 {
-                    Console.WriteLine("[MemoryService] GetThreadStackAddress: kernel32.dll 모듈 정보를 가져올 수 없음");
+                    LoggerHelper.Error("GetThreadStackAddress: kernel32.dll 모듈 정보를 가져올 수 없음");
                     return 0;
                 }
 
                 nint stackTop = GetStackTop(threadIndex);
                 if (stackTop == 0)
                 {
-                    Console.WriteLine("[MemoryService] GetThreadStackAddress: StackTop을 가져올 수 없음");
+                    LoggerHelper.Error("GetThreadStackAddress: StackTop을 가져올 수 없음");
                     return 0;
                 }
 
@@ -563,7 +564,7 @@ namespace StarcUp.Business.MemoryService
 
                 if (!ReadMemoryIntoBuffer(stackSearchStart, stackBuffer, 4096))
                 {
-                    Console.WriteLine("[MemoryService] GetThreadStackAddress: 스택 메모리 읽기 실패");
+                    LoggerHelper.Error("GetThreadStackAddress: 스택 메모리 읽기 실패");
                     return 0;
                 }
 
@@ -581,12 +582,12 @@ namespace StarcUp.Business.MemoryService
                     }
                 }
 
-                Console.WriteLine("[MemoryService] GetThreadStackAddress: kernel32를 가리키는 스택 엔트리를 찾을 수 없음");
+                LoggerHelper.Error("GetThreadStackAddress: kernel32를 가리키는 스택 엔트리를 찾을 수 없음");
                 return 0;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] GetThreadStackAddress 오류: {ex.Message}");
+                LoggerHelper.Error($"GetThreadStackAddress 오류: {ex.Message}");
                 return 0;
             }
         }
@@ -596,13 +597,13 @@ namespace StarcUp.Business.MemoryService
             moduleInfo = null;
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] FindModule: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("FindModule: 프로세스에 연결되지 않음");
                 return false;
             }
 
             if (string.IsNullOrWhiteSpace(moduleName))
             {
-                Console.WriteLine("[MemoryService] FindModule: 모듈명이 비어있음");
+                LoggerHelper.Debug("FindModule: 모듈명이 비어있음");
                 return false;
             }
 
@@ -627,16 +628,16 @@ namespace StarcUp.Business.MemoryService
             
             foreach (string name in possibleNames)
             {
-                Console.WriteLine($"[MemoryService] {name} 검색 시도...");
+                LoggerHelper.Debug($"{name} 검색 시도...");
                 if (FindModule(name, out var moduleInfo))
                 {
                     _cachedKernel32Module = moduleInfo;
-                    Console.WriteLine($"[MemoryService] kernel32 모듈 발견: {name}");
+                    LoggerHelper.Info($"kernel32 모듈 발견: {name}");
                     return moduleInfo;
                 }
             }
             
-            Console.WriteLine("[MemoryService] kernel32 모듈을 찾지 못했습니다.");
+            LoggerHelper.Warning("kernel32 모듈을 찾지 못했습니다.");
             return null;
         }
 
@@ -644,14 +645,14 @@ namespace StarcUp.Business.MemoryService
         {
             if (_cachedUser32Module != null)
             {
-                Console.WriteLine("[MemoryService] user32 캐시 사용");
+                LoggerHelper.Debug("user32 캐시 사용");
                 return _cachedUser32Module;
             }
 
             if (FindModule("user32.dll", out var moduleInfo))
             {
                 _cachedUser32Module = moduleInfo;
-                Console.WriteLine("[MemoryService] user32 캐시 생성");
+                LoggerHelper.Debug("user32 캐시 생성");
                 return moduleInfo;
             }
             return null;
@@ -668,16 +669,16 @@ namespace StarcUp.Business.MemoryService
             
             foreach (string name in possibleNames)
             {
-                Console.WriteLine($"[MemoryService] {name} 검색 시도...");
+                LoggerHelper.Debug($"{name} 검색 시도...");
                 if (FindModule(name, out var moduleInfo))
                 {
                     _cachedStarCraftModule = moduleInfo;
-                    Console.WriteLine($"[MemoryService] kernel32 모듈 발견: {name}");
+                    LoggerHelper.Info($"kernel32 모듈 발견: {name}");
                     return moduleInfo;
                 }
             }
             
-            Console.WriteLine("[MemoryService] starcraft 모듈을 찾지 못했습니다.");
+            LoggerHelper.Warning("StarCraft 모듈을 찾지 못했습니다.");
             return null;
         }
 
@@ -711,7 +712,7 @@ namespace StarcUp.Business.MemoryService
             lock (_lockObject)
             {
                 _cachedTebList = null;
-                Console.WriteLine("[MemoryService] TEB 캐시 무효화됨");
+                LoggerHelper.Debug("TEB 캐시 무효화됨");
             }
         }
 
@@ -721,7 +722,7 @@ namespace StarcUp.Business.MemoryService
             {
                 _cachedKernel32Module = null;
                 _cachedUser32Module = null;
-                Console.WriteLine("[MemoryService] 모듈 캐시 무효화됨");
+                LoggerHelper.Debug("모듈 캐시 무효화됨");
             }
         }
 
@@ -731,7 +732,7 @@ namespace StarcUp.Business.MemoryService
             {
                 RefreshTebCache();
                 RefreshModuleCache();
-                Console.WriteLine("[MemoryService] 모든 캐시 무효화됨");
+                LoggerHelper.Debug("모든 캐시 무효화됨");
             }
         }
 
@@ -739,19 +740,19 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadMemoryIntoBuffer: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("ReadMemoryIntoBuffer: 프로세스에 연결되지 않음");
                 return false;
             }
 
             if (!IsValidAddress(address))
             {
-                Console.WriteLine($"[MemoryService] ReadMemoryIntoBuffer: 잘못된 주소 0x{address:X}");
+                LoggerHelper.Debug($"ReadMemoryIntoBuffer: 잘못된 주소 0x{address:X}");
                 return false;
             }
 
             if (buffer == null || size <= 0 || size > buffer.Length)
             {
-                Console.WriteLine("[MemoryService] ReadMemoryIntoBuffer: 잘못된 버퍼 또는 크기");
+                LoggerHelper.Debug("ReadMemoryIntoBuffer: 잘못된 버퍼 또는 크기");
                 return false;
             }
 
@@ -761,7 +762,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadMemoryIntoBuffer 오류: {ex.Message}");
+                LoggerHelper.Error($"ReadMemoryIntoBuffer 오류: {ex.Message}");
                 return false;
             }
         }
@@ -770,19 +771,19 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadStructureArrayIntoBuffer: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("ReadStructureArrayIntoBuffer: 프로세스에 연결되지 않음");
                 return false;
             }
 
             if (!IsValidAddress(address))
             {
-                Console.WriteLine($"[MemoryService] ReadStructureArrayIntoBuffer: 잘못된 주소 0x{address:X}");
+                LoggerHelper.Debug($"ReadStructureArrayIntoBuffer: 잘못된 주소 0x{address:X}");
                 return false;
             }
 
             if (buffer == null || count <= 0 || count > buffer.Length)
             {
-                Console.WriteLine("[MemoryService] ReadStructureArrayIntoBuffer: 잘못된 버퍼 또는 카운트");
+                LoggerHelper.Debug("ReadStructureArrayIntoBuffer: 잘못된 버퍼 또는 카운트");
                 return false;
             }
 
@@ -792,7 +793,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadStructureArrayIntoBuffer 오류: {ex.Message}");
+                LoggerHelper.Error($"ReadStructureArrayIntoBuffer 오류: {ex.Message}");
                 return false;
             }
         }
@@ -801,18 +802,18 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] DebugAllModules: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug("DebugAllModules: 프로세스에 연결되지 않음");
                 return;
             }
 
-            Console.WriteLine($"[MemoryService] === PID {ConnectedProcessId} 모든 모듈 목록 (치트엔진 방식) ===");
+            LoggerHelper.Info($"=== PID {ConnectedProcessId} 모든 모듈 목록 (치트엔진 방식) ===");
 
             try
             {
                 nint processHandle = _memoryReader.GetProcessHandle();
                 if (processHandle == IntPtr.Zero)
                 {
-                    Console.WriteLine("[MemoryService] 프로세스 핸들을 가져올 수 없음");
+                    LoggerHelper.Debug(" 프로세스 핸들을 가져올 수 없음");
                     return;
                 }
 
@@ -826,12 +827,12 @@ namespace StarcUp.Business.MemoryService
                     out bytesNeeded))
                 {
                     int error = Marshal.GetLastWin32Error();
-                    Console.WriteLine($"[MemoryService] EnumProcessModules 실패, 오류 코드: {error}");
+                    LoggerHelper.Debug($" EnumProcessModules 실패, 오류 코드: {error}");
                     return;
                 }
 
                 int moduleCount = (int)(bytesNeeded / IntPtr.Size);
-                Console.WriteLine($"[MemoryService] 발견된 모듈 수: {moduleCount}");
+                LoggerHelper.Debug($" 발견된 모듈 수: {moduleCount}");
 
                 for (int i = 0; i < moduleCount && i < moduleHandles.Length; i++)
                 {
@@ -857,38 +858,38 @@ namespace StarcUp.Business.MemoryService
                                 out Infrastructure.Memory.MemoryAPI.MODULEINFO moduleInfo,
                                 (uint)Marshal.SizeOf<Infrastructure.Memory.MemoryAPI.MODULEINFO>()))
                             {
-                                Console.WriteLine($"[{i + 1:D2}] 모듈명: {moduleName}");
-                                Console.WriteLine($"     베이스주소: 0x{moduleInfo.lpBaseOfDll:X}");
-                                Console.WriteLine($"     크기: 0x{moduleInfo.SizeOfImage:X} ({moduleInfo.SizeOfImage:N0} bytes)");
-                                Console.WriteLine($"     전체경로: {fullPath}");
-                                Console.WriteLine();
+                                LoggerHelper.Debug($"[{i + 1:D2}] 모듈명: {moduleName}");
+                                LoggerHelper.Debug($"     베이스주소: 0x{moduleInfo.lpBaseOfDll:X}");
+                                LoggerHelper.Debug($"     크기: 0x{moduleInfo.SizeOfImage:X} ({moduleInfo.SizeOfImage:N0} bytes)");
+                                LoggerHelper.Debug($"     전체경로: {fullPath}");
+                                LoggerHelper.Debug("");
 
                                 if (moduleName.ToLower().Contains("starcraft") ||
                                     moduleName.ToLower().Contains("star") ||
                                     fullPath.ToLower().Contains("starcraft"))
                                 {
-                                    Console.WriteLine($"★ StarCraft 관련 모듈 발견: {moduleName}");
-                                    Console.WriteLine();
+                                    LoggerHelper.Info($"★ StarCraft 관련 모듈 발견: {moduleName}");
+                                    LoggerHelper.Debug("");
                                 }
                             }
                         }
                         else
                         {
-                            Console.WriteLine($"[{i + 1:D2}] 모듈명을 가져올 수 없음 (핸들: 0x{moduleHandles[i]:X})");
+                            LoggerHelper.Debug($"[{i + 1:D2}] 모듈명을 가져올 수 없음 (핸들: 0x{moduleHandles[i]:X})");
                         }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[MemoryService] 모듈 {i} 정보 읽기 실패: {ex.Message}");
+                        LoggerHelper.Debug($" 모듈 {i} 정보 읽기 실패: {ex.Message}");
                     }
                 }
 
-                Console.WriteLine($"[MemoryService] === 총 {moduleCount}개 모듈 처리 완료 ===");
+                LoggerHelper.Debug($" === 총 {moduleCount}개 모듈 처리 완료 ===");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] DebugAllModules 오류: {ex.Message}");
-                Console.WriteLine($"[MemoryService] 스택 트레이스: {ex.StackTrace}");
+                LoggerHelper.Debug($" DebugAllModules 오류: {ex.Message}");
+                LoggerHelper.Debug($" 스택 트레이스: {ex.StackTrace}");
             }
         }
 
@@ -896,18 +897,18 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] 프로세스에 연결되지 않음");
+                LoggerHelper.Debug(" 프로세스에 연결되지 않음");
                 return;
             }
 
-            Console.WriteLine($"[MemoryService] === PID {ConnectedProcessId} 모든 모듈 목록 (치트엔진 스타일) ===");
+            LoggerHelper.Debug($" === PID {ConnectedProcessId} 모든 모듈 목록 (치트엔진 스타일) ===");
 
             try
             {
                 nint processHandle = _memoryReader.GetProcessHandle();
                 if (processHandle == IntPtr.Zero)
                 {
-                    Console.WriteLine("[MemoryService] 프로세스 핸들을 가져올 수 없음");
+                    LoggerHelper.Debug(" 프로세스 핸들을 가져올 수 없음");
                     return;
                 }
 
@@ -921,12 +922,12 @@ namespace StarcUp.Business.MemoryService
                     out bytesNeeded))
                 {
                     int error = Marshal.GetLastWin32Error();
-                    Console.WriteLine($"[MemoryService] EnumProcessModules 실패, 오류 코드: {error}");
+                    LoggerHelper.Debug($" EnumProcessModules 실패, 오류 코드: {error}");
                     return;
                 }
 
                 int moduleCount = (int)(bytesNeeded / IntPtr.Size);
-                Console.WriteLine($"[MemoryService] 발견된 모듈 수: {moduleCount}");
+                LoggerHelper.Debug($" 발견된 모듈 수: {moduleCount}");
 
                 for (int i = 0; i < moduleCount && i < moduleHandles.Length; i++)
                 {
@@ -952,38 +953,38 @@ namespace StarcUp.Business.MemoryService
                                 out Infrastructure.Memory.MemoryAPI.MODULEINFO moduleInfo,
                                 (uint)Marshal.SizeOf<Infrastructure.Memory.MemoryAPI.MODULEINFO>()))
                             {
-                                Console.WriteLine($"[{i + 1:D2}] 모듈명: {moduleName}");
-                                Console.WriteLine($"     베이스주소: 0x{moduleInfo.lpBaseOfDll:X}");
-                                Console.WriteLine($"     크기: 0x{moduleInfo.SizeOfImage:X} ({moduleInfo.SizeOfImage:N0} bytes)");
-                                Console.WriteLine($"     전체경로: {fullPath}");
-                                Console.WriteLine();
+                                LoggerHelper.Debug($"[{i + 1:D2}] 모듈명: {moduleName}");
+                                LoggerHelper.Debug($"     베이스주소: 0x{moduleInfo.lpBaseOfDll:X}");
+                                LoggerHelper.Debug($"     크기: 0x{moduleInfo.SizeOfImage:X} ({moduleInfo.SizeOfImage:N0} bytes)");
+                                LoggerHelper.Debug($"     전체경로: {fullPath}");
+                                LoggerHelper.Debug("");
 
                                 if (moduleName.ToLower().Contains("starcraft") ||
                                     moduleName.ToLower().Contains("star") ||
                                     fullPath.ToLower().Contains("starcraft"))
                                 {
-                                    Console.WriteLine($"★ StarCraft 관련 모듈 발견: {moduleName}");
-                                    Console.WriteLine();
+                                    LoggerHelper.Info($"★ StarCraft 관련 모듈 발견: {moduleName}");
+                                    LoggerHelper.Debug("");
                                 }
                             }
                         }
                         else
                         {
-                            Console.WriteLine($"[{i + 1:D2}] 모듈명을 가져올 수 없음 (핸들: 0x{moduleHandles[i]:X})");
+                            LoggerHelper.Debug($"[{i + 1:D2}] 모듈명을 가져올 수 없음 (핸들: 0x{moduleHandles[i]:X})");
                         }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[MemoryService] 모듈 {i} 정보 읽기 실패: {ex.Message}");
+                        LoggerHelper.Debug($" 모듈 {i} 정보 읽기 실패: {ex.Message}");
                     }
                 }
 
-                Console.WriteLine($"[MemoryService] === 총 {moduleCount}개 모듈 처리 완료 ===");
+                LoggerHelper.Debug($" === 총 {moduleCount}개 모듈 처리 완료 ===");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] DebugAllModulesCheatEngineStyle 오류: {ex.Message}");
-                Console.WriteLine($"[MemoryService] 스택 트레이스: {ex.StackTrace}");
+                LoggerHelper.Debug($" DebugAllModulesCheatEngineStyle 오류: {ex.Message}");
+                LoggerHelper.Debug($" 스택 트레이스: {ex.StackTrace}");
             }
         }
 
@@ -991,13 +992,13 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] 프로세스에 연결되지 않음");
+                LoggerHelper.Debug(" 프로세스에 연결되지 않음");
                 return null;
             }
 
             if (string.IsNullOrWhiteSpace(targetModuleName))
             {
-                Console.WriteLine("[MemoryService] 모듈명이 비어있음");
+                LoggerHelper.Debug(" 모듈명이 비어있음");
                 return null;
             }
 
@@ -1013,7 +1014,7 @@ namespace StarcUp.Business.MemoryService
                     (uint)(moduleHandles.Length * IntPtr.Size),
                     out bytesNeeded))
                 {
-                    Console.WriteLine($"[MemoryService] EnumProcessModules 실패");
+                    LoggerHelper.Debug($" EnumProcessModules 실패");
                     return null;
                 }
 
@@ -1052,7 +1053,7 @@ namespace StarcUp.Business.MemoryService
                                         fullPath
                                     );
 
-                                    Console.WriteLine($"[MemoryService] 모듈 발견 (치트엔진 스타일): {result}");
+                                    LoggerHelper.Debug($" 모듈 발견 (치트엔진 스타일): {result}");
                                     return result;
                                 }
                             }
@@ -1060,16 +1061,16 @@ namespace StarcUp.Business.MemoryService
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[MemoryService] 모듈 {i} 검사 중 오류: {ex.Message}");
+                        LoggerHelper.Debug($" 모듈 {i} 검사 중 오류: {ex.Message}");
                     }
                 }
 
-                Console.WriteLine($"[MemoryService] 모듈 '{targetModuleName}'을 찾을 수 없음 (치트엔진 스타일)");
+                LoggerHelper.Debug($" 모듈 '{targetModuleName}'을 찾을 수 없음 (치트엔진 스타일)");
                 return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] FindModuleCheatEngineStyle 오류: {ex.Message}");
+                LoggerHelper.Debug($" FindModuleCheatEngineStyle 오류: {ex.Message}");
                 return null;
             }
         }
@@ -1078,17 +1079,17 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] FindModulesByPattern: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug(" FindModulesByPattern: 프로세스에 연결되지 않음");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(searchPattern))
             {
-                Console.WriteLine("[MemoryService] FindModulesByPattern: 검색 패턴이 비어있음");
+                LoggerHelper.Debug(" FindModulesByPattern: 검색 패턴이 비어있음");
                 return;
             }
 
-            Console.WriteLine($"[MemoryService] === '{searchPattern}' 패턴으로 모듈 검색 ===");
+            LoggerHelper.Debug($" === '{searchPattern}' 패턴으로 모듈 검색 ===");
 
             try
             {
@@ -1102,7 +1103,7 @@ namespace StarcUp.Business.MemoryService
                     (uint)(moduleHandles.Length * IntPtr.Size),
                     out bytesNeeded))
                 {
-                    Console.WriteLine("[MemoryService] EnumProcessModules 실패");
+                    LoggerHelper.Debug(" EnumProcessModules 실패");
                     return;
                 }
 
@@ -1137,32 +1138,32 @@ namespace StarcUp.Business.MemoryService
                                     out Infrastructure.Memory.MemoryAPI.MODULEINFO moduleInfo,
                                     (uint)Marshal.SizeOf<Infrastructure.Memory.MemoryAPI.MODULEINFO>()))
                                 {
-                                    Console.WriteLine($"[발견] {moduleName}");
-                                    Console.WriteLine($"       베이스: 0x{moduleInfo.lpBaseOfDll:X}, 크기: 0x{moduleInfo.SizeOfImage:X}");
-                                    Console.WriteLine($"       경로: {fullPath}");
-                                    Console.WriteLine();
+                                    LoggerHelper.Debug($"[발견] {moduleName}");
+                                    LoggerHelper.Debug($"       베이스: 0x{moduleInfo.lpBaseOfDll:X}, 크기: 0x{moduleInfo.SizeOfImage:X}");
+                                    LoggerHelper.Debug($"       경로: {fullPath}");
+                                    LoggerHelper.Debug("");
                                 }
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[MemoryService] 모듈 {i} 검사 중 오류: {ex.Message}");
+                        LoggerHelper.Debug($" 모듈 {i} 검사 중 오류: {ex.Message}");
                     }
                 }
 
                 if (foundCount == 0)
                 {
-                    Console.WriteLine($"[MemoryService] '{searchPattern}' 패턴과 일치하는 모듈을 찾을 수 없음");
+                    LoggerHelper.Debug($" '{searchPattern}' 패턴과 일치하는 모듈을 찾을 수 없음");
                 }
                 else
                 {
-                    Console.WriteLine($"[MemoryService] === '{searchPattern}' 패턴으로 {foundCount}개 모듈 발견 ===");
+                    LoggerHelper.Debug($" === '{searchPattern}' 패턴으로 {foundCount}개 모듈 발견 ===");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] FindModulesByPattern 오류: {ex.Message}");
+                LoggerHelper.Debug($" FindModulesByPattern 오류: {ex.Message}");
             }
         }
 
@@ -1192,7 +1193,7 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadLocalPlayerIndex: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug(" ReadLocalPlayerIndex: 프로세스에 연결되지 않음");
                 return -1;
             }
 
@@ -1201,19 +1202,19 @@ namespace StarcUp.Business.MemoryService
                 var starcraftModule = GetStarCraftModule();
                 if (starcraftModule == null)
                 {
-                    Console.WriteLine("[MemoryService] ReadLocalPlayerIndex: StarCraft 모듈을 찾을 수 없음");
+                    LoggerHelper.Debug(" ReadLocalPlayerIndex: StarCraft 모듈을 찾을 수 없음");
                     return -1;
                 }
 
                 nint localPlayerIndexAddress = starcraftModule.BaseAddress + 0xDD5B5C;
                 int localPlayerIndex = ReadByte(localPlayerIndexAddress);
                 
-                Console.WriteLine($"[MemoryService] LocalPlayerIndex 읽기 성공: {localPlayerIndex}");
+                LoggerHelper.Debug($" LocalPlayerIndex 읽기 성공: {localPlayerIndex}");
                 return localPlayerIndex;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadLocalPlayerIndex 예외: {ex.Message}");
+                LoggerHelper.Debug($" ReadLocalPlayerIndex 예외: {ex.Message}");
                 return -1;
             }
         }
@@ -1222,7 +1223,7 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadGameTime: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug(" ReadGameTime: 프로세스에 연결되지 않음");
                 return -1;
             }
 
@@ -1231,7 +1232,7 @@ namespace StarcUp.Business.MemoryService
                 nint threadStackAddress = GetThreadStackAddress(0);
                 if (threadStackAddress == 0)
                 {
-                    Console.WriteLine("[MemoryService] ReadGameTime: ThreadStack 주소를 가져올 수 없음");
+                    LoggerHelper.Debug(" ReadGameTime: ThreadStack 주소를 가져올 수 없음");
                     return -1;
                 }
 
@@ -1242,7 +1243,7 @@ namespace StarcUp.Business.MemoryService
                 
                 if (pointerAddress == 0)
                 {
-                    Console.WriteLine("[MemoryService] ReadGameTime: 포인터 읽기 실패");
+                    LoggerHelper.Debug(" ReadGameTime: 포인터 읽기 실패");
                     return -1;
                 }
 
@@ -1256,7 +1257,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadGameTime 예외: {ex.Message}");
+                LoggerHelper.Debug($" ReadGameTime 예외: {ex.Message}");
                 return -1;
             }
         }
@@ -1265,7 +1266,7 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadPlayerRace: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug(" ReadPlayerRace: 프로세스에 연결되지 않음");
                 return RaceType.Zerg;
             }
 
@@ -1274,7 +1275,7 @@ namespace StarcUp.Business.MemoryService
                 var starcraftModule = GetStarCraftModule();
                 if (starcraftModule == null)
                 {
-                    Console.WriteLine("[MemoryService] ReadPlayerRace: StarCraft 모듈을 찾을 수 없음");
+                    LoggerHelper.Debug(" ReadPlayerRace: StarCraft 모듈을 찾을 수 없음");
                     return RaceType.Zerg;
                 }
 
@@ -1296,12 +1297,12 @@ namespace StarcUp.Business.MemoryService
                 nint playerRaceAddress = rdi + (playerIndex + playerIndex * 8) * 4 + 0x09;
                 byte race = ReadByte(playerRaceAddress);
                 
-                Console.WriteLine($"[MemoryService] 플레이어 {playerIndex} 종족 읽기 성공: {race}");
+                LoggerHelper.Debug($" 플레이어 {playerIndex} 종족 읽기 성공: {race}");
                 return (RaceType)race;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadPlayerRace 예외: {ex.Message}");
+                LoggerHelper.Debug($" ReadPlayerRace 예외: {ex.Message}");
                 return RaceType.Zerg;
             }
         }
@@ -1310,7 +1311,7 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadSupplyUsed: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug(" ReadSupplyUsed: 프로세스에 연결되지 않음");
                 return 0;
             }
 
@@ -1319,7 +1320,7 @@ namespace StarcUp.Business.MemoryService
                 nint threadStackAddress = GetThreadStackAddress(0);
                 if (threadStackAddress == 0)
                 {
-                    Console.WriteLine("[MemoryService] ReadSupplyUsed: ThreadStack 주소를 가져올 수 없음");
+                    LoggerHelper.Debug(" ReadSupplyUsed: ThreadStack 주소를 가져올 수 없음");
                     return 0;
                 }
 
@@ -1329,7 +1330,7 @@ namespace StarcUp.Business.MemoryService
                 
                 if (pointerAddress == 0)
                 {
-                    Console.WriteLine("[MemoryService] ReadSupplyUsed: 포인터 읽기 실패");
+                    LoggerHelper.Debug(" ReadSupplyUsed: 포인터 읽기 실패");
                     return 0;
                 }
 
@@ -1350,7 +1351,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadSupplyUsed 예외: {ex.Message}");
+                LoggerHelper.Debug($" ReadSupplyUsed 예외: {ex.Message}");
                 return 0;
             }
         }
@@ -1359,7 +1360,7 @@ namespace StarcUp.Business.MemoryService
         {
             if (!IsConnected)
             {
-                Console.WriteLine("[MemoryService] ReadSupplyMax: 프로세스에 연결되지 않음");
+                LoggerHelper.Debug(" ReadSupplyMax: 프로세스에 연결되지 않음");
                 return 0;
             }
 
@@ -1368,7 +1369,7 @@ namespace StarcUp.Business.MemoryService
                 nint threadStackAddress = GetThreadStackAddress(0);
                 if (threadStackAddress == 0)
                 {
-                    Console.WriteLine("[MemoryService] ReadSupplyMax: ThreadStack 주소를 가져올 수 없음");
+                    LoggerHelper.Debug(" ReadSupplyMax: ThreadStack 주소를 가져올 수 없음");
                     return 0;
                 }
 
@@ -1378,7 +1379,7 @@ namespace StarcUp.Business.MemoryService
                 
                 if (pointerAddress == 0)
                 {
-                    Console.WriteLine("[MemoryService] ReadSupplyMax: 포인터 읽기 실패");
+                    LoggerHelper.Debug(" ReadSupplyMax: 포인터 읽기 실패");
                     return 0;
                 }
 
@@ -1399,7 +1400,7 @@ namespace StarcUp.Business.MemoryService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] ReadSupplyMax 예외: {ex.Message}");
+                LoggerHelper.Debug($" ReadSupplyMax 예외: {ex.Message}");
                 return 0;
             }
         }
@@ -1411,11 +1412,11 @@ namespace StarcUp.Business.MemoryService
             {
                 Disconnect();
                 _isDisposed = true;
-                Console.WriteLine("[MemoryService] 서비스 해제됨");
+                LoggerHelper.Debug(" 서비스 해제됨");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MemoryService] Dispose 오류: {ex.Message}");
+                LoggerHelper.Debug($" Dispose 오류: {ex.Message}");
             }
         }
     }

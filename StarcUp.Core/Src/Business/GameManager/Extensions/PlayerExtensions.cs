@@ -2,6 +2,7 @@ using StarcUp.Business.Game;
 using StarcUp.Business.Units.Runtime.Models;
 using StarcUp.Business.Units.Runtime.Services;
 using StarcUp.Business.Units.Types;
+using StarcUp.Common.Logging;
 
 namespace StarcUp.Business.GameManager.Extensions
 {
@@ -40,7 +41,7 @@ namespace StarcUp.Business.GameManager.Extensions
         {
             if (_unitCountService == null)
             {
-                Console.WriteLine("[PlayerExtensions] UnitCountService가 설정되지 않음");
+                LoggerHelper.Warning("[PlayerExtensions] UnitCountService가 설정되지 않음");
                 return 0;
             }
 
@@ -57,7 +58,7 @@ namespace StarcUp.Business.GameManager.Extensions
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[PlayerExtensions] GetUnitCount 오류: {ex.Message}");
+                LoggerHelper.Warning($"[PlayerExtensions] GetUnitCount 오류: {ex.Message}");
                 return 0;
             }
         }
@@ -72,7 +73,7 @@ namespace StarcUp.Business.GameManager.Extensions
         {
             if (_unitCountService == null)
             {
-                Console.WriteLine("[PlayerExtensions] UnitCountService가 설정되지 않음");
+                LoggerHelper.Warning("[PlayerExtensions] UnitCountService가 설정되지 않음");
                 return new List<UnitCount>();
             }
 
@@ -82,7 +83,7 @@ namespace StarcUp.Business.GameManager.Extensions
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[PlayerExtensions] GetAllUnitCounts 오류: {ex.Message}");
+                LoggerHelper.Warning($"[PlayerExtensions] GetAllUnitCounts 오류: {ex.Message}");
                 return new List<UnitCount>();
             }
         }
@@ -98,7 +99,7 @@ namespace StarcUp.Business.GameManager.Extensions
         {
             if (_unitCountService == null)
             {
-                Console.WriteLine("[PlayerExtensions] UnitCountService가 설정되지 않음");
+                LoggerHelper.Warning("[PlayerExtensions] UnitCountService가 설정되지 않음");
                 return new List<UnitCount>();
             }
 
@@ -108,7 +109,7 @@ namespace StarcUp.Business.GameManager.Extensions
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[PlayerExtensions] GetUnitCountsByCategory 오류: {ex.Message}");
+                LoggerHelper.Warning($"[PlayerExtensions] GetUnitCountsByCategory 오류: {ex.Message}");
                 return new List<UnitCount>();
             }
         }
@@ -122,7 +123,7 @@ namespace StarcUp.Business.GameManager.Extensions
 
             if (_unitService == null)
             {
-                Console.WriteLine("[PlayerExtensions] UnitService가 설정되지 않음");
+                LoggerHelper.Warning("[PlayerExtensions] UnitService가 설정되지 않음");
                 return;
             }
 
@@ -138,7 +139,7 @@ namespace StarcUp.Business.GameManager.Extensions
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[PlayerExtensions] Player {player.PlayerIndex} 유닛 업데이트 중 오류: {ex.Message}");
+                LoggerHelper.Warning($"[PlayerExtensions] Player {player.PlayerIndex} 유닛 업데이트 중 오류: {ex.Message}");
             }
         }
 

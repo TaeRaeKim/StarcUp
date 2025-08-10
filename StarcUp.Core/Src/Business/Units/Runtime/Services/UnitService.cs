@@ -1,6 +1,7 @@
 using StarcUp.Business.Units.Runtime.Adapters;
 using StarcUp.Business.Units.Runtime.Models;
 using StarcUp.Business.Units.Types;
+using StarcUp.Common.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,7 +16,7 @@ namespace StarcUp.Business.Units.Runtime.Services
         public UnitService(IUnitMemoryAdapter memoryAdapter)
         {
             _memoryAdapter = memoryAdapter ?? throw new ArgumentNullException(nameof(memoryAdapter));
-            Console.WriteLine("UnitService 초기화 완료");
+            LoggerHelper.Info("초기화 완료");
         }
 
         public void SetUnitArrayBaseAddress(nint baseAddress)
@@ -158,7 +159,7 @@ namespace StarcUp.Business.Units.Runtime.Services
 
             _memoryAdapter?.Dispose();
             _disposed = true;
-            Console.WriteLine("UnitService 리소스 정리 완료");
+            LoggerHelper.Info("리소스 정리 완료");
         }
     }
 }
