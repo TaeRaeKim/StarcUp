@@ -7,6 +7,7 @@ import { UnitDetailSettings } from "@/components/UnitDetailSettings";
 import { UpgradeDetailSettings } from "@/components/UpgradeDetailSettings";
 import { BuildOrderDetailSettings } from "@/components/BuildOrderDetailSettings";
 import { DevelopmentModal } from "@/components/DevelopmentModal";
+import { ModeSelectionLogin } from "@/components/ModeSelectionLogin";
 import { 
   calculateWorkerSettingsMask, 
   type PresetInitMessage, 
@@ -17,6 +18,9 @@ import { RaceType, RACE_NAMES } from "../types/enums";
 
 // 게임 상태 타입 정의
 type GameStatus = 'playing' | 'waiting' | 'error';
+
+// 애플리케이션 단계 타입 정의
+type AppStage = 'login' | 'loading' | 'main';
 
 // 현재 뷰 타입 정의
 type CurrentView = 'main' | 'preset-settings' | 'population-settings' | 'worker-settings' | 'unit-settings' | 'upgrade-settings' | 'build-order-settings' | 'development-progress';
@@ -54,6 +58,10 @@ interface Preset {
 }
 
 export default function App() {
+  // 애플리케이션 단계 관리 (로그인 → 로딩 → 메인)
+  const [appStage, setAppStage] = useState<AppStage>('login');
+  const [isPro, setIsPro] = useState<boolean>(false);
+  
   const [isActive, setIsActive] = useState(false);
   const [gameStatus, setGameStatus] = useState<GameStatus>('error');
   
@@ -146,6 +154,13 @@ export default function App() {
     return true;
   };
 
+  // 모드 선택 핸들러
+  const handleModeSelect = (selectedProMode: boolean) => {
+    console.log('🔐 모드 선택됨:', selectedProMode ? 'Pro' : 'Free');
+    setIsPro(selectedProMode);
+    setAppStage('loading'); // 로딩 단계로 진행
+  };
+
   // 윈도우 크기 변경 함수
   const changeWindowSize = (view: CurrentView) => {
     const size = VIEW_WINDOW_SIZES[view];
@@ -188,8 +203,13 @@ export default function App() {
     };
   }, []);
 
-  // presetAPI를 통한 프리셋 상태 초기화 (2초 딜레이 시뮬레이션)
+  // presetAPI를 통한 프리셋 상태 초기화 (로그인 완료 후)
   useEffect(() => {
+    // 로그인 단계에서는 프리셋 초기화하지 않음
+    if (appStage !== 'loading') {
+      return;
+    }
+
     const initializePresetData = async () => {
       try {
         console.log('🚀 presetAPI를 통한 프리셋 초기화 시작...');
@@ -200,6 +220,7 @@ export default function App() {
         if (!window.presetAPI?.getState) {
           console.error('❌ presetAPI가 준비되지 않았습니다.');
           setPresetState(prev => ({ ...prev, isLoading: false }));
+          setAppStage('main'); // 실패해도 메인으로 진행
           return;
         }
 
@@ -219,20 +240,26 @@ export default function App() {
           console.log('✅ presetAPI 프리셋 초기화 완료:', {
             count: state.allPresets?.length || 0,
             selected: state.selectedPresetIndex,
-            currentName: state.currentPreset?.name
+            currentName: state.currentPreset?.name,
+            proMode: isPro
           });
+          
+          // 프리셋 초기화 완료 후 메인 단계로 진행
+          setAppStage('main');
         } else {
           console.error('❌ presetAPI 상태 조회 실패:', stateResult?.error);
           setPresetState(prev => ({ ...prev, isLoading: false }));
+          setAppStage('main'); // 실패해도 메인으로 진행
         }
       } catch (error) {
         console.error('❌ presetAPI 초기화 실패:', error);
         setPresetState(prev => ({ ...prev, isLoading: false }));
+        setAppStage('main'); // 실패해도 메인으로 진행
       }
     };
 
     initializePresetData();
-  }, []);
+  }, [appStage, isPro]);
 
   // presetAPI 이벤트 리스너 설정 (실시간 동기화)
   useEffect(() => {
@@ -680,8 +707,107 @@ export default function App() {
     changeWindowSize('development-progress');
   };
 
-  // 현재 뷰에 따라 렌더링할 컴포넌트 결정
-  const renderCurrentView = () => {
+  // 현재 단계에 따라 렌더링할 컴포넌트 결정
+  const renderCurrentStage = () => {
+    // 1. 로그인 단계
+    if (appStage === 'login') {
+      return <ModeSelectionLogin onModeSelect={handleModeSelect} />;
+    }
+
+    // 2. 로딩 단계
+    if (appStage === 'loading') {
+      return (
+        <div className="h-screen w-screen flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--starcraft-bg)' }}>
+          {/* 배경 그라데이션 효과 */}
+          <div className="absolute inset-0 opacity-20">
+            <div 
+              className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-black"
+              style={{ 
+                background: `radial-gradient(circle at center, transparent 0%, rgba(0, 255, 146, 0.1) 40%, transparent 80%)`
+              }}
+            ></div>
+          </div>
+          
+          {/* 메인 로딩 컨테이너 */}
+          <div className="relative z-10 text-center max-w-md mx-auto px-8">
+            {/* 스타크래프트 스타일 로딩 스피너 */}
+            <div className="relative mb-8">
+              <div className="w-16 h-16 mx-auto relative">
+                {/* 외부 회전링 */}
+                <div 
+                  className="absolute inset-0 border-2 border-transparent rounded-full animate-spin"
+                  style={{ 
+                    borderTopColor: isPro ? '#ffd700' : 'var(--starcraft-green)',
+                    borderRightColor: isPro ? '#ffd700' : 'var(--starcraft-green)',
+                    animationDuration: '2s'
+                  }}
+                ></div>
+                {/* 내부 회전링 */}
+                <div 
+                  className="absolute inset-2 border-2 border-transparent rounded-full animate-spin"
+                  style={{ 
+                    borderLeftColor: isPro ? '#ffd700' : 'var(--starcraft-green)',
+                    borderBottomColor: isPro ? '#ffd700' : 'var(--starcraft-green)',
+                    animationDuration: '1.5s',
+                    animationDirection: 'reverse'
+                  }}
+                ></div>
+                {/* 중앙 펄스 도트 */}
+                <div 
+                  className="absolute inset-6 rounded-full animate-pulse"
+                  style={{ backgroundColor: isPro ? '#ffd700' : 'var(--starcraft-green)' }}
+                ></div>
+              </div>
+            </div>
+            
+            {/* 로딩 텍스트 */}
+            <div className="space-y-3">
+              <div 
+                className="text-2xl font-bold tracking-wide"
+                style={{ color: isPro ? '#ffd700' : 'var(--starcraft-green)' }}
+              >
+                {isPro ? 'PRO MODE' : 'FREE MODE'} 초기화 중
+              </div>
+              <div 
+                className="text-sm font-mono opacity-80"
+                style={{ color: isPro ? '#ffd700' : 'var(--starcraft-green)' }}
+              >
+                프리셋 데이터 로딩...
+              </div>
+            </div>
+            
+            {/* 하단 프로그레스 바 */}
+            <div className="mt-8">
+              <div 
+                className="w-full h-1 rounded-full overflow-hidden"
+                style={{ backgroundColor: 'var(--starcraft-border)' }}
+              >
+                <div 
+                  className="h-full"
+                  style={{ 
+                    background: `linear-gradient(90deg, transparent 0%, ${isPro ? '#ffd700' : 'var(--starcraft-green)'} 50%, transparent 100%)`,
+                    animation: 'loadingBar 2s ease-in-out infinite'
+                  }}
+                ></div>
+              </div>
+              <div 
+                className="text-xs font-mono mt-2 opacity-60"
+                style={{ color: 'var(--starcraft-inactive-text)' }}
+              >
+                {isPro ? 'Pro 기능' : '기본 기능'} 준비 중...
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 3. 메인 단계 - 기존 로직 유지
+    return renderMainView();
+  };
+
+  // 메인 뷰 렌더링 (기존 로직)
+  const renderMainView = () => {
     switch (currentView) {
       case 'main':
         // preset이 로드되지 않았으면 로딩 화면 표시
@@ -781,6 +907,7 @@ export default function App() {
             isActive={isActive}
             gameStatus={gameStatus}
             onToggleOverlay={toggleOverlay}
+            isPro={isPro}
           />
         );
 
@@ -915,6 +1042,7 @@ export default function App() {
             onSaveWorkerSettings={handleSaveWorkerSettings}
             tempWorkerSettings={tempWorkerSettings}
             onTempSave={handleTempSaveWorkerSettings}
+            isPro={isPro}
           />
         );
 
@@ -961,7 +1089,7 @@ export default function App() {
 
   return (
     <div className={`app-container window-centered-container ${currentView}`}>
-      {renderCurrentView()}
+      {renderCurrentStage()}
     </div>
   );
 }

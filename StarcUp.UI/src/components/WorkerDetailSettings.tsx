@@ -7,6 +7,16 @@ import {
   type PresetUpdateMessage,
   type WorkerPreset
 } from '../utils/presetUtils';
+import { ProFeatureWrapper } from './ProFeatureWrapper';
+import { ProBadge } from './ProBadge';
+import { 
+  getProStatus, 
+  canUseFeature, 
+  PRO_FEATURES, 
+  getWorkerProFeatures,
+  setDevProStatus,
+  type ProStatus 
+} from '../utils/proUtils';
 
 // 일꾼 설정 인터페이스 (완전한 데이터 보장)
 interface WorkerSettingsData {
@@ -30,6 +40,7 @@ interface WorkerDetailSettingsProps {
   onSaveWorkerSettings: (presetId: string, workerSettings: WorkerSettings) => void;
   tempWorkerSettings?: WorkerSettings | null;
   onTempSave?: (settings: WorkerSettings) => void;
+  isPro?: boolean;
 }
 
 export function WorkerDetailSettings({
@@ -38,7 +49,8 @@ export function WorkerDetailSettings({
   currentPreset,
   onSaveWorkerSettings,
   tempWorkerSettings,
-  onTempSave
+  onTempSave,
+  isPro = false
 }: WorkerDetailSettingsProps) {
   // 임시 저장된 값이 있으면 사용, 없으면 프리셋값 사용
   const initialSettings = tempWorkerSettings || currentPreset.workerSettings;
@@ -65,6 +77,24 @@ export function WorkerDetailSettings({
 
   // 변경사항 감지 상태
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Pro 상태 관리 (앱에서 전달받은 값 사용)
+  const workerProFeatures = getWorkerProFeatures();
+  
+  // 간단한 ProStatus 객체 생성
+  const createProStatus = (isPro: boolean): ProStatus => ({
+    isPro,
+    subscriptionType: isPro ? 'pro' : 'free',
+    features: isPro ? workerProFeatures.map(id => ({
+      id,
+      name: '',
+      description: '',
+      category: 'worker' as const,
+      isEnabled: true,
+      requiredTier: 'pro' as const
+    })) : []
+  });
+
 
   // 프리셋 변경 시 일꾼 설정 업데이트 (완전한 데이터 보장)
   useEffect(() => {
@@ -139,7 +169,7 @@ export function WorkerDetailSettings({
       icon: AlertTriangle
     },
     {
-      id: 'workerProduction',
+      id: PRO_FEATURES.WORKER_PRODUCTION_DETECTION,
       title: '일꾼 생산 감지',
       description: '새로운 일꾼이 만들어질 때마다 파란색으로 알려드려요',
       state: workerProductionDetection,
@@ -147,7 +177,7 @@ export function WorkerDetailSettings({
       icon: Zap
     },
     {
-      id: 'workerDeath',
+      id: PRO_FEATURES.WORKER_DEATH_DETECTION,
       title: '일꾼 사망 감지',
       description: '소중한 일꾼이 죽었을 때 빨간색으로 경고해드려요',
       state: workerDeathDetection,
@@ -155,7 +185,7 @@ export function WorkerDetailSettings({
       icon: Skull
     },
     {
-      id: 'gasWorker',
+      id: PRO_FEATURES.GAS_WORKER_CHECK,
       title: '가스 일꾼 체크',
       description: '가스 건물마다 3마리씩 일하고 있는지 자동으로 체크해요',
       state: gasWorkerCheck,
@@ -227,7 +257,8 @@ export function WorkerDetailSettings({
   if (!isOpen) return null;
 
   return (
-    <div className="h-screen overflow-hidden border-2 shadow-2xl"
+    <>
+      <div className="h-screen overflow-hidden border-2 shadow-2xl"
       style={{
         backgroundColor: 'var(--starcraft-bg)',
         background: 'linear-gradient(135deg, var(--starcraft-bg) 0%, rgba(0, 20, 0, 0.95) 100%)',
@@ -287,17 +318,41 @@ export function WorkerDetailSettings({
         <div className="flex-1 overflow-y-auto starcraft-scrollbar p-6 space-y-8">
           {/* 안내 문구 */}
           <div className="space-y-4">
-            <h2
-              className="text-lg font-medium tracking-wide flex items-center gap-2"
-              style={{ color: 'var(--starcraft-green)' }}
-            >
-              <Wrench className="w-5 h-5" />
-              일꾼 기능 설정
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2
+                className="text-lg font-medium tracking-wide flex items-center gap-2"
+                style={{ color: 'var(--starcraft-green)' }}
+              >
+                <Wrench className="w-5 h-5" />
+                일꾼 기능 설정
+              </h2>
+              {/* Pro 상태 표시 */}
+              <div className="flex items-center gap-2">
+                {isPro ? (
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-full"
+                    style={{
+                      background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #ffa000 100%)',
+                      color: '#8b5a00',
+                      boxShadow: '0 0 8px rgba(255, 215, 0, 0.3)'
+                    }}
+                  >
+                    <Zap className="w-3 h-3" />
+                    <span className="text-xs font-bold">Pro 활성화</span>
+                  </div>
+                ) : (
+                  <ProBadge />
+                )}
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <Info className="w-4 h-4" style={{ color: 'var(--starcraft-blue)' }} />
               <p className="text-sm opacity-80" style={{ color: 'var(--starcraft-green)' }}>
                 각 기능을 개별적으로 활성화하거나 비활성화할 수 있습니다
+                {!isPro && (
+                  <span className="ml-2 text-xs" style={{ color: '#ffd700' }}>
+                    💎 일부 고급 기능은 Pro 구독이 필요합니다
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -307,72 +362,112 @@ export function WorkerDetailSettings({
 
             {settingItems.map((item) => {
               const IconComponent = item.icon;
-              return (
-                <div key={item.id}
-                  className="p-4 rounded-lg border transition-all duration-300 hover:border-opacity-80"
+              const isProFeature = workerProFeatures.includes(item.id);
+              const canUse = canUseFeature(item.id, createProStatus(isPro));
+              const isDisabled = isProFeature && !canUse;
+              
+              // Pro 기능별 설명 매핑
+              const proDescriptions: Record<string, string> = {
+                [PRO_FEATURES.WORKER_PRODUCTION_DETECTION]: '일꾼 생산을 실시간으로 감지하여 경제 관리의 정확성을 높입니다.',
+                [PRO_FEATURES.WORKER_DEATH_DETECTION]: '일꾼 손실을 즉시 감지하여 빠른 대응이 가능합니다.',
+                [PRO_FEATURES.GAS_WORKER_CHECK]: '가스 효율성을 최적화하기 위한 고급 분석 기능입니다.'
+              };
+
+              const SettingContent = (
+                <div 
+                  className={`p-4 rounded-lg border transition-all duration-300 hover:border-opacity-80 ${isDisabled ? 'cursor-not-allowed' : ''}`}
                   style={{
-                    backgroundColor: item.state
+                    backgroundColor: item.state && !isDisabled
                       ? 'var(--starcraft-bg-active)'
-                      : 'var(--starcraft-bg-secondary)',
-                    borderColor: item.state
+                      : isDisabled
+                        ? 'var(--starcraft-inactive-bg)'
+                        : 'var(--starcraft-bg-secondary)',
+                    borderColor: item.state && !isDisabled
                       ? 'var(--starcraft-green)'
-                      : 'var(--starcraft-inactive-border)'
+                      : isDisabled
+                        ? 'var(--starcraft-inactive-border)'
+                        : 'var(--starcraft-inactive-border)',
+                    opacity: isDisabled ? 0.7 : 1
                   }}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 flex-1">
-                      <div className="p-2 rounded-lg mt-1"
+                      <div className="p-2 rounded-lg mt-1 relative"
                         style={{
-                          backgroundColor: item.state
+                          backgroundColor: item.state && !isDisabled
                             ? 'var(--starcraft-bg-active)'
                             : 'var(--starcraft-bg)',
-                          color: item.state
+                          color: item.state && !isDisabled
                             ? 'var(--starcraft-green)'
                             : 'var(--starcraft-inactive-text)'
                         }}
                       >
                         <IconComponent className="w-5 h-5" />
+                        {/* Pro 아이콘 표시 */}
+                        {isProFeature && (
+                          <div className="absolute -top-1 -right-1">
+                            <ProBadge variant="icon" className="scale-75" />
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-medium mb-2 tracking-wide"
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="font-medium tracking-wide"
+                            style={{
+                              color: item.state && !isDisabled
+                                ? 'var(--starcraft-green)'
+                                : isDisabled
+                                  ? 'var(--starcraft-inactive-text)'
+                                  : 'var(--starcraft-inactive-text)'
+                            }}
+                          >
+                            {item.title}
+                          </h3>
+                          {isProFeature && (
+                            <ProBadge variant="small" className="scale-90" />
+                          )}
+                        </div>
+                        <p className="text-sm opacity-80 leading-relaxed mb-1"
                           style={{
-                            color: item.state
+                            color: item.state && !isDisabled
                               ? 'var(--starcraft-green)'
-                              : 'var(--starcraft-inactive-text)'
-                          }}
-                        >
-                          {item.title}
-                        </h3>
-                        <p className="text-sm opacity-80 leading-relaxed"
-                          style={{
-                            color: item.state
-                              ? 'var(--starcraft-green)'
-                              : 'var(--starcraft-inactive-text)'
+                              : isDisabled
+                                ? 'var(--starcraft-inactive-text)'
+                                : 'var(--starcraft-inactive-text)'
                           }}
                         >
                           {item.description}
                         </p>
+                        {/* Pro 기능 추가 설명 */}
+                        {isProFeature && isDisabled && (
+                          <p className="text-xs opacity-60 mt-1" style={{ color: '#ffd700' }}>
+                            💎 {proDescriptions[item.id] || 'Pro 구독으로 이 고급 기능을 이용하세요.'}
+                          </p>
+                        )}
                       </div>
                     </div>
 
                     <div className="flex items-center">
                       <button
-                        onClick={() => item.setState(!item.state)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 ${item.state
+                        onClick={() => !isDisabled && item.setState(!item.state)}
+                        disabled={isDisabled}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 ${item.state && !isDisabled
                             ? 'focus:ring-green-500'
                             : 'focus:ring-gray-500'
-                          }`}
+                          } ${isDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
                         style={{
-                          backgroundColor: item.state
+                          backgroundColor: item.state && !isDisabled
                             ? 'var(--starcraft-green)'
-                            : 'var(--starcraft-inactive-bg)'
+                            : isDisabled
+                              ? 'var(--starcraft-inactive-secondary)'
+                              : 'var(--starcraft-inactive-bg)'
                         }}
                       >
                         <span
-                          className={`inline-block h-4 w-4 transform rounded-full transition-transform duration-300 ${item.state ? 'translate-x-6' : 'translate-x-1'
+                          className={`inline-block h-4 w-4 transform rounded-full transition-transform duration-300 ${item.state && !isDisabled ? 'translate-x-6' : 'translate-x-1'
                             }`}
                           style={{
-                            backgroundColor: item.state
+                            backgroundColor: item.state && !isDisabled
                               ? 'var(--starcraft-bg)'
                               : 'var(--starcraft-inactive-secondary)'
                           }}
@@ -380,9 +475,28 @@ export function WorkerDetailSettings({
                       </button>
                     </div>
                   </div>
+                </div>
+              );
 
-                  {/* 상태 표시 */}
+              // Pro 기능인 경우 ProFeatureWrapper로 감싸기
+              if (isProFeature) {
+                return (
+                  <ProFeatureWrapper
+                    key={item.id}
+                    isPro={isPro}
+                    feature={item.title}
+                    description={proDescriptions[item.id]}
+                    disabled={!canUse}
+                  >
+                    {SettingContent}
+                  </ProFeatureWrapper>
+                );
+              }
 
+              // 일반 기능인 경우 그대로 렌더링
+              return (
+                <div key={item.id}>
+                  {SettingContent}
                 </div>
               );
             })}
@@ -391,20 +505,53 @@ export function WorkerDetailSettings({
           {/* 하단 정보 */}
           <div className="p-4 rounded-lg border"
             style={{
-              backgroundColor: 'var(--starcraft-bg-active)',
-              borderColor: 'var(--starcraft-green)',
-              color: 'var(--starcraft-green)'
+              backgroundColor: isPro ? 'var(--starcraft-bg-active)' : 'var(--starcraft-bg-secondary)',
+              borderColor: isPro ? 'var(--starcraft-green)' : '#ffd700',
+              color: isPro ? 'var(--starcraft-green)' : 'var(--starcraft-green)'
             }}
           >
             <div className="flex items-center gap-2 mb-2">
               <Info className="w-4 h-4" />
-              <span className="text-sm font-medium">설정 안내</span>
+              <span className="text-sm font-medium">
+                {isPro ? '설정 안내' : 'Pro 기능 안내'}
+              </span>
+              {!isPro && (
+                <ProBadge variant="small" className="ml-auto" />
+              )}
             </div>
-            <ul className="text-xs space-y-1 opacity-90 pl-6">
-              <li>• 설정 변경사항은 즉시 적용됩니다</li>
-              <li>• 게임 중에도 실시간으로 설정을 변경할 수 있습니다</li>
-              <li>• 성능에 민감한 기능들은 필요시에만 활성화하세요</li>
-            </ul>
+            
+            {isPro ? (
+              <ul className="text-xs space-y-1 opacity-90 pl-6">
+                <li>• 모든 Pro 기능이 활성화되어 있습니다</li>
+                <li>• 설정 변경사항은 즉시 적용됩니다</li>
+                <li>• 게임 중에도 실시간으로 설정을 변경할 수 있습니다</li>
+                <li>• 고급 기능들로 더욱 정확한 게임 분석이 가능합니다</li>
+              </ul>
+            ) : (
+              <div className="space-y-3">
+                <ul className="text-xs space-y-1 opacity-90 pl-6">
+                  <li>• <span style={{ color: '#ffd700' }}>일꾼 생산 감지</span>: 실시간 생산 알림으로 정확한 타이밍 관리</li>
+                  <li>• <span style={{ color: '#ffd700' }}>일꾼 사망 감지</span>: 즉각적인 손실 파악으로 빠른 대응</li>
+                  <li>• <span style={{ color: '#ffd700' }}>가스 일꾼 체크</span>: 자동 효율성 분석으로 최적화된 경제 관리</li>
+                </ul>
+                <button
+                  className="w-full mt-3 py-2 px-4 rounded-lg font-medium text-sm transition-all duration-300 hover:scale-105 flex items-center justify-center gap-2"
+                  style={{
+                    background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #ffa000 100%)',
+                    color: '#8b5a00',
+                    boxShadow: '0 4px 12px rgba(255, 215, 0, 0.3)'
+                  }}
+                  onClick={() => {
+                    console.log('Pro 업그레이드 페이지로 이동');
+                    // 실제 구현에서는 Pro 구독 모달이나 페이지를 열 것입니다.
+                  }}
+                >
+                  <Zap className="w-4 h-4" />
+                  Pro로 업그레이드하고 모든 기능 사용하기
+                  <ArrowLeft className="w-4 h-4 rotate-180" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -446,5 +593,6 @@ export function WorkerDetailSettings({
         </div>
       </div>
     </div>
+    </>
   );
 }
