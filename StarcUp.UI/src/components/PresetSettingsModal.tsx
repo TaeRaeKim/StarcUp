@@ -266,7 +266,7 @@ export function PresetSettingsModal({
               <h3 
                 className="font-medium tracking-wide border-b pb-2"
                 style={{ 
-                  color: 'var(--starcraft-green)',
+                  color: 'var(--starcraft-info)',
                   borderBottomColor: 'var(--starcraft-border)'
                 }}
               >
@@ -277,7 +277,7 @@ export function PresetSettingsModal({
                 <div>
                   <label 
                     className="block text-sm mb-1"
-                    style={{ color: 'var(--starcraft-green)' }}
+                    style={{ color: 'var(--starcraft-info)' }}
                   >
                     프리셋 이름
                   </label>
@@ -288,7 +288,7 @@ export function PresetSettingsModal({
                     className="w-full p-3 rounded-sm border transition-all duration-300 focus:outline-none"
                     style={{
                       backgroundColor: 'var(--starcraft-bg-secondary)',
-                      borderColor: 'var(--starcraft-border)',
+                      borderColor: 'var(--starcraft-red)' ,
                       color: 'var(--starcraft-green)',
                       outlineColor: 'var(--starcraft-green)'
                     }}
@@ -305,7 +305,7 @@ export function PresetSettingsModal({
                 <div>
                   <label 
                     className="block text-sm mb-1"
-                    style={{ color: 'var(--starcraft-green)' }}
+                    style={{ color: 'var(--starcraft-info)' }}
                   >
                     설명
                   </label>
@@ -316,7 +316,7 @@ export function PresetSettingsModal({
                     className="w-full p-3 rounded-sm border transition-all duration-300 focus:outline-none resize-none"
                     style={{
                       backgroundColor: 'var(--starcraft-bg-secondary)',
-                      borderColor: 'var(--starcraft-border)',
+                      borderColor: 'var(--starcraft-red)' ,
                       color: 'var(--starcraft-green)',
                       outlineColor: 'var(--starcraft-green)'
                     }}
@@ -337,7 +337,7 @@ export function PresetSettingsModal({
               <h3 
                 className="font-medium tracking-wide border-b pb-2"
                 style={{ 
-                  color: 'var(--starcraft-green)',
+                  color: 'var(--starcraft-info)',
                   borderBottomColor: 'var(--starcraft-border)'
                 }}
               >
@@ -363,9 +363,7 @@ export function PresetSettingsModal({
                         isSelected ? 'border-current' : ''
                       }`}
                       style={{
-                        backgroundColor: isSelected 
-                          ? 'var(--starcraft-bg-active)' 
-                          : 'var(--starcraft-bg-secondary)',
+                        backgroundColor: 'var(--starcraft-bg-secondary)',
                         borderColor: isSelected 
                           ? race.color 
                           : 'var(--starcraft-border)',
@@ -421,7 +419,7 @@ export function PresetSettingsModal({
               <div className="flex items-center justify-between">
                 <h3 
                   className="font-medium tracking-wide"
-                  style={{ color: 'var(--starcraft-green)' }}
+                  style={{ color: 'var(--starcraft-info)' }}
                 >
                   기능 설정
                 </h3>
@@ -429,7 +427,7 @@ export function PresetSettingsModal({
                   className="text-sm px-3 py-1 rounded-full border"
                   style={{
                     color: 'var(--starcraft-green)',
-                    borderColor: 'var(--starcraft-border)',
+                    borderColor: 'var(--starcraft-red)' ,
                     backgroundColor: 'var(--starcraft-bg-secondary)'
                   }}
                 >
@@ -456,13 +454,13 @@ export function PresetSettingsModal({
                       backgroundColor: isDisabled 
                         ? 'var(--starcraft-bg-secondary)' 
                         : editData.featureStates[index] 
-                          ? 'var(--starcraft-bg-active)' 
+                          ? 'var(--starcraft-card-active-bg)' 
                           : 'var(--starcraft-bg-secondary)',
                       borderColor: isDisabled 
                         ? 'var(--starcraft-inactive-border)' 
                         : editData.featureStates[index] 
-                          ? 'var(--starcraft-green)' 
-                          : 'var(--starcraft-border)'
+                          ? 'var(--starcraft-red)' 
+                          : 'var(--starcraft-red)' 
                     }}
                   >
                     <div className="flex-1">
@@ -601,8 +599,8 @@ export function PresetSettingsModal({
               onClick={handleClose}
               className="px-6 py-2 rounded-sm border transition-all duration-300 hover:bg-red-500/20"
               style={{
-                color: 'var(--starcraft-red)',
-                borderColor: 'var(--starcraft-red)'
+                color: 'var(--starcup-red)',
+                borderColor: 'var(--starcup-red)'
               }}
             >
               취소

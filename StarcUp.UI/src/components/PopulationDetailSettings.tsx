@@ -1023,8 +1023,8 @@ export function PopulationDetailSettings({
             onClick={onClose}
             className="px-6 py-2 rounded-sm border transition-all duration-300 hover:bg-red-500/20"
             style={{
-              color: 'var(--starcraft-red)',
-              borderColor: 'var(--starcraft-red)'
+              color: 'var(--starcup-red)',
+              borderColor: 'var(--starcup-red)'
             }}
           >
             취소

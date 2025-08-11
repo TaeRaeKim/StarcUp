@@ -89,17 +89,18 @@ input[type="number"] {
   --starcraft-green-dim: #008000;
   --starcraft-blue: #4080ff;
   --starcraft-border: #333333;
+  --starcraft-red: #6C0000;
+  --starcraft-info: #A2B1F5;
 
   /* Game Status Colors */
   --starcraft-yellow: #ffff00;
   --starcraft-yellow-bright: #ffff80;
   --starcraft-yellow-dim: #cccc00;
   --starcraft-yellow-bg: #2f2f0f;
-
-  --starcraft-red: #ff0000;
-  --starcraft-red-bright: #ff8080;
-  --starcraft-red-dim: #cc0000;
-  --starcraft-red-bg: #2f0f0f;
+  --starcup-red: #ff0000;
+  --starcup-red-bright: #ff8080;
+  --starcup-red-dim: #cc0000;
+  --starcup-red-bg: #2f0f0f;
 
   /* Inactive/Disabled State Colors */
   --starcraft-inactive-primary: #555555;
@@ -110,6 +111,9 @@ input[type="number"] {
 
   /* UI Divider Colors */
   --starcraft-divider: #6b7280;
+
+  /* Preset Settings Card Colors */
+  --starcraft-card-active-bg: #1a1a1a;
 }
 
 .dark {
@@ -198,6 +202,8 @@ input[type="number"] {
   --color-starcraft-green-dim: var(--starcraft-green-dim);
   --color-starcraft-blue: var(--starcraft-blue);
   --color-starcraft-border: var(--starcraft-border);
+  --color-starcraft-red: var(--starcraft-red);
+  --color-starcraft-red-dim: var(--starcraft-red-dim);
 
   /* Game Status Colors */
   --color-starcraft-yellow: var(--starcraft-yellow);
@@ -205,10 +211,10 @@ input[type="number"] {
   --color-starcraft-yellow-dim: var(--starcraft-yellow-dim);
   --color-starcraft-yellow-bg: var(--starcraft-yellow-bg);
 
-  --color-starcraft-red: var(--starcraft-red);
-  --color-starcraft-red-bright: var(--starcraft-red-bright);
-  --color-starcraft-red-dim: var(--starcraft-red-dim);
-  --color-starcraft-red-bg: var(--starcraft-red-bg);
+  --color-starcup-red: var(--starcup-red);
+  --color-starcup-red-bright: var(--starcup-red-bright);
+  --color-starcup-red-dim: var(--starcup-red-dim);
+  --color-starcup-red-bg: var(--starcup-red-bg);
 
   /* Inactive/Disabled State Colors */
   --color-starcraft-inactive-primary: var(--starcraft-inactive-primary);
@@ -219,6 +225,9 @@ input[type="number"] {
 
   /* UI Divider Colors */
   --color-starcraft-divider: var(--starcraft-divider);
+
+  /* Preset Settings Card Colors */
+  --color-starcraft-card-active-bg: var(--starcraft-card-active-bg);
 }
 
 @layer base {
