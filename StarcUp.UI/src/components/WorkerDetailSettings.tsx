@@ -405,7 +405,7 @@ export function WorkerDetailSettings({
                         <IconComponent className="w-5 h-5" />
                         {/* Pro 아이콘 표시 */}
                         {isProFeature && (
-                          <div className="absolute -top-1 -right-1">
+                          <div className="absolute -top-1 -left-1">
                             <ProBadge variant="icon" className="scale-75" />
                           </div>
                         )}

@@ -46,12 +46,7 @@ export function ProFeatureWrapper({
       >
         {children}
       </div>
-
-      {/* Pro 배지 */}
-      <div className="absolute -top-2 -right-2 z-10">
-        <ProBadge variant="small" />
-      </div>
-
+      
       {/* 잠금 아이콘 오버레이 */}
       {isLocked && (
         <div 
@@ -149,11 +144,16 @@ export function ProFeatureWrapper({
       {/* Pro 사용자용 특수 효과 */}
       {isPro && !disabled && (
         <div 
-          className="absolute inset-0 rounded-lg pointer-events-none opacity-20 transition-all duration-1000 pro-shimmer-animation"
-          style={{
-            background: 'linear-gradient(45deg, transparent 30%, rgba(255, 215, 0, 0.1) 50%, transparent 70%)'
-          }}
-        />
+          className="absolute inset-0 rounded-lg pointer-events-none opacity-30 overflow-hidden"
+        >
+          <div 
+            className="absolute w-[200%] h-full animate-shimmer"
+            style={{
+              background: 'linear-gradient(90deg, transparent 0%, rgba(255, 215, 0, 0.3) 50%, transparent 100%)',
+              animation: 'shimmer 3s ease-in-out infinite'
+            }}
+          />
+        </div>
       )}
     </div>
   );

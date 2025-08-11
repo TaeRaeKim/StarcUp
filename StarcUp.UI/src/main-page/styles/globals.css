@@ -440,6 +440,16 @@ body::-webkit-scrollbar {
   z-index: 1;
 }
 
+/* shimmer 애니메이션 - 금빛 효과가 좌에서 우로 지나가는 애니메이션 */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 @keyframes shimmer-slide {
   0%, 100% {
     left: -100%;
