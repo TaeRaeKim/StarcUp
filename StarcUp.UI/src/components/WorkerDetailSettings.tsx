@@ -261,19 +261,12 @@ export function WorkerDetailSettings({
       <div className="h-screen overflow-hidden border-2 shadow-2xl"
       style={{
         backgroundColor: 'var(--starcraft-bg)',
-        background: 'linear-gradient(135deg, var(--starcraft-bg) 0%, rgba(0, 20, 0, 0.95) 100%)',
-        border: 0
-        // borderColor: 'var(--starcraft-green)',
-        // boxShadow: '0 0 20px rgba(0, 255, 0, 0.3), inset 0 0 20px rgba(0, 255, 0, 0.1)'
+        border: '1px solid var(--main-container-border)',
       }}
     >
       {/* 전체 화면 컨테이너 */}
       <div
-        className="flex flex-col h-full"
-        style={{
-          backgroundColor: 'var(--starcraft-bg)'
-        }}
-      >
+        className="flex flex-col h-full">
         {/* 헤더 */}
         <div
           className="flex items-center justify-between p-4 border-b draggable-titlebar"
@@ -322,9 +315,9 @@ export function WorkerDetailSettings({
             <div className="flex items-center justify-between">
               <h2
                 className="text-lg font-medium tracking-wide flex items-center gap-2"
-                style={{ color: 'var(--starcraft-green)' }}
+                style={{ color: 'var(--starcraft-info)' }}
               >
-                <Wrench className="w-5 h-5" />
+                {/* <Wrench className="w-5 h-5" style={{ color: 'var(--starcraft-blue)' }}/> */}
                 일꾼 기능 설정
               </h2>
               {/* Pro 상태 표시 */}
@@ -347,7 +340,7 @@ export function WorkerDetailSettings({
             </div>
             <div className="flex items-center gap-2">
               <Info className="w-4 h-4" style={{ color: 'var(--starcraft-blue)' }} />
-              <p className="text-sm opacity-80" style={{ color: 'var(--starcraft-green)' }}>
+              <p className="text-sm opacity-80" style={{ color: 'var(--starcraft-info)' }}>
                 각 기능을 개별적으로 활성화하거나 비활성화할 수 있습니다
                 {!isPro && (
                   <span className="ml-2 text-xs" style={{ color: '#ffd700' }}>
@@ -378,17 +371,12 @@ export function WorkerDetailSettings({
                 <div 
                   className={`p-4 rounded-lg border transition-all duration-300 hover:border-opacity-80 ${isDisabled ? 'cursor-not-allowed' : ''}`}
                   style={{
-                    backgroundColor: item.state && !isDisabled
-                      ? 'var(--starcraft-bg-active)'
-                      : isDisabled
-                        ? 'var(--starcraft-inactive-bg)'
-                        : 'var(--starcraft-bg-secondary)',
-                    borderColor: item.state && !isDisabled
-                      ? 'var(--starcraft-green)'
-                      : isDisabled
-                        ? 'var(--starcraft-inactive-border)'
-                        : 'var(--starcraft-inactive-border)',
-                    opacity: isDisabled ? 0.7 : 1
+                    backgroundColor: item.state
+                          ? 'var(--starcraft-inactive-bg)'
+                          : 'var(--starcraft-bg-secondary)',
+                    borderColor: item.state 
+                          ? 'var(--starcraft-red-bright)' 
+                          : 'var(--starcraft-red)'
                   }}
                 >
                   <div className="flex items-start justify-between gap-4">
@@ -524,7 +512,7 @@ export function WorkerDetailSettings({
             {isPro ? (
               <ul className="text-xs space-y-1 opacity-90 pl-6">
                 <li>• 모든 Pro 기능이 활성화되어 있습니다</li>
-                <li>• 설정 변경사항은 즉시 적용됩니다</li>
+                <li>• 설정 변경사항은 저장 시 적용됩니다</li>
                 <li>• 게임 중에도 실시간으로 설정을 변경할 수 있습니다</li>
                 <li>• 고급 기능들로 더욱 정확한 게임 분석이 가능합니다</li>
               </ul>

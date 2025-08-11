@@ -99,17 +99,14 @@ export function MainInterface({
     <div 
       className="h-screen w-screen flex overflow-hidden relative" 
       style={{ 
-        backgroundColor: 'var(--starcraft-bg)'
+        backgroundColor: 'var(--starcraft-bg)',
+        border: '1px solid var(--main-container-border)',
       }}
     >
       
       {/* 메인 애플리케이션 컨테이너 - 전체 화면 채우기 */}
       <div 
-        className="h-full w-full flex flex-col justify-between relative z-10"
-        style={{ 
-          backgroundColor: 'transparent'
-        }}
-      >
+        className="h-full w-full flex flex-col justify-between relative z-10">
         {/* 상단 타이틀 바 - 프리셋 네비게이션이 중앙에 위치 */}
         <div 
           className="flex items-center p-3 draggable-titlebar relative"

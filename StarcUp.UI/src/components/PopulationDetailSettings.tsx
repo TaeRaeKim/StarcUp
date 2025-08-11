@@ -371,18 +371,12 @@ export function PopulationDetailSettings({
     <div className="h-screen overflow-hidden border-2 shadow-2xl"
       style={{
         backgroundColor: 'var(--starcraft-bg)',
-        background: 'linear-gradient(135deg, var(--starcraft-bg) 0%, rgba(0, 20, 0, 0.95) 100%)',
-        borderColor: 'var(--starcraft-green)',
-        boxShadow: '0 0 30px rgba(0, 255, 0, 0.4), inset 0 0 30px rgba(0, 255, 0, 0.1)'
+        border: '1px solid var(--main-container-border)',
       }}
     >
       {/* 전체 화면 컨테이너 */}
       <div 
-        className="flex flex-col h-full"
-        style={{
-          backgroundColor: 'var(--starcraft-bg)'
-        }}
-      >
+        className="flex flex-col h-full">
         {/* 헤더 */}
         <div 
           className="flex items-center justify-between p-4 border-b draggable-titlebar"
@@ -431,7 +425,7 @@ export function PopulationDetailSettings({
             <div className="space-y-4">
               <h2 
                 className="text-lg font-medium tracking-wide flex items-center gap-2"
-                style={{ color: 'var(--starcraft-green)' }}
+                style={{ color: 'var(--starcraft-info)' }}
               >
                 <Settings2 className="w-5 h-5" />
                 경고 모드 선택
@@ -445,14 +439,11 @@ export function PopulationDetailSettings({
                   }`}
                   style={{
                     backgroundColor: mode === 'fixed' 
-                      ? 'var(--starcraft-bg-active)' 
-                      : 'var(--starcraft-bg-secondary)',
+                          ? 'var(--starcraft-inactive-bg)'
+                          : 'var(--starcraft-bg-secondary)',
                     borderColor: mode === 'fixed' 
-                      ? 'var(--starcraft-green)' 
-                      : 'var(--starcraft-border)',
-                    boxShadow: mode === 'fixed' 
-                      ? '0 0 10px rgba(0, 255, 0, 0.3)' 
-                      : 'none'
+                          ? 'var(--starcraft-red-bright)' 
+                          : 'var(--starcraft-red)',
                   }}
                   onClick={() => setMode('fixed')}
                 >
@@ -490,14 +481,11 @@ export function PopulationDetailSettings({
                   }`}
                   style={{
                     backgroundColor: mode === 'building' 
-                      ? 'var(--starcraft-bg-active)' 
-                      : 'var(--starcraft-bg-secondary)',
+                          ? 'var(--starcraft-inactive-bg)'
+                          : 'var(--starcraft-bg-secondary)',
                     borderColor: mode === 'building' 
-                      ? 'var(--starcraft-green)' 
-                      : 'var(--starcraft-border)',
-                    boxShadow: mode === 'building' 
-                      ? '0 0 10px rgba(0, 255, 0, 0.3)' 
-                      : 'none'
+                          ? 'var(--starcraft-red-bright)' 
+                          : 'var(--starcraft-red)'
                   }}
                   onClick={() => {
                     setMode('building');
@@ -558,8 +546,8 @@ export function PopulationDetailSettings({
                 <div 
                   className="p-3 rounded-lg border"
                   style={{
-                    backgroundColor: 'var(--starcraft-bg-active)',
-                    borderColor: RACES[selectedRace].color,
+                    backgroundColor: 'var(--starcraft-inactive-bg)',
+                    borderColor: 'var(--starcraft-red )',
                     color: RACES[selectedRace].color
                   }}
                 >
@@ -578,7 +566,7 @@ export function PopulationDetailSettings({
                     <div className="flex items-center gap-3">
                       <h3 
                         className="font-medium tracking-wide"
-                        style={{ color: 'var(--starcraft-green)' }}
+                        style={{ color: 'var(--starcraft-info)' }}
                       >
                         추적할 생산 건물
                       </h3>
@@ -587,7 +575,7 @@ export function PopulationDetailSettings({
                         style={{
                           color: RACES[selectedRace].color,
                           borderColor: RACES[selectedRace].color,
-                          backgroundColor: 'var(--starcraft-bg-active)',
+                          backgroundColor: 'var(--starcraft-inactive-bg)',
                           boxShadow: `0 0 8px ${RACES[selectedRace].color}30`
                         }}
                       >
@@ -598,7 +586,7 @@ export function PopulationDetailSettings({
                       className="text-sm px-3 py-1 rounded-full border"
                       style={{
                         color: 'var(--starcraft-green)',
-                        borderColor: 'var(--starcraft-border)',
+                        borderColor: 'var(--starcraft-red)',
                         backgroundColor: 'var(--starcraft-bg-secondary)'
                       }}
                     >
@@ -620,8 +608,8 @@ export function PopulationDetailSettings({
                           }`}
                           style={{
                             backgroundColor: config.enabled 
-                              ? 'var(--starcraft-bg-active)' 
-                              : 'var(--starcraft-bg-secondary)',
+                          ? 'var(--starcraft-inactive-bg)'
+                          : 'var(--starcraft-bg-secondary)',
                             borderColor: config.enabled 
                               ? RACES[selectedRace].color 
                               : 'var(--starcraft-border)',
@@ -788,7 +776,7 @@ export function PopulationDetailSettings({
                 <div className="flex flex-col h-full">
                   <h3 
                     className="font-medium tracking-wide mb-4"
-                    style={{ color: 'var(--starcraft-green)' }}
+                    style={{ color: 'var(--starcraft-info)' }}
                   >
                     경고 기준값 설정
                   </h3>
@@ -796,7 +784,7 @@ export function PopulationDetailSettings({
                   <div className="flex-1 p-4 rounded-lg border"
                     style={{
                       backgroundColor: 'var(--starcraft-bg-secondary)',
-                      borderColor: 'var(--starcraft-border)'
+                      borderColor: 'var(--starcraft-red)'
                     }}
                   >
                     <label 
@@ -850,7 +838,7 @@ export function PopulationDetailSettings({
                 <div className="flex flex-col h-full">
                   <h3 
                     className="font-medium tracking-wide mb-4"
-                    style={{ color: 'var(--starcraft-green)' }}
+                    style={{ color: 'var(--starcraft-info)' }}
                   >
                     활성화 시간 설정
                   </h3>
@@ -858,7 +846,7 @@ export function PopulationDetailSettings({
                   <div className="flex-1 p-4 rounded-lg border flex flex-col"
                     style={{
                       backgroundColor: 'var(--starcraft-bg-secondary)',
-                      borderColor: 'var(--starcraft-border)'
+                      borderColor: 'var(--starcraft-red)'
                     }}
                   >
                     <div className="flex items-center gap-3 mb-3">

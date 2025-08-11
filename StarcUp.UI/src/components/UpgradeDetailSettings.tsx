@@ -275,18 +275,11 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
     <div className="h-screen overflow-hidden border-2 shadow-2xl"
       style={{
         backgroundColor: 'var(--starcraft-bg)',
-        background: 'linear-gradient(135deg, var(--starcraft-bg) 0%, rgba(0, 20, 0, 0.95) 100%)',
-        borderColor: 'var(--starcraft-green)',
-        boxShadow: '0 0 30px rgba(0, 255, 0, 0.4), inset 0 0 30px rgba(0, 255, 0, 0.1)'
+        border: '1px solid var(--main-container-border)',
       }}
     >
       {/* 전체 화면 컨테이너 */}
-      <div 
-        className="flex flex-col h-full"
-        style={{
-          backgroundColor: 'var(--starcraft-bg)'
-        }}
-      >
+      <div className="flex flex-col h-full">
         {/* 헤더 */}
         <div 
           className="flex items-center justify-between p-4 border-b draggable-titlebar"

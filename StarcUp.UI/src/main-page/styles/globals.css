@@ -88,6 +88,11 @@ input[type="number"] {
   --starcraft-green-bright: #40ff40;
   --starcraft-green-dim: #008000;
   --starcraft-blue: #4080ff;
+  --starcraft-blue-bright: #60a0ff;    /* 밝은 파란색 */
+  --starcraft-blue-dim: #2060cc;       /* 어두운 파란색 */
+  --starcraft-blue-bg: #0f1f2f;        /* 파란색 배경 */
+  --starcraft-blue-active: #0f1f3f;    /* 활성화 배경 */
+  --starcraft-blue-border: #2060cc;    /* 파란색 테두리 */
   --starcraft-border: #333333;
   --starcraft-red: #6C0000;
   --starcraft-red-bright: #FC1000;
@@ -112,6 +117,9 @@ input[type="number"] {
 
   /* UI Divider Colors */
   --starcraft-divider: #6b7280;
+
+  /* Main Container Border */
+  --main-container-border: rgba(128, 128, 128, 0.3);
 
   /* Preset Settings Card Colors */
   --starcraft-card-active-bg: rgba(252, 252, 76, 0.1);

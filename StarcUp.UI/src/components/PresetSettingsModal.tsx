@@ -196,19 +196,12 @@ export function PresetSettingsModal({
     <div className="preset-settings-page w-full h-screen overflow-hidden border-2 shadow-2xl"
       style={{
         backgroundColor: 'var(--starcraft-bg)',
-        background: 'linear-gradient(135deg, var(--starcraft-bg) 0%, rgba(0, 20, 0, 0.95) 100%)',
-        border: 0
-        //borderColor: 'var(--starcraft-red)',
-        //boxShadow: '0 0 20px rgba(0, 255, 0, 0.3), inset 0 0 20px rgba(0, 255, 0, 0.1)'
+        border: '1px solid var(--main-container-border)',
       }}
     >
       {/* 전체 화면 컨테이너 */}
       <div 
-        className="preset-settings-modal relative w-full h-full flex flex-col"
-        style={{
-          backgroundColor: 'var(--starcraft-bg)'
-        }}
-      >
+        className="preset-settings-modal relative w-full h-full flex flex-col">
         {/* 헤더 */}
         <div 
           className="flex items-center justify-between p-4 border-b draggable-titlebar"
@@ -449,17 +442,13 @@ export function PresetSettingsModal({
                   <div
                     key={index}
                     className={`flex items-center justify-between p-4 rounded-sm border transition-all duration-300 ${
-                      isDisabled ? 'opacity-60' : 'hover:bg-opacity-50'
+                      isDisabled ? 'opacity-30' : 'hover:bg-opacity-50'
                     }`}
                     style={{
-                      backgroundColor: isDisabled 
-                        ? 'var(--starcraft-bg-secondary)' 
-                        : editData.featureStates[index] 
-                          ? 'var(--starcraft-bg-secondary)' 
+                      backgroundColor: editData.featureStates[index] 
+                          ? 'var(--starcraft-inactive-bg)'
                           : 'var(--starcraft-bg-secondary)',
-                      borderColor: isDisabled 
-                        ? 'var(--starcraft-inactive-border)' 
-                        : editData.featureStates[index] 
+                      borderColor: editData.featureStates[index] 
                           ? 'var(--starcraft-red-bright)' 
                           : 'var(--starcraft-red)'
 
