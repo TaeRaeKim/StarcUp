@@ -197,8 +197,9 @@ export function PresetSettingsModal({
       style={{
         backgroundColor: 'var(--starcraft-bg)',
         background: 'linear-gradient(135deg, var(--starcraft-bg) 0%, rgba(0, 20, 0, 0.95) 100%)',
-        borderColor: 'var(--starcraft-green)',
-        boxShadow: '0 0 20px rgba(0, 255, 0, 0.3), inset 0 0 20px rgba(0, 255, 0, 0.1)'
+        border: 0
+        //borderColor: 'var(--starcraft-red)',
+        //boxShadow: '0 0 20px rgba(0, 255, 0, 0.3), inset 0 0 20px rgba(0, 255, 0, 0.1)'
       }}
     >
       {/* 전체 화면 컨테이너 */}
@@ -293,7 +294,7 @@ export function PresetSettingsModal({
                       outlineColor: 'var(--starcraft-green)'
                     }}
                     onFocus={(e) => {
-                      e.target.style.boxShadow = '0 0 0 2px var(--starcraft-green)';
+                      e.target.style.boxShadow = '0 0 0 1px var(--starcraft-red-bright)';
                     }}
                     onBlur={(e) => {
                       e.target.style.boxShadow = 'none';
@@ -321,7 +322,7 @@ export function PresetSettingsModal({
                       outlineColor: 'var(--starcraft-green)'
                     }}
                     onFocus={(e) => {
-                      e.target.style.boxShadow = '0 0 0 2px var(--starcraft-green)';
+                      e.target.style.boxShadow = '0 0 0 1px var(--starcraft-red-bright)';
                     }}
                     onBlur={(e) => {
                       e.target.style.boxShadow = 'none';
@@ -454,13 +455,14 @@ export function PresetSettingsModal({
                       backgroundColor: isDisabled 
                         ? 'var(--starcraft-bg-secondary)' 
                         : editData.featureStates[index] 
-                          ? 'var(--starcraft-card-active-bg)' 
+                          ? 'var(--starcraft-bg-secondary)' 
                           : 'var(--starcraft-bg-secondary)',
                       borderColor: isDisabled 
                         ? 'var(--starcraft-inactive-border)' 
                         : editData.featureStates[index] 
-                          ? 'var(--starcraft-red)' 
-                          : 'var(--starcraft-red)' 
+                          ? 'var(--starcraft-red-bright)' 
+                          : 'var(--starcraft-red)'
+
                     }}
                   >
                     <div className="flex-1">

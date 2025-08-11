@@ -90,6 +90,7 @@ input[type="number"] {
   --starcraft-blue: #4080ff;
   --starcraft-border: #333333;
   --starcraft-red: #6C0000;
+  --starcraft-red-bright: #FC1000;
   --starcraft-info: #A2B1F5;
 
   /* Game Status Colors */
@@ -113,7 +114,7 @@ input[type="number"] {
   --starcraft-divider: #6b7280;
 
   /* Preset Settings Card Colors */
-  --starcraft-card-active-bg: #1a1a1a;
+  --starcraft-card-active-bg: rgba(252, 252, 76, 0.1);
 }
 
 .dark {
@@ -365,69 +366,6 @@ html, body {
   overflow: hidden; /* 윈도우 레벨 스크롤 완전 차단 */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
-}
-
-html::-webkit-scrollbar, 
-body::-webkit-scrollbar {
-  display: none !important; /* Chrome/Safari/Webkit */
-}
-
-/* 필요시 사용할 스크롤바 숨김 클래스 */
-.hide-scrollbar {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
-}
-
-.hide-scrollbar::-webkit-scrollbar {
-  display: none; /* Chrome/Safari/Webkit */
-}
-
-/* 커스텀 스크롤바 컨테이너용 클래스 */
-.starcraft-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: var(--starcraft-green) var(--starcraft-bg-secondary);
-}
-
-.starcraft-scrollbar::-webkit-scrollbar {
-  width: 14px;
-}
-
-.starcraft-scrollbar::-webkit-scrollbar-track {
-  background: var(--starcraft-bg-secondary);
-  border: 2px solid var(--starcraft-border);
-  border-radius: 0;
-  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.5);
-}
-
-.starcraft-scrollbar::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, var(--starcraft-green-bright) 0%, var(--starcraft-green) 50%, var(--starcraft-green-dim) 100%);
-  border: 1px solid var(--starcraft-green-dim);
-  border-radius: 0;
-  box-shadow: 
-    inset 0 0 3px rgba(0, 255, 0, 0.4),
-    0 0 8px rgba(0, 255, 0, 0.2);
-  min-height: 20px;
-}
-
-.starcraft-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, var(--starcraft-green-bright) 0%, var(--starcraft-green-bright) 50%, var(--starcraft-green) 100%);
-  box-shadow: 
-    inset 0 0 5px rgba(0, 255, 0, 0.6),
-    0 0 12px rgba(0, 255, 0, 0.4);
-  border-color: var(--starcraft-green);
-}
-
-.starcraft-scrollbar::-webkit-scrollbar-thumb:active {
-  background: var(--starcraft-green-bright);
-  box-shadow: 
-    inset 0 0 8px rgba(0, 255, 0, 0.8),
-    0 0 16px rgba(0, 255, 0, 0.6);
-  border-color: var(--starcraft-green-bright);
-}
-
-.starcraft-scrollbar::-webkit-scrollbar-corner {
-  background: var(--starcraft-bg-secondary);
-  border: 1px solid var(--starcraft-border);
 }
 
 /* Pro 기능 관련 애니메이션 */
@@ -994,6 +932,40 @@ body::-webkit-scrollbar {
   100% {
     transform: rotate(360deg);
   }
+}
+
+.starcraft-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.starcraft-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.starcraft-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  border: none;
+  transition: background 0.2s ease;
+}
+
+.starcraft-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: #4a4a4a;
+}
+
+.starcraft-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #5a5a5a;
+}
+
+.starcraft-scrollbar::-webkit-scrollbar-corner {
+  background: #2c2c2c;
+}
+
+/* 상하 버튼 숨기기 */
+.starcraft-scrollbar::-webkit-scrollbar-button {
+  display: none;
 }
 
 @import "./starcup.css";

@@ -262,8 +262,9 @@ export function WorkerDetailSettings({
       style={{
         backgroundColor: 'var(--starcraft-bg)',
         background: 'linear-gradient(135deg, var(--starcraft-bg) 0%, rgba(0, 20, 0, 0.95) 100%)',
-        borderColor: 'var(--starcraft-green)',
-        boxShadow: '0 0 30px rgba(0, 255, 0, 0.4), inset 0 0 30px rgba(0, 255, 0, 0.1)'
+        border: 0
+        // borderColor: 'var(--starcraft-green)',
+        // boxShadow: '0 0 20px rgba(0, 255, 0, 0.3), inset 0 0 20px rgba(0, 255, 0, 0.1)'
       }}
     >
       {/* 전체 화면 컨테이너 */}
