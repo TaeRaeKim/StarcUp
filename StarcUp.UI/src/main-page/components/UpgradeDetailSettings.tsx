@@ -47,7 +47,7 @@ type RaceKey = RaceType;
 
 export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeDetailSettingsProps) {
   // 종족 상태 관리
-  const [selectedRace, setSelectedRace] = useState<RaceKey>(initialRace || RaceType.Protoss);
+  const [selectedRace, setSelectedRace] = useState<RaceKey>(initialRace ?? RaceType.Protoss);
   
   // 업그레이드 설정 상태
   const [settings, setSettings] = useState<UpgradeSettings>({
