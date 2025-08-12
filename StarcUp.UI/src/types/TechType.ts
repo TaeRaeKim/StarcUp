@@ -56,7 +56,7 @@ export const TECH_NAMES = {
   [TechType.EMP_Shockwave]: 'EMP 쇼크웨이브',
   [TechType.Spider_Mines]: '스파이더 마인',
   [TechType.Scanner_Sweep]: '스캐너 스윕',
-  [TechType.Tank_Siege_Mode]: '시즈 모드',
+  [TechType.Tank_Siege_Mode]: '공성 모드',
   [TechType.Defensive_Matrix]: '디펜시브 매트릭스',
   [TechType.Irradiate]: '이래디에이트',
   [TechType.Yamato_Gun]: '야마토 건',
@@ -75,7 +75,7 @@ export const TECH_NAMES = {
   [TechType.Consume]: '컨슘',
   [TechType.Ensnare]: '인스네어',
   [TechType.Parasite]: '패러사이트',
-  [TechType.Lurker_Aspect]: '러커 변태',
+  [TechType.Lurker_Aspect]: '러커',
   
   // Protoss Techs
   [TechType.Psionic_Storm]: '사이오닉 스톰',
@@ -90,7 +90,10 @@ export const TECH_NAMES = {
   [TechType.Maelstrom]: '메일스트롬',
   
   // Special
+  [TechType.Unused_26]: '미사용 26',
+  [TechType.Unused_33]: '미사용 33',
   [TechType.Healing]: '치료',
   [TechType.None]: '없음',
-  [TechType.Unknown]: '알 수 없음'
+  [TechType.Unknown]: '알 수 없음',
+  [TechType.MAX]: '최대값'
 } as const;

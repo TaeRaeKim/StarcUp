@@ -78,8 +78,8 @@ export const UPGRADE_NAMES = {
   // Zerg Upgrades
   [UpgradeType.Zerg_Carapace]: '갑피',
   [UpgradeType.Zerg_Flyer_Carapace]: '비행체 갑피',
-  [UpgradeType.Zerg_Melee_Attacks]: '근접 공격',
-  [UpgradeType.Zerg_Missile_Attacks]: '미사일 공격',
+  [UpgradeType.Zerg_Melee_Attacks]: '근접 공격력',
+  [UpgradeType.Zerg_Missile_Attacks]: '미사일 어택',
   [UpgradeType.Zerg_Flyer_Attacks]: '비행체 공격',
   [UpgradeType.Ventral_Sacs]: '벤트럴 섹',
   [UpgradeType.Antennae]: '안테나',
@@ -101,20 +101,22 @@ export const UPGRADE_NAMES = {
   [UpgradeType.Protoss_Plasma_Shields]: '플라스마 쉴드',
   [UpgradeType.Singularity_Charge]: '싱귤라리티 차지',
   [UpgradeType.Leg_Enhancements]: '레그 인핸스먼트',
-  [UpgradeType.Scarab_Damage]: '스캐럽 공격력',
-  [UpgradeType.Reaver_Capacity]: '리버 수용력',
+  [UpgradeType.Scarab_Damage]: '스캐럽 공격력 증가',
+  [UpgradeType.Reaver_Capacity]: '리버 수용력 증가',
   [UpgradeType.Gravitic_Drive]: '그래비틱 드라이브',
   [UpgradeType.Sensor_Array]: '센서 어레이',
   [UpgradeType.Gravitic_Boosters]: '그래비틱 부스터',
   [UpgradeType.Khaydarin_Amulet]: '케이다린 아뮬렛',
   [UpgradeType.Apial_Sensors]: '에이피얼 센서',
   [UpgradeType.Gravitic_Thrusters]: '그래비틱 스러스터',
-  [UpgradeType.Carrier_Capacity]: '캐리어 수용력',
+  [UpgradeType.Carrier_Capacity]: '캐리어 수용력 증가',
   [UpgradeType.Khaydarin_Core]: '케이다린 코어',
   [UpgradeType.Argus_Jewel]: '아르거스 쥬얼',
   [UpgradeType.Argus_Talisman]: '아르거스 탈리스만',
   
   // Special
+  [UpgradeType.Upgrade_60]: '업그레이드 60',
   [UpgradeType.None]: '없음',
-  [UpgradeType.Unknown]: '알 수 없음'
+  [UpgradeType.Unknown]: '알 수 없음',
+  [UpgradeType.MAX]: '최대값'
 } as const;

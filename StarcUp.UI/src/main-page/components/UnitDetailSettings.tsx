@@ -1,25 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Zap, Plus, X, Clock, BarChart, Target, Info, Search, Shield, Home, Building2, Bell } from 'lucide-react';
-import { RaceType, RACE_NAMES } from '../types/enums';
+import { ArrowLeft, Users, Plus, X, Skull, Zap, Clock, Info, Search, Shield, Home, Building2 } from 'lucide-react';
+import { RaceType, RACE_NAMES } from '../../types/enums';
 
-interface UpgradeDetailSettingsProps {
+interface UnitDetailSettingsProps {
   isOpen: boolean;
   onClose: () => void;
   initialRace?: RaceType;
 }
 
-interface UpgradeCategory {
+interface UnitCategory {
   id: string;
   name: string;
-  upgrades: Upgrade[];
+  units: Unit[];
 }
 
-interface Upgrade {
+interface Unit {
   id: string;
   name: string;
   icon: string;
   race: RaceType;
-  category: 'combat' | 'economic' | 'defensive' | 'special';
 }
 
 // 종족 정보 (enum 기반)
@@ -46,52 +45,51 @@ const RACES = {
 
 type RaceKey = RaceType;
 
-export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeDetailSettingsProps) {
+export function UnitDetailSettings({ isOpen, onClose, initialRace }: UnitDetailSettingsProps) {
   // 종족 상태 관리
   const [selectedRace, setSelectedRace] = useState<RaceKey>(initialRace || RaceType.Protoss);
   
-  // 진행률 표기 관련 설정들
-  const [showRemainingTime, setShowRemainingTime] = useState(true);
-  const [showProgressPercentage, setShowProgressPercentage] = useState(true);
-  const [showProgressBar, setShowProgressBar] = useState(true);
-  const [upgradeCompletionAlert, setUpgradeCompletionAlert] = useState(true);
+  // 기본 설정 상태들
+  const [unitDeathDetection, setUnitDeathDetection] = useState(true);
+  const [unitProductionDetection, setUnitProductionDetection] = useState(true);
+  const [includeUnitsInProgress, setIncludeUnitsInProgress] = useState(false);
 
-  // 카테고리 및 업그레이드 관리 상태 - 선택된 종족에 맞는 기본 업그레이드로 초기화
-  const getDefaultCategory = (race: RaceKey): UpgradeCategory => {
+  // 카테고리 및 유닛 관리 상태 - 선택된 종족에 맞는 기본 유닛으로 초기화
+  const getDefaultCategory = (race: RaceKey): UnitCategory => {
     switch (race) {
       case RaceType.Protoss:
         return {
-          id: 'combat_upgrades',
-          name: '전투 업그레이드',
-          upgrades: [
-            { id: 'ground_weapons', name: '지상 무기', icon: '⚔️', race: RaceType.Protoss, category: 'combat' },
-            { id: 'ground_armor', name: '지상 방어', icon: '🛡️', race: RaceType.Protoss, category: 'combat' }
+          id: 'main_army',
+          name: '주력 부대',
+          units: [
+            { id: 'zealot', name: '질럿', icon: '⚔️', race: RaceType.Protoss },
+            { id: 'dragoon', name: '드라군', icon: '🔫', race: RaceType.Protoss }
           ]
         };
       case RaceType.Terran:
         return {
-          id: 'combat_upgrades',
-          name: '전투 업그레이드',
-          upgrades: [
-            { id: 'infantry_weapons', name: '보병 무기', icon: '🔫', race: RaceType.Terran, category: 'combat' },
-            { id: 'infantry_armor', name: '보병 방어', icon: '🛡️', race: RaceType.Terran, category: 'combat' }
+          id: 'main_army',
+          name: '주력 부대',
+          units: [
+            { id: 'marine', name: '마린', icon: '🎯', race: RaceType.Terran },
+            { id: 'tank', name: '탱크', icon: '🚗', race: RaceType.Terran }
           ]
         };
       case RaceType.Zerg:
         return {
-          id: 'combat_upgrades',
-          name: '전투 업그레이드',
-          upgrades: [
-            { id: 'melee_attacks', name: '근접 공격', icon: '🦷', race: RaceType.Zerg, category: 'combat' },
-            { id: 'missile_attacks', name: '미사일 공격', icon: '🏹', race: RaceType.Zerg, category: 'combat' }
+          id: 'main_army',
+          name: '주력 부대',
+          units: [
+            { id: 'zergling', name: '저글링', icon: '🦎', race: RaceType.Zerg },
+            { id: 'hydralisk', name: '히드라리스크', icon: '🐍', race: RaceType.Zerg }
           ]
         };
     }
   };
 
-  const [categories, setCategories] = useState<UpgradeCategory[]>([getDefaultCategory(selectedRace)]);
+  const [categories, setCategories] = useState<UnitCategory[]>([getDefaultCategory(selectedRace)]);
 
-  const [showUpgradeSelector, setShowUpgradeSelector] = useState(false);
+  const [showUnitSelector, setShowUnitSelector] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showAddCategory, setShowAddCategory] = useState(false);
@@ -99,94 +97,83 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 사용 가능한 모든 업그레이드들
-  const availableUpgrades: Upgrade[] = [
+  // 사용 가능한 모든 유닛들
+  const availableUnits: Unit[] = [
     // Protoss
-    { id: 'ground_weapons_1', name: '지상 무기 1단계', icon: '⚔️', race: RaceType.Protoss, category: 'combat' },
-    { id: 'ground_weapons_2', name: '지상 무기 2단계', icon: '⚔️', race: RaceType.Protoss, category: 'combat' },
-    { id: 'ground_weapons_3', name: '지상 무기 3단계', icon: '⚔️', race: RaceType.Protoss, category: 'combat' },
-    { id: 'ground_armor_1', name: '지상 방어 1단계', icon: '🛡️', race: RaceType.Protoss, category: 'combat' },
-    { id: 'ground_armor_2', name: '지상 방어 2단계', icon: '🛡️', race: RaceType.Protoss, category: 'combat' },
-    { id: 'ground_armor_3', name: '지상 방어 3단계', icon: '🛡️', race: RaceType.Protoss, category: 'combat' },
-    { id: 'air_weapons_1', name: '공중 무기 1단계', icon: '✈️', race: RaceType.Protoss, category: 'combat' },
-    { id: 'air_weapons_2', name: '공중 무기 2단계', icon: '✈️', race: RaceType.Protoss, category: 'combat' },
-    { id: 'air_weapons_3', name: '공중 무기 3단계', icon: '✈️', race: RaceType.Protoss, category: 'combat' },
-    { id: 'shields_1', name: '실드 1단계', icon: '⚡', race: RaceType.Protoss, category: 'defensive' },
-    { id: 'shields_2', name: '실드 2단계', icon: '⚡', race: RaceType.Protoss, category: 'defensive' },
-    { id: 'shields_3', name: '실드 3단계', icon: '⚡', race: RaceType.Protoss, category: 'defensive' },
-    { id: 'leg_enhancement', name: '질럿 다리 강화', icon: '🦵', race: RaceType.Protoss, category: 'special' },
-    { id: 'range_upgrade', name: '드라군 사정거리', icon: '🎯', race: RaceType.Protoss, category: 'special' },
+    { id: 'probe', name: '탐사정', icon: '🔧', race: RaceType.Protoss },
+    { id: 'zealot', name: '질럿', icon: '⚔️', race: RaceType.Protoss },
+    { id: 'dragoon', name: '드라군', icon: '🔫', race: RaceType.Protoss },
+    { id: 'high_templar', name: '하이템플러', icon: '⚡', race: RaceType.Protoss },
+    { id: 'dark_templar', name: '다크템플러', icon: '🗡️', race: RaceType.Protoss },
+    { id: 'archon', name: '아콘', icon: '🔮', race: RaceType.Protoss },
+    { id: 'reaver', name: '리버', icon: '💥', race: RaceType.Protoss },
+    { id: 'observer', name: '옵저버', icon: '👁️', race: RaceType.Protoss },
+    { id: 'shuttle', name: '셔틀', icon: '🚁', race: RaceType.Protoss },
+    { id: 'scout', name: '스카우트', icon: '✈️', race: RaceType.Protoss },
+    { id: 'corsair', name: '커세어', icon: '🛩️', race: RaceType.Protoss },
+    { id: 'carrier', name: '캐리어', icon: '🚢', race: RaceType.Protoss },
+    { id: 'arbiter', name: '아비터', icon: '🌀', race: RaceType.Protoss },
     
     // Terran
-    { id: 'infantry_weapons_1', name: '보병 무기 1단계', icon: '🔫', race: RaceType.Terran, category: 'combat' },
-    { id: 'infantry_weapons_2', name: '보병 무기 2단계', icon: '🔫', race: RaceType.Terran, category: 'combat' },
-    { id: 'infantry_weapons_3', name: '보병 무기 3단계', icon: '🔫', race: RaceType.Terran, category: 'combat' },
-    { id: 'infantry_armor_1', name: '보병 방어 1단계', icon: '🛡️', race: RaceType.Terran, category: 'combat' },
-    { id: 'infantry_armor_2', name: '보병 방어 2단계', icon: '🛡️', race: RaceType.Terran, category: 'combat' },
-    { id: 'infantry_armor_3', name: '보병 방어 3단계', icon: '🛡️', race: RaceType.Terran, category: 'combat' },
-    { id: 'vehicle_weapons_1', name: '차량 무기 1단계', icon: '🚗', race: RaceType.Terran, category: 'combat' },
-    { id: 'vehicle_weapons_2', name: '차량 무기 2단계', icon: '🚗', race: RaceType.Terran, category: 'combat' },
-    { id: 'vehicle_weapons_3', name: '차량 무기 3단계', icon: '🚗', race: RaceType.Terran, category: 'combat' },
-    { id: 'ship_weapons_1', name: '함선 무기 1단계', icon: '🚢', race: RaceType.Terran, category: 'combat' },
-    { id: 'stim_packs', name: '스팀팩', icon: '💉', race: RaceType.Terran, category: 'special' },
-    { id: 'siege_mode', name: '시즈 모드', icon: '🎯', race: RaceType.Terran, category: 'special' },
+    { id: 'scv', name: 'SCV', icon: '🔨', race: RaceType.Terran },
+    { id: 'marine', name: '마린', icon: '🎯', race: RaceType.Terran },
+    { id: 'firebat', name: '파이어뱃', icon: '🔥', race: RaceType.Terran },
+    { id: 'ghost', name: '고스트', icon: '👻', race: RaceType.Terran },
+    { id: 'vulture', name: '벌처', icon: '🏍️', race: RaceType.Terran },
+    { id: 'tank', name: '탱크', icon: '🚗', race: RaceType.Terran },
+    { id: 'goliath', name: '골리앗', icon: '🤖', race: RaceType.Terran },
+    { id: 'wraith', name: '레이스', icon: '👤', race: RaceType.Terran },
+    { id: 'dropship', name: '드랍쉽', icon: '🚁', race: RaceType.Terran },
+    { id: 'valkyrie', name: '발키리', icon: '💫', race: RaceType.Terran },
+    { id: 'battlecruiser', name: '배틀크루저', icon: '⚓', race: RaceType.Terran },
     
     // Zerg
-    { id: 'melee_attacks_1', name: '근접 공격 1단계', icon: '🦷', race: RaceType.Zerg, category: 'combat' },
-    { id: 'melee_attacks_2', name: '근접 공격 2단계', icon: '🦷', race: RaceType.Zerg, category: 'combat' },
-    { id: 'melee_attacks_3', name: '근접 공격 3단계', icon: '🦷', race: RaceType.Zerg, category: 'combat' },
-    { id: 'missile_attacks_1', name: '미사일 공격 1단계', icon: '🏹', race: RaceType.Zerg, category: 'combat' },
-    { id: 'missile_attacks_2', name: '미사일 공격 2단계', icon: '🏹', race: RaceType.Zerg, category: 'combat' },
-    { id: 'missile_attacks_3', name: '미사일 공격 3단계', icon: '🏹', race: RaceType.Zerg, category: 'combat' },
-    { id: 'carapace_1', name: '갑피 1단계', icon: '🛡️', race: RaceType.Zerg, category: 'defensive' },
-    { id: 'carapace_2', name: '갑피 2단계', icon: '🛡️', race: RaceType.Zerg, category: 'defensive' },
-    { id: 'carapace_3', name: '갑피 3단계', icon: '🛡️', race: RaceType.Zerg, category: 'defensive' },
-    { id: 'metabolic_boost', name: '대사 촉진', icon: '⚡', race: RaceType.Zerg, category: 'special' },
-    { id: 'adrenal_glands', name: '부신', icon: '💪', race: RaceType.Zerg, category: 'special' },
-    { id: 'burrow', name: '굴파기', icon: '🕳️', race: RaceType.Zerg, category: 'special' }
+    { id: 'drone', name: '드론', icon: '🐛', race: RaceType.Zerg },
+    { id: 'zergling', name: '저글링', icon: '🦎', race: RaceType.Zerg },
+    { id: 'hydralisk', name: '히드라리스크', icon: '🐍', race: RaceType.Zerg },
+    { id: 'lurker', name: '러커', icon: '🕷️', race: RaceType.Zerg },
+    { id: 'ultralisk', name: '울트라리스크', icon: '🦏', race: RaceType.Zerg },
+    { id: 'defiler', name: '디파일러', icon: '🦠', race: RaceType.Zerg },
+    { id: 'mutalisk', name: '뮤탈리스크', icon: '🦇', race: RaceType.Zerg },
+    { id: 'scourge', name: '스커지', icon: '💀', race: RaceType.Zerg },
+    { id: 'queen', name: '퀸', icon: '👑', race: RaceType.Zerg },
+    { id: 'guardian', name: '가디언', icon: '🐉', race: RaceType.Zerg },
+    { id: 'devourer', name: '디바우어러', icon: '🦈', race: RaceType.Zerg }
   ];
 
-  const progressDisplaySettings = [
+  const basicSettings = [
     {
-      id: 'remainingTime',
-      title: '잔여 시간 표기',
-      description: '업그레이드가 언제 끝날지 남은 시간을 숫자로 보여드려요',
-      state: showRemainingTime,
-      setState: setShowRemainingTime,
+      id: 'unitProduction',
+      title: '유닛 생산 감지',
+      description: '새로운 유닛이 태어날 때마다 파란색으로 반짝여서 알려드려요',
+      state: unitProductionDetection,
+      setState: setUnitProductionDetection,
+      icon: Zap
+    },
+    {
+      id: 'unitDeath',
+      title: '유닛 사망 감지',
+      description: '소중한 유닛이 전사했을 때 빨간색으로 경고해드려요',
+      state: unitDeathDetection,
+      setState: setUnitDeathDetection,
+      icon: Skull
+    },
+    {
+      id: 'unitsInProgress',
+      title: '생산 중인 유닛 수 포함',
+      description: '아직 완성되지 않은 유닛도 숫자에 포함해서 계산해요',
+      state: includeUnitsInProgress,
+      setState: setIncludeUnitsInProgress,
       icon: Clock
-    },
-    {
-      id: 'progressPercentage',
-      title: '진행률 표기',
-      description: '업그레이드가 얼마나 진행됐는지 퍼센트로 알려드려요',
-      state: showProgressPercentage,
-      setState: setShowProgressPercentage,
-      icon: Target
-    },
-    {
-      id: 'progressBar',
-      title: '프로그레스바 표기',
-      description: '업그레이드 진행 상황을 예쁜 막대그래프로 보여드려요',
-      state: showProgressBar,
-      setState: setShowProgressBar,
-      icon: BarChart
-    },
-    {
-      id: 'completionAlert',
-      title: '업그레이드 완료 알림',
-      description: '업그레이드가 끝나면 반짝여서 완료됐다고 알려드려요',
-      state: upgradeCompletionAlert,
-      setState: setUpgradeCompletionAlert,
-      icon: Bell
     }
   ];
 
   const handleAddCategory = () => {
     if (newCategoryName.trim()) {
-      const newCategory: UpgradeCategory = {
+      const newCategory: UnitCategory = {
         id: Date.now().toString(),
         name: newCategoryName.trim(),
-        upgrades: []
+        units: []
       };
       setCategories([...categories, newCategory]);
       setNewCategoryName('');
@@ -208,41 +195,41 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
     setEditingCategoryName('');
   };
 
-  const handleCategoryDoubleClick = (category: UpgradeCategory) => {
+  const handleCategoryDoubleClick = (category: UnitCategory) => {
     setEditingCategoryId(category.id);
     setEditingCategoryName(category.name);
   };
 
-  const handleAddUpgradeToCategory = (categoryId: string) => {
+  const handleAddUnitToCategory = (categoryId: string) => {
     setSelectedCategoryId(categoryId);
-    setShowUpgradeSelector(true);
+    setShowUnitSelector(true);
   };
 
-  const handleSelectUpgrade = (upgrade: Upgrade) => {
+  const handleSelectUnit = (unit: Unit) => {
     if (selectedCategoryId) {
       setCategories(categories.map(cat => 
         cat.id === selectedCategoryId 
-          ? { ...cat, upgrades: [...cat.upgrades.filter(u => u.id !== upgrade.id), upgrade] }
+          ? { ...cat, units: [...cat.units.filter(u => u.id !== unit.id), unit] }
           : cat
       ));
-      setShowUpgradeSelector(false);
+      setShowUnitSelector(false);
       setSelectedCategoryId('');
       setSearchTerm('');
     }
   };
 
-  const handleRemoveUpgradeFromCategory = (categoryId: string, upgradeId: string) => {
+  const handleRemoveUnitFromCategory = (categoryId: string, unitId: string) => {
     setCategories(categories.map(cat =>
       cat.id === categoryId
-        ? { ...cat, upgrades: cat.upgrades.filter(u => u.id !== upgradeId) }
+        ? { ...cat, units: cat.units.filter(u => u.id !== unitId) }
         : cat
     ));
   };
 
-  // 선택된 종족의 업그레이드만 필터링하고 검색어도 적용
-  const filteredUpgrades = availableUpgrades.filter(upgrade =>
-    upgrade.race === selectedRace && 
-    upgrade.name.toLowerCase().includes(searchTerm.toLowerCase())
+  // 선택된 종족의 유닛만 필터링하고 검색어도 적용
+  const filteredUnits = availableUnits.filter(unit =>
+    unit.race === selectedRace && 
+    unit.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // initialRace가 변경될 때마다 selectedRace 업데이트 및 카테고리 초기화
@@ -252,20 +239,19 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
       setSelectedRace(initialRace);
       // 종족이 변경되면 카테고리를 새 종족의 기본 카테고리로 초기화
       setCategories([getDefaultCategory(initialRace)]);
-      console.log(`업그레이드 설정 종족 변경: ${RACES[previousRace]?.name || '없음'} → ${RACES[initialRace].name}, 카테고리 초기화`);
+      console.log(`유닛 설정 종족 변경: ${RACES[previousRace]?.name || '없음'} → ${RACES[initialRace].name}, 카테고리 초기화`);
     }
   }, [initialRace, selectedRace]);
 
   const handleSave = () => {
     const settingsToSave = {
       categories,
-      showRemainingTime,
-      showProgressPercentage,
-      showProgressBar,
-      upgradeCompletionAlert
+      unitDeathDetection,
+      unitProductionDetection,
+      includeUnitsInProgress
     };
     
-    console.log('업그레이드 설정 저장:', settingsToSave);
+    console.log('유닛 설정 저장:', settingsToSave);
     onClose();
   };
 
@@ -275,11 +261,18 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
     <div className="h-screen overflow-hidden border-2 shadow-2xl"
       style={{
         backgroundColor: 'var(--starcraft-bg)',
-        border: '1px solid var(--main-container-border)',
+        background: 'linear-gradient(135deg, var(--starcraft-bg) 0%, rgba(0, 20, 0, 0.95) 100%)',
+        borderColor: 'var(--starcraft-green)',
+        boxShadow: '0 0 30px rgba(0, 255, 0, 0.4), inset 0 0 30px rgba(0, 255, 0, 0.1)'
       }}
     >
       {/* 전체 화면 컨테이너 */}
-      <div className="flex flex-col h-full">
+      <div 
+        className="flex flex-col h-full"
+        style={{
+          backgroundColor: 'var(--starcraft-bg)'
+        }}
+      >
         {/* 헤더 */}
         <div 
           className="flex items-center justify-between p-4 border-b draggable-titlebar"
@@ -297,7 +290,7 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
               <ArrowLeft className="w-5 h-5" />
             </button>
             
-            <Zap 
+            <Users 
               className="w-6 h-6" 
               style={{ color: 'var(--starcraft-green)' }}
             />
@@ -309,13 +302,13 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
                   textShadow: '0 0 8px rgba(0, 255, 0, 0.5)'
                 }}
               >
-                업그레이드 설정
+                유닛 수 설정
               </h1>
               <p 
                 className="text-sm opacity-70"
                 style={{ color: 'var(--starcraft-green)' }}
               >
-                업그레이드 카테고리와 진행률 표시를 설정하세요
+                유닛 카테고리와 관련 기능들을 설정하세요
               </p>
             </div>
           </div>
@@ -351,7 +344,7 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
                 <span><strong>{RACES[selectedRace].name}</strong> 종족이 프리셋 설정에서 선택되었습니다.</span>
               </div>
               <div className="text-xs mt-1 opacity-70">
-                {RACES[selectedRace].name} 업그레이드만 선택할 수 있습니다.
+                {RACES[selectedRace].name} 유닛만 선택할 수 있습니다.
               </div>
             </div>
 
@@ -362,8 +355,8 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
                   className="text-lg font-medium tracking-wide flex items-center gap-2"
                   style={{ color: 'var(--starcraft-green)' }}
                 >
-                  <Zap className="w-5 h-5" />
-                  업그레이드 카테고리
+                  <Users className="w-5 h-5" />
+                  유닛 카테고리
                 </h2>
                 
                 <button
@@ -478,25 +471,25 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
                       </button>
                     </div>
 
-                    {/* 업그레이드 그리드 */}
+                    {/* 유닛 그리드 */}
                     <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-3">
-                      {category.upgrades.map((upgrade) => (
-                        <div key={upgrade.id} 
+                      {category.units.map((unit) => (
+                        <div key={unit.id} 
                           className="relative group aspect-square flex flex-col items-center justify-center rounded-lg border-2 cursor-pointer transition-all duration-300 hover:border-opacity-60 p-1"
                           style={{
                             backgroundColor: 'var(--starcraft-bg-active)',
                             borderColor: RACES[selectedRace].color
                           }}
                         >
-                          <span className="text-lg mb-1">{upgrade.icon}</span>
+                          <span className="text-lg mb-1">{unit.icon}</span>
                           <span className="text-xs text-center leading-tight" 
                             style={{ color: RACES[selectedRace].color }}>
-                            {upgrade.name}
+                            {unit.name}
                           </span>
                           
                           {/* 호버 시 삭제 버튼 */}
                           <button
-                            onClick={() => handleRemoveUpgradeFromCategory(category.id, upgrade.id)}
+                            onClick={() => handleRemoveUnitFromCategory(category.id, unit.id)}
                             className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 border"
                             style={{
                               backgroundColor: 'var(--starcraft-red)',
@@ -511,7 +504,7 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
                       
                       {/* + 버튼 */}
                       <button
-                        onClick={() => handleAddUpgradeToCategory(category.id)}
+                        onClick={() => handleAddUnitToCategory(category.id)}
                         className="aspect-square flex items-center justify-center rounded-lg border-2 border-dashed transition-all duration-300 hover:border-opacity-60 hover:bg-opacity-10"
                         style={{
                           borderColor: RACES[selectedRace].color,
@@ -523,9 +516,9 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
                       </button>
                     </div>
 
-                    {category.upgrades.length === 0 && (
+                    {category.units.length === 0 && (
                       <p className="text-sm opacity-60 mt-4 text-center" style={{ color: RACES[selectedRace].color }}>
-                        + 버튼을 눌러 {RACES[selectedRace].name} 업그레이드를 추가하세요
+                        + 버튼을 눌러 {RACES[selectedRace].name} 유닛을 추가하세요
                       </p>
                     )}
                   </div>
@@ -533,18 +526,18 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
               </div>
             </div>
 
-            {/* 진행률 표기 설정들 */}
+            {/* 기본 설정들 */}
             <div className="space-y-4">
               <h2 
                 className="text-lg font-medium tracking-wide flex items-center gap-2"
                 style={{ color: 'var(--starcraft-green)' }}
               >
-                <BarChart className="w-5 h-5" />
-                진행률 표기 설정
+                <Users className="w-5 h-5" />
+                기본 설정
               </h2>
               
               <div className="space-y-4">
-                {progressDisplaySettings.map((item) => {
+                {basicSettings.map((item) => {
                   const IconComponent = item.icon;
                   return (
                     <div key={item.id} 
@@ -627,8 +620,6 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
               </div>
             </div>
 
-
-
             {/* 안내 정보 */}
             <div className="p-4 rounded-lg border"
               style={{
@@ -643,9 +634,8 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
               </div>
               <ul className="text-xs space-y-1 opacity-90 pl-6">
                 <li>• 카테고리 이름을 더블클릭하면 편집할 수 있습니다</li>
-                <li>• 업그레이드 아이콘에 마우스를 올리면 삭제 버튼이 나타납니다</li>
-                <li>• 진행률 표기는 실시간으로 게임 상태와 동기화됩니다</li>
-                <li>• 완료 알림은 업그레이드 완료 시 화면에 표시됩니다</li>
+                <li>• 유닛 아이콘에 마우스를 올리면 삭제 버튼이 나타납니다</li>
+                <li>• 사망 감지는 붉은색, 생산 감지는 파란색으로 표시됩니다</li>
               </ul>
             </div>
         </div>
@@ -683,13 +673,13 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
         </div>
       </div>
 
-      {/* 업그레이드 선택 모달 */}
-      {showUpgradeSelector && (
+      {/* 유닛 선택 모달 */}
+      {showUnitSelector && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
           <div 
             className="absolute inset-0 backdrop-blur-sm"
             style={{ backgroundColor: 'rgba(0, 0, 0, 0.9)' }}
-            onClick={() => setShowUpgradeSelector(false)}
+            onClick={() => setShowUnitSelector(false)}
           />
           
           <div 
@@ -716,7 +706,7 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
                     textShadow: '0 0 8px rgba(0, 255, 0, 0.5)'
                   }}
                 >
-                  업그레이드 선택
+                  유닛 선택
                 </h2>
                 <div 
                   className="px-3 py-1 rounded-full border flex items-center gap-2"
@@ -732,7 +722,7 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
               </div>
               
               <button
-                onClick={() => setShowUpgradeSelector(false)}
+                onClick={() => setShowUnitSelector(false)}
                 className="p-2 rounded-sm transition-all duration-300 hover:bg-red-500/20"
                 style={{ color: 'var(--starcraft-red)' }}
               >
@@ -740,55 +730,65 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
               </button>
             </div>
 
-            {/* 검색바 */}
+            {/* 검색 */}
             <div className="p-4 border-b" style={{ borderBottomColor: 'var(--starcraft-border)' }}>
               <div className="relative">
-                <Search 
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-                  style={{ color: 'var(--starcraft-green)' }}
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" 
+                  style={{ color: 'var(--starcraft-green)' }} 
                 />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder={`${RACES[selectedRace].name} 업그레이드 검색...`}
+                  placeholder={`${RACES[selectedRace].name} 유닛 검색...`}
                   className="w-full pl-10 pr-4 py-2 rounded-sm border"
                   style={{
-                    backgroundColor: 'var(--starcraft-bg-secondary)',
+                    backgroundColor: 'var(--starcraft-bg)',
                     borderColor: 'var(--starcraft-border)',
                     color: 'var(--starcraft-green)'
                   }}
                 />
               </div>
+              
+              {/* 유닛 개수 표시 */}
+              <div className="mt-2 text-xs opacity-70" style={{ color: 'var(--starcraft-green)' }}>
+                {RACES[selectedRace].name} 유닛: {filteredUnits.length}개 
+                {searchTerm && ` (검색된: ${filteredUnits.length}개)`}
+              </div>
             </div>
 
-            {/* 업그레이드 선택 그리드 */}
-            <div className="p-4 overflow-y-auto max-h-[calc(80vh-180px)]">
-              <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-3">
-                {filteredUpgrades.map((upgrade) => (
-                  <button
-                    key={upgrade.id}
-                    onClick={() => handleSelectUpgrade(upgrade)}
-                    className="aspect-square flex flex-col items-center justify-center rounded-lg border-2 transition-all duration-300 hover:border-opacity-80 p-2"
-                    style={{
-                      backgroundColor: 'var(--starcraft-bg-secondary)',
-                      borderColor: RACES[selectedRace].color,
-                      color: RACES[selectedRace].color
-                    }}
-                  >
-                    <span className="text-xl mb-1">{upgrade.icon}</span>
-                    <span className="text-xs text-center leading-tight">
-                      {upgrade.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              
-              {filteredUpgrades.length === 0 && (
+            {/* 유닛 그리드 */}
+            <div className="p-4 overflow-y-auto max-h-96">
+              {filteredUnits.length > 0 ? (
+                <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-3">
+                  {filteredUnits.map((unit) => (
+                    <button
+                      key={unit.id}
+                      onClick={() => handleSelectUnit(unit)}
+                      className="aspect-square flex flex-col items-center justify-center rounded-lg border-2 transition-all duration-300 hover:border-opacity-80 p-1"
+                      style={{
+                        backgroundColor: 'var(--starcraft-bg-secondary)',
+                        borderColor: RACES[selectedRace].color,
+                        color: RACES[selectedRace].color
+                      }}
+                      title={unit.name}
+                    >
+                      <span className="text-lg mb-1">{unit.icon}</span>
+                      <span className="text-xs text-center leading-tight" 
+                        style={{ color: RACES[selectedRace].color }}>
+                        {unit.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
                 <div className="text-center py-8">
-                  <p className="text-sm opacity-60" style={{ color: 'var(--starcraft-green)' }}>
-                    검색 결과가 없습니다
-                  </p>
+                  <div className="text-sm opacity-70" style={{ color: 'var(--starcraft-green)' }}>
+                    {searchTerm 
+                      ? `"${searchTerm}"에 해당하는 ${RACES[selectedRace].name} 유닛이 없습니다.`
+                      : `${RACES[selectedRace].name} 유닛이 없습니다.`
+                    }
+                  </div>
                 </div>
               )}
             </div>

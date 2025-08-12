@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import { useEffectSystem, type EffectType } from '../hooks/useEffectSystem'
-import { getIconStyle } from '../utils/iconUtils'
+import { getIconStyle } from '../../utils/iconUtils'
 import { HDIcon } from './HDIcon'
-import { getWorkerImagesByRace, getWorkerNameByRace } from '../utils/workerImageUtils'
+import { getWorkerImagesByRace, getWorkerNameByRace } from '../../utils/workerImageUtils'
 import { RaceType } from '../../types/enums'
 
 interface WorkerStatusProps {

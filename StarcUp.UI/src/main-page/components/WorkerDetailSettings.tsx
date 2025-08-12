@@ -6,7 +6,7 @@ import {
   type WorkerSettings,
   type PresetUpdateMessage,
   type WorkerPreset
-} from '../utils/presetUtils';
+} from '../../utils/presetUtils';
 import { ProFeatureWrapper } from './ProFeatureWrapper';
 import { ProBadge } from './ProBadge';
 import { 
@@ -17,7 +17,7 @@ import {
   setDevProStatus,
   sanitizeWorkerSettingsForNonPro,
   type ProStatus 
-} from '../utils/proUtils';
+} from '../../utils/proUtils';
 
 // 일꾼 설정 인터페이스 (완전한 데이터 보장)
 interface WorkerSettingsData {

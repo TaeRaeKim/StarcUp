@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
-import { MainInterface } from "@/components/MainInterface";
-import { PresetSettingsModal } from "@/components/PresetSettingsModal";
-import { PopulationDetailSettings } from "@/components/PopulationDetailSettings";
-import { WorkerDetailSettings } from "@/components/WorkerDetailSettings";
-import { UnitDetailSettings } from "@/components/UnitDetailSettings";
-import { UpgradeDetailSettings } from "@/components/UpgradeDetailSettings";
-import { BuildOrderDetailSettings } from "@/components/BuildOrderDetailSettings";
-import { DevelopmentModal } from "@/components/DevelopmentModal";
-import { ModeSelectionLogin } from "@/components/ModeSelectionLogin";
+import { MainInterface } from "@/main-page/components/MainInterface";
+import { PresetSettingsModal } from "@/main-page/components/PresetSettingsModal";
+import { PopulationDetailSettings } from "@/main-page/components/PopulationDetailSettings";
+import { WorkerDetailSettings } from "@/main-page/components/WorkerDetailSettings";
+import { UnitDetailSettings } from "@/main-page/components/UnitDetailSettings";
+import { UpgradeDetailSettings } from "@/main-page/components/UpgradeDetailSettings";
+import { BuildOrderDetailSettings } from "@/main-page/components/BuildOrderDetailSettings";
+import { DevelopmentModal } from "@/main-page/components/DevelopmentModal";
+import { ModeSelectionLogin } from "@/main-page/components/ModeSelectionLogin";
 import { 
   calculateWorkerSettingsMask, 
   type PresetInitMessage, 
