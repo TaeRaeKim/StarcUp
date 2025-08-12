@@ -1,7 +1,17 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Users, Building2, Clock, Settings2, Info, Plus, Minus, Shield, Bot, Star, Home, Cog, Zap } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Clock, Settings2, Info, Plus, Minus, Shield, Bot, Star, Home, Cog, Zap, Crown, Lock, ArrowRight } from 'lucide-react';
 import { PopulationSettings, FixedModeSettings, BuildingModeSettings, TrackedBuilding, TimeLimitSettings } from '../utils/presetUtils';
 import { RaceType, UnitType, RACE_BUILDINGS, UNIT_NAMES, RACE_NAMES } from '../types/enums';
+import { ProFeatureWrapper } from './ProFeatureWrapper';
+import { ProBadge } from './ProBadge';
+import {
+  getProStatus,
+  canUseFeature,
+  PRO_FEATURES,
+  setDevProStatus,
+  sanitizePopulationSettingsForNonPro,
+  type ProStatus
+} from '../utils/proUtils';
 
 interface PopulationDetailSettingsProps {
   isOpen: boolean;
@@ -11,6 +21,7 @@ interface PopulationDetailSettingsProps {
   onSavePopulationSettings?: (presetId: string, populationSettings: PopulationSettings) => Promise<void>;
   tempPopulationSettings?: PopulationSettings | null;
   onTempSave?: (settings: PopulationSettings) => void;
+  isPro?: boolean;
 }
 
 // 종족 정보 (enum 기반)
@@ -53,11 +64,19 @@ export function PopulationDetailSettings({
   currentPreset,
   onSavePopulationSettings,
   tempPopulationSettings,
-  onTempSave
+  onTempSave,
+  isPro = false
 }: PopulationDetailSettingsProps) {
   // 초기 모드를 임시 설정이나 현재 프리셋 설정에서 가져오기
   const getInitialMode = (): 'building' | 'fixed' => {
-    const settings = tempPopulationSettings || currentPreset?.populationSettings;
+    let settings = tempPopulationSettings || currentPreset?.populationSettings;
+    
+    // Pro가 아닌 경우에만 Pro 기능 해제 (모드 B → 모드 A 강제 변경)
+    // Pro 사용자라면 원본 설정 그대로 사용
+    if (!isPro) {
+      settings = sanitizePopulationSettingsForNonPro(settings);
+    }
+    
     return settings?.mode || 'fixed';
   };
   
@@ -100,7 +119,14 @@ export function PopulationDetailSettings({
 
   // 초기 건물 설정을 임시 설정이나 현재 프리셋 설정에서 가져오기
   const getInitialBuildingSettings = (): BuildingSettings => {
-    const settings = tempPopulationSettings || currentPreset?.populationSettings;
+    let settings = tempPopulationSettings || currentPreset?.populationSettings;
+    
+    // Pro가 아닌 경우에만 Pro 기능 해제 (모드 B는 사용 불가)
+    // Pro 사용자라면 원본 설정 그대로 사용
+    if (!isPro) {
+      settings = sanitizePopulationSettingsForNonPro(settings);
+    }
+    
     if (settings?.mode === 'building' && settings.buildingSettings) {
       const buildingSettingsMap: BuildingSettings = {};
       settings.buildingSettings.trackedBuildings.forEach((building: any) => {
@@ -116,24 +142,56 @@ export function PopulationDetailSettings({
 
   const [buildingSettings, setBuildingSettings] = useState<BuildingSettings>(getInitialBuildingSettings);
   const [fixedValue, setFixedValue] = useState(() => {
-    const settings = tempPopulationSettings || currentPreset?.populationSettings;
+    let settings = tempPopulationSettings || currentPreset?.populationSettings;
+    // Pro가 아닌 경우에만 Pro 기능 해제
+    if (!isPro) {
+      settings = sanitizePopulationSettingsForNonPro(settings);
+    }
     return settings?.fixedSettings?.thresholdValue || 4;
   });
   const [timeLimitMinutes, setTimeLimitMinutes] = useState(() => {
-    const settings = tempPopulationSettings || currentPreset?.populationSettings;
+    let settings = tempPopulationSettings || currentPreset?.populationSettings;
+    // Pro가 아닌 경우에만 Pro 기능 해제
+    if (!isPro) {
+      settings = sanitizePopulationSettingsForNonPro(settings);
+    }
     return settings?.fixedSettings?.timeLimit?.minutes || 3;
   });
   const [timeLimitSeconds, setTimeLimitSeconds] = useState(() => {
-    const settings = tempPopulationSettings || currentPreset?.populationSettings;
+    let settings = tempPopulationSettings || currentPreset?.populationSettings;
+    // Pro가 아닌 경우에만 Pro 기능 해제
+    if (!isPro) {
+      settings = sanitizePopulationSettingsForNonPro(settings);
+    }
     return settings?.fixedSettings?.timeLimit?.seconds || 0;
   });
   const [isTimeLimitEnabled, setIsTimeLimitEnabled] = useState(() => {
-    const settings = tempPopulationSettings || currentPreset?.populationSettings;
+    let settings = tempPopulationSettings || currentPreset?.populationSettings;
+    // Pro가 아닌 경우에만 Pro 기능 해제
+    if (!isPro) {
+      settings = sanitizePopulationSettingsForNonPro(settings);
+    }
     return settings?.fixedSettings?.timeLimit?.enabled ?? true;
   });
   
   // 변경사항 감지 상태
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Pro 상태 관리
+  const createProStatus = (isPro: boolean): ProStatus => ({
+    isPro,
+    subscriptionType: isPro ? 'pro' : 'free',
+    features: isPro ? [{
+      id: PRO_FEATURES.BUILDING_BASED_POPULATION,
+      name: '생산 건물 기반 인구 관리',
+      description: '생산 건물 수를 기반으로 한 지능형 인구 관리 시스템',
+      category: 'population',
+      isEnabled: true,
+      requiredTier: 'pro'
+    }] : []
+  });
+
+  const canUseBuildingMode = canUseFeature(PRO_FEATURES.BUILDING_BASED_POPULATION, createProStatus(isPro));
 
   // 현재 프리셋에서 인구수 설정 로드 (임시 저장값 우선) - 종족 변경 시에만 처리
   useEffect(() => {
@@ -416,6 +474,24 @@ export function PopulationDetailSettings({
               </p>
             </div>
           </div>
+          
+          {/* Pro 상태 표시 */}
+          <div className="flex items-center gap-2">
+            {isPro ? (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full"
+                style={{
+                  background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #ffa000 100%)',
+                  color: '#8b5a00',
+                  boxShadow: '0 0 8px rgba(255, 215, 0, 0.3)'
+                }}
+              >
+                <Zap className="w-3 h-3" />
+                <span className="text-xs font-bold">Pro 활성화</span>
+              </div>
+            ) : (
+              <ProBadge />
+            )}
+          </div>
         </div>
 
         {/* 컨텐츠 - 스크롤 가능 */}
@@ -474,68 +550,99 @@ export function PopulationDetailSettings({
                   </div>
                 </div>
 
-                {/* 모드 B: 생산 건물 기반 */}
-                <div
-                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-300 ${
-                    mode === 'building' ? 'border-current' : ''
-                  }`}
-                  style={{
-                    backgroundColor: mode === 'building' 
-                          ? 'var(--starcraft-inactive-bg)'
-                          : 'var(--starcraft-bg-secondary)',
-                    borderColor: mode === 'building' 
-                          ? 'var(--starcraft-red-bright)' 
-                          : 'var(--starcraft-red)'
-                  }}
-                  onClick={() => {
-                    setMode('building');
-                    // 모드 B로 전환 시 활성화된 건물이 없으면 첫 번째 건물 자동 활성화
-                    if (getEnabledBuildingsCount() === 0) {
-                      const firstBuilding = RACES[selectedRace].buildings[0];
-                      if (firstBuilding) {
-                        setBuildingSettings(prev => ({
-                          ...prev,
-                          [firstBuilding.unitType]: {
-                            enabled: true,
-                            multiplier: firstBuilding.defaultMultiplier
-                          }
-                        }));
-                        console.log(`🏗️ 모드 B 전환 시 ${firstBuilding.name} 자동 활성화`);
-                      }
-                    }
-                  }}
+                {/* 모드 B: 생산 건물 기반 (Pro 전용) */}
+                <ProFeatureWrapper
+                  isPro={isPro}
+                  feature="생산 건물 기반 인구 관리"
+                  description="건물 수를 기반으로 한 지능형 인구 관리로 더욱 정확한 전략적 플레이가 가능합니다."
+                  disabled={!canUseBuildingMode}
                 >
-                  <div className="flex items-center gap-3 mb-3">
-                    <Building2 
-                      className="w-6 h-6" 
-                      style={{ color: 'var(--starcraft-green)' }}
-                    />
-                    <h3 
-                      className="font-semibold"
-                      style={{ color: 'var(--starcraft-green)' }}
+                  <div
+                    className={`p-4 rounded-lg border-2 transition-all duration-300 relative ${
+                      mode === 'building' ? 'border-current' : ''
+                    } ${!canUseBuildingMode ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                    style={{
+                      backgroundColor: mode === 'building' 
+                            ? 'var(--starcraft-inactive-bg)'
+                            : 'var(--starcraft-bg-secondary)',
+                      borderColor: mode === 'building' 
+                            ? 'var(--starcraft-red-bright)' 
+                            : 'var(--starcraft-red)',
+                      // Pro 기능이 비활성화된 경우 포인터 이벤트 차단
+                      pointerEvents: !canUseBuildingMode ? 'none' : 'auto'
+                    }}
+                    onClick={() => {
+                      if (!canUseBuildingMode) return;
+                      setMode('building');
+                      // 모드 B로 전환 시 활성화된 건물이 없으면 첫 번째 건물 자동 활성화
+                      if (getEnabledBuildingsCount() === 0) {
+                        const firstBuilding = RACES[selectedRace].buildings[0];
+                        if (firstBuilding) {
+                          setBuildingSettings(prev => ({
+                            ...prev,
+                            [firstBuilding.unitType]: {
+                              enabled: true,
+                              multiplier: firstBuilding.defaultMultiplier
+                            }
+                          }));
+                          console.log(`🏗️ 모드 B 전환 시 ${firstBuilding.name} 자동 활성화`);
+                        }
+                      }
+                    }}
+                  >
+                    {/* Pro 잠금 아이콘 */}
+                    {!canUseBuildingMode && (
+                      <div className="absolute top-2 right-2">
+                        <div className="p-1 rounded-full"
+                          style={{ backgroundColor: '#ffd700' }}
+                        >
+                          <Lock className="w-3 h-3" style={{ color: '#8b5a00' }} />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-3 mb-3">
+                      <Building2 
+                        className="w-6 h-6" 
+                        style={{ color: canUseBuildingMode ? 'var(--starcraft-green)' : 'var(--starcraft-inactive-text)' }}
+                      />
+                      <div className="flex items-center gap-2">
+                        <h3 
+                          className="font-semibold"
+                          style={{ color: canUseBuildingMode ? 'var(--starcraft-green)' : 'var(--starcraft-inactive-text)' }}
+                        >
+                          모드 B: 생산 건물 기반
+                        </h3>
+                        <ProBadge variant="small" className="scale-75" />
+                      </div>
+                    </div>
+                    <p 
+                      className="text-sm opacity-80 mb-2"
+                      style={{ color: canUseBuildingMode ? 'var(--starcraft-green)' : 'var(--starcraft-inactive-text)' }}
                     >
-                      모드 B: 생산 건물 기반
-                    </h3>
+                      추적할 건물을 선택하고 배수를 설정하세요
+                    </p>
+                    <p 
+                      className="text-xs opacity-70 text-yellow-400"
+                    >
+                      ⚠️ 최소 1개 건물은 반드시 활성화되어야 합니다
+                    </p>
+                    <div 
+                      className="text-xs p-2 rounded bg-black/20"
+                      style={{ color: canUseBuildingMode ? 'var(--starcraft-green)' : 'var(--starcraft-inactive-text)' }}
+                    >
+                      예시: 배럭(×1) + 팩토리(×2) 선택시<br/>
+                      → (건물개수 × 배수)의 합이 경고 기준값
+                    </div>
+                    
+                    {/* Pro 업그레이드 유도 메시지 */}
+                    {!canUseBuildingMode && (
+                      <div className="text-xs mt-2 p-2 rounded" style={{ color: '#ffd700', backgroundColor: 'rgba(255, 215, 0, 0.1)' }}>
+                        💎 Pro 구독으로 지능형 건물 기반 인구 관리를 이용하세요
+                      </div>
+                    )}
                   </div>
-                  <p 
-                    className="text-sm opacity-80 mb-2"
-                    style={{ color: 'var(--starcraft-green)' }}
-                  >
-                    추적할 건물을 선택하고 배수를 설정하세요
-                  </p>
-                  <p 
-                    className="text-xs opacity-70 text-yellow-400"
-                  >
-                    ⚠️ 최소 1개 건물은 반드시 활성화되어야 합니다
-                  </p>
-                  <div 
-                    className="text-xs p-2 rounded bg-black/20"
-                    style={{ color: 'var(--starcraft-green)' }}
-                  >
-                    예시: 배럭(×1) + 팩토리(×2) 선택시<br/>
-                    → (건물개수 × 배수)의 합이 경고 기준값
-                  </div>
-                </div>
+                </ProFeatureWrapper>
               </div>
             </div>
 
@@ -996,6 +1103,50 @@ export function PopulationDetailSettings({
               </div>
             )}
 
+            {/* Pro 기능 안내 섹션 */}
+            {!isPro && (
+              <div className="space-y-4">
+                <div className="p-4 rounded-lg border"
+                  style={{
+                    backgroundColor: 'var(--starcraft-bg-secondary)',
+                    borderColor: '#ffd700',
+                    color: 'var(--starcraft-green)'
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <Crown className="w-4 h-4" style={{ color: '#ffd700' }} />
+                    <span className="text-sm font-medium" style={{ color: '#ffd700' }}>Pro 기능 안내</span>
+                    <ProBadge variant="small" className="ml-auto" />
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold" style={{ color: '#ffd700' }}>생산 건물 기반 인구 관리</h4>
+                      <ul className="text-xs space-y-1 opacity-90 pl-4">
+                        <li>• <span style={{ color: '#ffd700' }}>지능형 분석</span>: 건물 수를 기반으로 한 정확한 인구 예측</li>
+                        <li>• <span style={{ color: '#ffd700' }}>전략적 플레이</span>: 건물별 배수 설정으로 맞춤형 전략 수립</li>
+                        <li>• <span style={{ color: '#ffd700' }}>고급 최적화</span>: 종족별 특성을 고려한 세밀한 인구 관리</li>
+                      </ul>
+                    </div>
+                    <button
+                      className="w-full mt-3 py-2 px-4 rounded-lg font-medium text-sm transition-all duration-300 hover:scale-105 flex items-center justify-center gap-2"
+                      style={{
+                        background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #ffa000 100%)',
+                        color: '#8b5a00',
+                        boxShadow: '0 4px 12px rgba(255, 215, 0, 0.3)'
+                      }}
+                      onClick={() => {
+                        console.log('Pro 업그레이드 페이지로 이동');
+                      }}
+                    >
+                      <Zap className="w-4 h-4" />
+                      Pro로 업그레이드하고 고급 인구 관리 사용하기
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
         </div>
 
@@ -1007,16 +1158,18 @@ export function PopulationDetailSettings({
             borderTopColor: 'var(--starcraft-border)'
           }}
         >
-          <button
-            onClick={onClose}
-            className="px-6 py-2 rounded-sm border transition-all duration-300 hover:bg-red-500/20"
-            style={{
-              color: 'var(--starcup-red)',
-              borderColor: 'var(--starcup-red)'
-            }}
-          >
-            취소
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 rounded-sm border transition-all duration-300 hover:bg-red-500/20"
+              style={{
+                color: 'var(--starcup-red)',
+                borderColor: 'var(--starcup-red)'
+              }}
+            >
+              취소
+            </button>
+          </div>
           
           <button
             onClick={handleConfirm}

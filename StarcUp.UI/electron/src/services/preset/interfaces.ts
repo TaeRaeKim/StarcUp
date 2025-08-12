@@ -31,6 +31,12 @@ export interface IPresetStateManager {
   // 생명주기
   initialize(): Promise<void>
   dispose(): Promise<void>
+  
+  // Pro 기능 해제 (구독 기간 종료 시)
+  sanitizeAllPresetsForNonPro(): Promise<void>
+  sanitizePresetForNonPro(presetId: string): Promise<StoredPreset>
+  refreshState(): Promise<void>
+  getState(): IPresetState
 }
 
 /**
@@ -94,7 +100,8 @@ export interface IPresetState {
  */
 export interface IPresetChangeEvent {
   type: 'preset-switched' | 'settings-updated' | 'feature-toggled' | 'presets-loaded' | 
-        'temp-settings-updated' | 'temp-settings-cleared' | 'temp-settings-applied'
+        'temp-settings-updated' | 'temp-settings-cleared' | 'temp-settings-applied' |
+        'presets-sanitized' | 'preset-sanitized' | 'state-refreshed'
   presetId: string
   preset: IPreset | null
   changes: {

@@ -14,6 +14,14 @@ import {
   type WorkerPreset,
   type WorkerSettings as PresetUtilsWorkerSettings
 } from "../utils/presetUtils";
+import { 
+  getProStatus, 
+  sanitizePresetForNonPro, 
+  sanitizePresetsForNonPro,
+  sanitizeWorkerSettingsForNonPro,
+  sanitizePopulationSettingsForNonPro,
+  checkAndHandleSubscriptionChange
+} from "../utils/proUtils";
 import { RaceType, RACE_NAMES } from "../types/enums";
 
 // 게임 상태 타입 정의
@@ -155,9 +163,17 @@ export default function App() {
   };
 
   // 모드 선택 핸들러
-  const handleModeSelect = (selectedProMode: boolean) => {
+  const handleModeSelect = async (selectedProMode: boolean) => {
     console.log('🔐 모드 선택됨:', selectedProMode ? 'Pro' : 'Free');
     setIsPro(selectedProMode);
+    
+    // 구독 상태 변경 체크 및 처리 (비동기)
+    try {
+      await checkAndHandleSubscriptionChange(selectedProMode);
+    } catch (error) {
+      console.error('⚠️ 구독 상태 체크 중 오류 (계속 진행):', error);
+    }
+    
     setAppStage('loading'); // 로딩 단계로 진행
   };
 
@@ -230,9 +246,29 @@ export default function App() {
         if (stateResult?.success && stateResult.data) {
           const state = stateResult.data;
           
+          // Pro 상태에 따라 프리셋 데이터 정리
+          let sanitizedCurrentPreset = state.currentPreset;
+          let sanitizedAllPresets = state.allPresets;
+          
+          if (!isPro) {
+            console.log('🔒 Free 모드: Pro 기능 해제 중...');
+            
+            // 현재 프리셋의 Pro 기능 해제
+            if (sanitizedCurrentPreset) {
+              sanitizedCurrentPreset = sanitizePresetForNonPro(sanitizedCurrentPreset);
+              console.log('✂️ 현재 프리셋 Pro 기능 해제 완료:', sanitizedCurrentPreset.name);
+            }
+            
+            // 모든 프리셋의 Pro 기능 해제
+            if (sanitizedAllPresets && Array.isArray(sanitizedAllPresets)) {
+              sanitizedAllPresets = sanitizePresetsForNonPro(sanitizedAllPresets);
+              console.log('✂️ 전체 프리셋 Pro 기능 해제 완료:', sanitizedAllPresets.length, '개');
+            }
+          }
+          
           setPresetState({
-            currentPreset: state.currentPreset,
-            allPresets: state.allPresets,
+            currentPreset: sanitizedCurrentPreset,
+            allPresets: sanitizedAllPresets,
             isLoading: false,
             selectedIndex: state.selectedPresetIndex || 0
           });
@@ -281,9 +317,27 @@ export default function App() {
           case 'settings-updated':
             // 전체 상태를 다시 조회하여 동기화
             if (event.state) {
+              // Pro 상태에 따라 프리셋 데이터 정리
+              let sanitizedCurrentPreset = event.state.currentPreset;
+              let sanitizedAllPresets = event.state.allPresets || [];
+              
+              if (!isPro) {
+                console.log('🔒 Free 모드: 이벤트 프리셋 Pro 기능 해제 중...');
+                
+                // 현재 프리셋의 Pro 기능 해제
+                if (sanitizedCurrentPreset) {
+                  sanitizedCurrentPreset = sanitizePresetForNonPro(sanitizedCurrentPreset);
+                }
+                
+                // 모든 프리셋의 Pro 기능 해제
+                if (Array.isArray(sanitizedAllPresets)) {
+                  sanitizedAllPresets = sanitizePresetsForNonPro(sanitizedAllPresets);
+                }
+              }
+              
               setPresetState({
-                currentPreset: event.state.currentPreset,
-                allPresets: event.state.allPresets || [],
+                currentPreset: sanitizedCurrentPreset,
+                allPresets: sanitizedAllPresets,
                 isLoading: event.state.isLoading || false,
                 selectedIndex: event.state.selectedPresetIndex || 0
               });
@@ -1029,6 +1083,7 @@ export default function App() {
             onSavePopulationSettings={handleSavePopulationSettings}
             tempPopulationSettings={tempPopulationSettings}
             onTempSave={handleTempSavePopulationSettings}
+            isPro={isPro}
           />
         );
 

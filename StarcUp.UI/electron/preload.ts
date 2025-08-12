@@ -169,6 +169,16 @@ contextBridge.exposeInMainWorld('presetAPI', {
   toggleFeature: (featureIndex: number, enabled: boolean) => 
     ipcRenderer.invoke('preset:toggle-feature', { featureIndex, enabled }),
   
+  // Pro 기능 해제 (구독 기간 종료 시 사용)
+  sanitizeAllPresetsForNonPro: () => 
+    ipcRenderer.invoke('preset:sanitize-all-for-non-pro'),
+  
+  sanitizePresetForNonPro: (presetId: string) => 
+    ipcRenderer.invoke('preset:sanitize-for-non-pro', { presetId }),
+  
+  refreshState: () => 
+    ipcRenderer.invoke('preset:refresh-state'),
+  
   // 프리셋 상태 변경 이벤트 리스너 (기본 - Main Page용)
   onStateChanged: (callback: (data: any) => void) => {
     const listener = (_event: any, data: any) => callback(data)

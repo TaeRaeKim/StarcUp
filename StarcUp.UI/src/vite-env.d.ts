@@ -82,6 +82,11 @@ declare global {
       updateBatch: (updates: any) => Promise<{ success: boolean; error?: string }>
       toggleFeature: (featureIndex: number, enabled: boolean) => Promise<{ success: boolean; error?: string }>
       
+      // Pro 기능 해제 (구독 기간 종료 시 사용)
+      sanitizeAllPresetsForNonPro: () => Promise<{ success: boolean; data?: any; error?: string }>
+      sanitizePresetForNonPro: (presetId: string) => Promise<{ success: boolean; data?: any; error?: string }>
+      refreshState: () => Promise<{ success: boolean; error?: string }>
+      
       // 이벤트 리스너 (기본 - Main Page용)
       onStateChanged: (callback: (data: {
         type: 'preset-switched' | 'settings-updated' | 'feature-toggled' | 'presets-loaded'

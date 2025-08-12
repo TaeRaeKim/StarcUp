@@ -130,4 +130,14 @@ export interface IPresetRepository {
    * 저장소를 초기화합니다 (기본 프리셋 생성)
    */
   initialize(): Promise<void>
+
+  /**
+   * 구독 기간 종료 시 모든 프리셋에서 Pro 기능을 해제하고 데이터베이스에 저장합니다.
+   */
+  sanitizeAllPresetsForNonPro(): Promise<void>
+
+  /**
+   * 특정 프리셋의 Pro 기능을 해제하고 데이터베이스에 저장합니다.
+   */
+  sanitizePresetForNonPro(presetId: string): Promise<StoredPreset>
 }

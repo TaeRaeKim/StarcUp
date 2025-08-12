@@ -396,6 +396,62 @@ export class ChannelHandlers {
       }
     })
 
+    // Pro 기능 해제 핸들러 (구독 기간 종료 시 사용)
+    this.ipcService.registerHandler('preset:sanitize-all-for-non-pro', async () => {
+      try {
+        await this.presetStateManager.sanitizeAllPresetsForNonPro()
+        
+        return {
+          success: true,
+          data: '모든 프리셋에서 Pro 기능이 해제되었습니다.'
+        }
+      } catch (error) {
+        console.error('❌ preset:sanitize-all-for-non-pro 실패:', error)
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      }
+    })
+
+    this.ipcService.registerHandler('preset:sanitize-for-non-pro', async (data) => {
+      try {
+        if (!data?.presetId) {
+          throw new Error('presetId가 필요합니다')
+        }
+        
+        const sanitizedPreset = await this.presetStateManager.sanitizePresetForNonPro(data.presetId)
+        
+        return {
+          success: true,
+          data: sanitizedPreset
+        }
+      } catch (error) {
+        console.error('❌ preset:sanitize-for-non-pro 실패:', error)
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      }
+    })
+
+    this.ipcService.registerHandler('preset:refresh-state', async () => {
+      try {
+        await this.presetStateManager.refreshState()
+        
+        return {
+          success: true,
+          data: this.presetStateManager.getState()
+        }
+      } catch (error) {
+        console.error('❌ preset:refresh-state 실패:', error)
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      }
+    })
+
     // Overlay 전용 성능 최적화 핸들러 (기능 상태 + 종족 정보)
     this.ipcService.registerHandler('preset:get-features-only', async () => {
       try {

@@ -8,6 +8,10 @@ import {
   PopulationSettings
 } from './IPresetRepository'
 import { RaceType, UnitType } from '../../../../../src/types/enums'
+import { 
+  sanitizePresetForNonPro, 
+  sanitizePresetsForNonPro 
+} from '../../../../../src/utils/proUtils'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { app } from 'electron'
@@ -333,5 +337,101 @@ export class FilePresetRepository implements IPresetRepository {
   
   private generateId(): string {
     return `preset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  }
+
+  /**
+   * 구독 기간 종료 시 모든 프리셋에서 Pro 기능을 해제하고 데이터베이스에 저장합니다.
+   * 이 메소드는 사용자의 구독 상태가 Pro에서 Free로 변경될 때 호출되어야 합니다.
+   */
+  async sanitizeAllPresetsForNonPro(): Promise<void> {
+    try {
+      console.log('🔒 구독 기간 종료: 모든 프리셋에서 Pro 기능 해제 시작...');
+      
+      const collection = await this.loadAll();
+      let hasChanges = false;
+
+      // 모든 프리셋의 Pro 기능 해제
+      const sanitizedPresets = collection.presets.map(preset => {
+        const originalWorkerSettings = JSON.stringify(preset.workerSettings);
+        const originalPopulationSettings = JSON.stringify(preset.populationSettings);
+        
+        const sanitizedPreset = sanitizePresetForNonPro(preset);
+        
+        // 변경사항이 있는지 확인
+        const newWorkerSettings = JSON.stringify(sanitizedPreset.workerSettings);
+        const newPopulationSettings = JSON.stringify(sanitizedPreset.populationSettings);
+        
+        if (originalWorkerSettings !== newWorkerSettings || originalPopulationSettings !== newPopulationSettings) {
+          hasChanges = true;
+          console.log(`✂️ 프리셋 "${preset.name}" Pro 기능 해제됨`);
+        }
+        
+        return {
+          ...sanitizedPreset,
+          updatedAt: new Date() // 수정 시간 업데이트
+        };
+      });
+
+      if (hasChanges) {
+        // 변경된 프리셋 컬렉션 저장
+        const updatedCollection: PresetCollection = {
+          ...collection,
+          presets: sanitizedPresets,
+          lastUpdated: new Date()
+        };
+
+        await this.saveCollection(updatedCollection);
+        console.log('💾 Pro 기능 해제된 프리셋들이 데이터베이스에 저장되었습니다.');
+      } else {
+        console.log('ℹ️ 해제할 Pro 기능이 없습니다. 모든 프리셋이 이미 Free 모드 호환입니다.');
+      }
+    } catch (error) {
+      console.error('❌ Pro 기능 해제 중 오류 발생:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 특정 프리셋의 Pro 기능을 해제하고 데이터베이스에 저장합니다.
+   */
+  async sanitizePresetForNonPro(presetId: string): Promise<StoredPreset> {
+    try {
+      console.log(`🔒 프리셋 "${presetId}" Pro 기능 해제 시작...`);
+      
+      const collection = await this.loadAll();
+      const presetIndex = collection.presets.findIndex(p => p.id === presetId);
+      
+      if (presetIndex === -1) {
+        throw new Error(`프리셋을 찾을 수 없습니다: ${presetId}`);
+      }
+
+      const originalPreset = collection.presets[presetIndex];
+      const sanitizedPreset = sanitizePresetForNonPro(originalPreset);
+      
+      // 변경사항 확인
+      const hasWorkerChanges = JSON.stringify(originalPreset.workerSettings) !== JSON.stringify(sanitizedPreset.workerSettings);
+      const hasPopulationChanges = JSON.stringify(originalPreset.populationSettings) !== JSON.stringify(sanitizedPreset.populationSettings);
+      
+      if (hasWorkerChanges || hasPopulationChanges) {
+        const updatedPreset: StoredPreset = {
+          ...sanitizedPreset,
+          updatedAt: new Date()
+        };
+        
+        collection.presets[presetIndex] = updatedPreset;
+        collection.lastUpdated = new Date();
+        
+        await this.saveCollection(collection);
+        console.log(`✂️💾 프리셋 "${originalPreset.name}" Pro 기능 해제 및 저장 완료`);
+        
+        return updatedPreset;
+      } else {
+        console.log(`ℹ️ 프리셋 "${originalPreset.name}"에서 해제할 Pro 기능이 없습니다.`);
+        return originalPreset;
+      }
+    } catch (error) {
+      console.error(`❌ 프리셋 "${presetId}" Pro 기능 해제 중 오류 발생:`, error);
+      throw error;
+    }
   }
 }

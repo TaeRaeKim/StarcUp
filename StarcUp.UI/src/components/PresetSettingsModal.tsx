@@ -245,7 +245,7 @@ export function PresetSettingsModal({
             <button
               onClick={handleClose}
               className="p-2 rounded-sm transition-all duration-300 hover:bg-red-500/20"
-              style={{ color: 'var(--starcraft-red)' }}
+              style={{ color: 'var(--starcup-red)' }}
             >
               <X className="w-5 h-5" />
             </button>

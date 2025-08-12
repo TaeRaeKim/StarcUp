@@ -15,6 +15,7 @@ import {
   PRO_FEATURES, 
   getWorkerProFeatures,
   setDevProStatus,
+  sanitizeWorkerSettingsForNonPro,
   type ProStatus 
 } from '../utils/proUtils';
 
@@ -101,7 +102,15 @@ export function WorkerDetailSettings({
     console.log('🔧 WorkerDetailSettings 프리셋 변경:', currentPreset);
 
     // 임시 저장된 값이 있으면 사용, 없으면 프리셋값 사용
-    const settings = tempWorkerSettings || currentPreset.workerSettings;
+    let settings = tempWorkerSettings || currentPreset.workerSettings;
+    
+    // Pro가 아닌 경우에만 Pro 기능 해제
+    // Pro 사용자라면 원본 설정 그대로 사용
+    if (!isPro) {
+      settings = sanitizeWorkerSettingsForNonPro(settings);
+      console.log('🔒 Free 모드: 일꾼 Pro 기능 해제 적용됨');
+    }
+    
     console.log('🔧 일꾼 설정 업데이트:', settings);
     setWorkerCountDisplay(settings.workerCountDisplay);
     setIncludeProducingWorkers(settings.includeProducingWorkers);
@@ -109,7 +118,7 @@ export function WorkerDetailSettings({
     setWorkerProductionDetection(settings.workerProductionDetection);
     setWorkerDeathDetection(settings.workerDeathDetection);
     setGasWorkerCheck(settings.gasWorkerCheck);
-  }, [currentPreset, tempWorkerSettings]);
+  }, [currentPreset, tempWorkerSettings, isPro]);
 
   // 변경사항 감지 - 원본 프리셋 설정과 현재 설정 비교
   useEffect(() => {
@@ -306,38 +315,37 @@ export function WorkerDetailSettings({
               </p>
             </div>
           </div>
+          
+          {/* Pro 상태 표시 */}
+          <div className="flex items-center gap-2">
+            {isPro ? (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full"
+                style={{
+                  background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #ffa000 100%)',
+                  color: '#8b5a00',
+                  boxShadow: '0 0 8px rgba(255, 215, 0, 0.3)'
+                }}
+              >
+                <Zap className="w-3 h-3" />
+                <span className="text-xs font-bold">Pro 활성화</span>
+              </div>
+            ) : (
+              <ProBadge />
+            )}
+          </div>
         </div>
 
         {/* 컨텐츠 - 스크롤 가능 */}
         <div className="flex-1 overflow-y-auto starcraft-scrollbar p-6 space-y-8">
           {/* 안내 문구 */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2
-                className="text-lg font-medium tracking-wide flex items-center gap-2"
-                style={{ color: 'var(--starcraft-info)' }}
-              >
-                {/* <Wrench className="w-5 h-5" style={{ color: 'var(--starcraft-blue)' }}/> */}
-                일꾼 기능 설정
-              </h2>
-              {/* Pro 상태 표시 */}
-              <div className="flex items-center gap-2">
-                {isPro ? (
-                  <div className="flex items-center gap-2 px-3 py-1 rounded-full"
-                    style={{
-                      background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #ffa000 100%)',
-                      color: '#8b5a00',
-                      boxShadow: '0 0 8px rgba(255, 215, 0, 0.3)'
-                    }}
-                  >
-                    <Zap className="w-3 h-3" />
-                    <span className="text-xs font-bold">Pro 활성화</span>
-                  </div>
-                ) : (
-                  <ProBadge />
-                )}
-              </div>
-            </div>
+            <h2
+              className="text-lg font-medium tracking-wide flex items-center gap-2"
+              style={{ color: 'var(--starcraft-info)' }}
+            >
+              {/* <Wrench className="w-5 h-5" style={{ color: 'var(--starcraft-blue)' }}/> */}
+              일꾼 기능 설정
+            </h2>
             <div className="flex items-center gap-2">
               <Info className="w-4 h-4" style={{ color: 'var(--starcraft-blue)' }} />
               <p className="text-sm opacity-80" style={{ color: 'var(--starcraft-info)' }}>

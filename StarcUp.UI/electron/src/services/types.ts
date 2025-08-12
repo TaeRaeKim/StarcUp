@@ -131,6 +131,11 @@ export interface IIPCChannels {
   // 오버레이 관리
   'overlay:update-settings': { request: any; response: { success: boolean } }
   
+  // 프리셋 관리 - Pro 기능 해제
+  'preset:sanitize-all-for-non-pro': { request: void; response: { success: boolean; data?: string; error?: string } }
+  'preset:sanitize-for-non-pro': { request: { presetId: string }; response: { success: boolean; data?: any; error?: string } }
+  'preset:refresh-state': { request: void; response: { success: boolean; data?: any; error?: string } }
+  
   // 프리셋 상태 관리 (PresetStateManager)
   'preset:get-current': { request: void; response: { success: boolean; data?: any; error?: string } }
   'preset:get-state': { request: void; response: { success: boolean; data?: any; error?: string } }

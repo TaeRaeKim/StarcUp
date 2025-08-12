@@ -124,6 +124,10 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
     }
   }
   
+  getState(): IPresetState {
+    return this.getPresetState()
+  }
+  
   getAllPresets(): IPreset[] {
     return Array.from(this.state.allPresets.values())
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
@@ -728,5 +732,189 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
     
     // 메모리 누수 방지를 위한 리스너 수 제한
     this.setMaxListeners(20)
+  }
+
+  // ==================== Pro 기능 해제 메서드 ====================
+
+  /**
+   * 구독 기간 종료 시 모든 프리셋에서 Pro 기능을 해제하고 데이터베이스에 저장합니다.
+   */
+  async sanitizeAllPresetsForNonPro(): Promise<void> {
+    const startTime = Date.now()
+    
+    try {
+      console.log('🔒 모든 프리셋 Pro 기능 해제 시작...')
+      
+      // Repository를 통해 데이터베이스에서 직접 Pro 기능 해제 및 저장
+      await this.repository.sanitizeAllPresetsForNonPro()
+      
+      // 메모리 상태 새로고침
+      await this.refreshState()
+      
+      const metrics: IPerformanceMetrics = {
+        operationName: 'sanitizeAllPresetsForNonPro',
+        executionTime: Date.now() - startTime,
+        timestamp: new Date(),
+        success: true
+      }
+      this.recordMetrics(metrics)
+      
+      console.log('✅ 모든 프리셋 Pro 기능 해제 완료')
+      
+      // Pro 기능 해제 완료 이벤트 발행
+      this.emitStateChange('presets-sanitized', null, {
+        type: 'all-presets',
+        message: '모든 프리셋에서 Pro 기능이 해제되었습니다.'
+      })
+      
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      
+      const metrics: IPerformanceMetrics = {
+        operationName: 'sanitizeAllPresetsForNonPro',
+        executionTime: Date.now() - startTime,
+        timestamp: new Date(),
+        success: false,
+        error: errorMsg
+      }
+      this.recordMetrics(metrics)
+      
+      console.error('❌ 모든 프리셋 Pro 기능 해제 실패:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 특정 프리셋의 Pro 기능을 해제하고 데이터베이스에 저장합니다.
+   */
+  async sanitizePresetForNonPro(presetId: string): Promise<StoredPreset> {
+    const startTime = Date.now()
+    
+    try {
+      console.log(`🔒 프리셋 "${presetId}" Pro 기능 해제 시작...`)
+      
+      // Repository를 통해 데이터베이스에서 직접 Pro 기능 해제 및 저장
+      const sanitizedPreset = await this.repository.sanitizePresetForNonPro(presetId)
+      
+      // 현재 프리셋이 변경된 경우 메모리 상태 업데이트
+      if (this.state.currentPresetId === presetId) {
+        this.state.allPresets.set(presetId, {
+          id: sanitizedPreset.id,
+          name: sanitizedPreset.name,
+          description: sanitizedPreset.description,
+          selectedRace: sanitizedPreset.selectedRace,
+          featureStates: sanitizedPreset.featureStates,
+          workerSettings: sanitizedPreset.workerSettings,
+          populationSettings: sanitizedPreset.populationSettings,
+          createdAt: sanitizedPreset.createdAt,
+          updatedAt: sanitizedPreset.updatedAt
+        })
+        this.state.lastSyncTime = Date.now()
+      }
+      
+      // 전체 프리셋 목록 새로고침
+      await this.refreshState()
+      
+      const metrics: IPerformanceMetrics = {
+        operationName: 'sanitizePresetForNonPro',
+        executionTime: Date.now() - startTime,
+        timestamp: new Date(),
+        success: true
+      }
+      this.recordMetrics(metrics)
+      
+      console.log(`✅ 프리셋 "${presetId}" Pro 기능 해제 완료`)
+      
+      // Pro 기능 해제 완료 이벤트 발행
+      this.emitStateChange('preset-sanitized', presetId, {
+        type: 'single-preset',
+        presetId,
+        sanitizedPreset,
+        message: `프리셋 "${sanitizedPreset.name}"에서 Pro 기능이 해제되었습니다.`
+      })
+      
+      return sanitizedPreset
+      
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      
+      const metrics: IPerformanceMetrics = {
+        operationName: 'sanitizePresetForNonPro',
+        executionTime: Date.now() - startTime,
+        timestamp: new Date(),
+        success: false,
+        error: errorMsg
+      }
+      this.recordMetrics(metrics)
+      
+      console.error(`❌ 프리셋 "${presetId}" Pro 기능 해제 실패:`, error)
+      throw error
+    }
+  }
+
+  /**
+   * 메모리 상태를 데이터베이스와 다시 동기화합니다.
+   */
+  async refreshState(): Promise<void> {
+    const startTime = Date.now()
+    
+    try {
+      console.log('🔄 프리셋 상태 새로고침 시작...')
+      
+      // 데이터베이스에서 최신 데이터 로드
+      const collection = await this.repository.loadAll()
+      
+      // 상태 업데이트 - Map 기반으로 변환
+      this.state.allPresets.clear()
+      collection.presets.forEach(preset => {
+        this.state.allPresets.set(preset.id, {
+          id: preset.id,
+          name: preset.name,
+          description: preset.description,
+          selectedRace: preset.selectedRace,
+          featureStates: preset.featureStates,
+          workerSettings: preset.workerSettings,
+          populationSettings: preset.populationSettings,
+          createdAt: preset.createdAt,
+          updatedAt: preset.updatedAt
+        })
+      })
+      
+      this.state.selectedIndex = collection.selectedPresetIndex
+      this.state.currentPresetId = collection.presets[collection.selectedPresetIndex]?.id || null
+      this.state.lastSyncTime = Date.now()
+      this.state.isLoading = false
+      
+      const metrics: IPerformanceMetrics = {
+        operationName: 'refreshState',
+        executionTime: Date.now() - startTime,
+        timestamp: new Date(),
+        success: true
+      }
+      this.recordMetrics(metrics)
+      
+      console.log('✅ 프리셋 상태 새로고침 완료')
+      
+      // 상태 새로고침 완료 이벤트 발행
+      this.emitStateChange('state-refreshed', this.state.currentPresetId, {
+        refreshTime: metrics.executionTime,
+        presetCount: this.state.allPresets.size
+      })
+      
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      
+      const metrics: IPerformanceMetrics = {
+        operationName: 'refreshState',
+        executionTime: Date.now() - startTime,
+        timestamp: new Date(),
+        success: false,
+        error: errorMsg
+      }
+      this.recordMetrics(metrics)
+      
+      console.error('❌ 프리셋 상태 새로고침 실패:', error)
+      throw error
+    }
   }
 }
