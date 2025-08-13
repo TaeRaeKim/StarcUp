@@ -739,8 +739,10 @@ export default function App() {
       // 변경사항 플래그 설정 로직
       const effectiveOriginalRace = originalRace ?? (currentPreset.selectedRace ?? RaceType.Protoss);
       if (race === effectiveOriginalRace) {
-        // 원래 종족으로 돌아왔으면 변경사항 플래그 해제
-        setDetailChanges(prev => ({ ...prev, 1: false }));
+        // 원래 종족으로 돌아왔어도 백업된 설정이 원본과 다르면 변경사항 플래그 유지
+        const originalPopulationSettings = currentPreset.populationSettings;
+        const isBackupDifferentFromOriginal = !isPopulationSettingsEqual(backup, originalPopulationSettings);
+        setDetailChanges(prev => ({ ...prev, 1: isBackupDifferentFromOriginal }));
       } else {
         // 다른 종족(임시값 복원)으로 갈 때는 변경사항 플래그 유지
         // 백업된 설정이 원래 프리셋 설정과 다른지 확인
@@ -806,8 +808,10 @@ export default function App() {
       // 변경사항 플래그 설정 로직
       const effectiveOriginalRace = originalRace ?? (currentPreset.selectedRace ?? RaceType.Protoss);
       if (race === effectiveOriginalRace) {
-        // 원래 종족으로 돌아왔으면 변경사항 플래그 해제
-        setDetailChanges(prev => ({ ...prev, 3: false }));
+        // 원래 종족으로 돌아왔어도 백업된 설정이 원본과 다르면 변경사항 플래그 유지
+        const originalUpgradeSettings = currentPreset.upgradeSettings;
+        const isUpgradeBackupDifferentFromOriginal = !isUpgradeSettingsEqual(upgradeBackup, originalUpgradeSettings);
+        setDetailChanges(prev => ({ ...prev, 3: isUpgradeBackupDifferentFromOriginal }));
       } else {
         // 다른 종족(임시값 복원)으로 갈 때는 변경사항 플래그 유지
         // 백업된 설정이 원래 프리셋 설정과 다른지 확인
