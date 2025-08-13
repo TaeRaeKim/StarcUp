@@ -299,18 +299,8 @@ export function UpgradeDetailSettings({
 
   // 프리셋 변경 시 업그레이드 설정 업데이트 (PopulationDetailSettings, WorkerDetailSettings와 동일한 패턴)
   useEffect(() => {
-    console.log('🔧 UpgradeDetailSettings 프리셋 변경:', {
-      presetName: currentPreset?.name,
-      presetId: currentPreset?.id,
-      hasUpgradeSettings: !!currentPreset?.upgradeSettings,
-      upgradeSettings: currentPreset?.upgradeSettings,
-      tempUpgradeSettings: tempUpgradeSettings
-    });
-
     // 임시 저장된 값이 있으면 사용, 없으면 프리셋값 사용
     const newSettings = tempUpgradeSettings || currentPreset?.upgradeSettings || getDefaultUpgradeSettings();
-    
-    console.log('🔧 업그레이드 설정 업데이트:', newSettings);
     setSettings(newSettings);
   }, [currentPreset, tempUpgradeSettings]);
 
@@ -318,16 +308,6 @@ export function UpgradeDetailSettings({
   useEffect(() => {
     if (initialRace !== undefined) {
       setSelectedRace(initialRace);
-      // 종족이 변경되면 모든 카테고리 리셋
-      setSettings(prev => ({
-        ...prev,
-        categories: [{
-          id: 'default_category',
-          name: '기본 카테고리',
-          upgrades: [],
-          techs: []
-        }]
-      }));
     }
   }, [initialRace]);
 
@@ -340,16 +320,11 @@ export function UpgradeDetailSettings({
     const originalSettingsStr = JSON.stringify(originalSettings);
     
     const hasAnyChanges = currentSettingsStr !== originalSettingsStr;
-    
-    console.log('🔍 업그레이드 설정 변경사항 감지:', hasAnyChanges);
-    
     setHasChanges(hasAnyChanges);
   }, [settings, currentPreset?.upgradeSettings]);
 
   const handleSave = async () => {
     try {
-      console.log('💾 업그레이드 설정 임시 저장:', settings);
-
       // 임시 저장 함수가 있으면 임시 저장만 수행
       if (onTempSave) {
         onTempSave(settings);
@@ -358,10 +333,6 @@ export function UpgradeDetailSettings({
         onSaveUpgradeSettings(currentPreset.id, settings);
       }
 
-      // TODO: Core API 통신은 필요에 따라 추후 구현
-      // Core로 업그레이드 설정을 전송하는 로직이 필요한 경우 여기에 추가
-
-      console.log('✅ 업그레이드 설정 저장 완료');
       onClose();
     } catch (error) {
       console.error('❌ 업그레이드 설정 저장 실패:', error);

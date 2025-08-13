@@ -127,6 +127,8 @@ export default function App() {
   
   // 종족별 인구수 설정 백업 (종족 변경 시 복원용)
   const [populationSettingsBackup, setPopulationSettingsBackup] = useState<Map<RaceType, any>>(new Map());
+  // 종족별 업그레이드 설정 백업 (종족 변경 시 복원용)
+  const [upgradeSettingsBackup, setUpgradeSettingsBackup] = useState<Map<RaceType, UpgradeSettings>>(new Map());
   const [originalRace, setOriginalRace] = useState<RaceType | null>(null);
   
   // 인구수 설정 비교 유틸리티 함수
@@ -171,6 +173,15 @@ export default function App() {
     }
     
     return true;
+  };
+
+  // 업그레이드 설정 비교 유틸리티 함수
+  const isUpgradeSettingsEqual = (settings1: UpgradeSettings | null | undefined, settings2: UpgradeSettings | null | undefined): boolean => {
+    if (!settings1 && !settings2) return true;
+    if (!settings1 || !settings2) return false;
+    
+    // JSON 직렬화를 통한 깊은 비교
+    return JSON.stringify(settings1) === JSON.stringify(settings2);
   };
 
   // 모드 선택 핸들러
@@ -634,6 +645,7 @@ export default function App() {
     setTempUpgradeSettings(null);
     setDetailChanges({});
     setPopulationSettingsBackup(new Map());
+    setUpgradeSettingsBackup(new Map());
     setOriginalRace(null);
   };
 
@@ -646,6 +658,7 @@ export default function App() {
     setTempUpgradeSettings(null);
     setDetailChanges({});
     setPopulationSettingsBackup(new Map());
+    setUpgradeSettingsBackup(new Map());
     setOriginalRace(null);
     setCurrentView('main');
     changeWindowSize('main');
@@ -659,9 +672,11 @@ export default function App() {
 
   // 종족 실시간 변경 핸들러
   const handleRaceChange = (race: RaceType) => {
-    console.log('실시간 종족 변경:', race);
     
     const currentRace = currentEditingRace ?? (currentPreset.selectedRace ?? RaceType.Protoss);
+    
+    // 현재 함수 실행 중의 최신 백업 맵을 추적
+    let currentUpgradeBackupMap = new Map(upgradeSettingsBackup);
     
     // 최초 종족 저장 및 최초 인구수 설정 백업 (복원용)
     if (originalRace === null) {
@@ -673,7 +688,16 @@ export default function App() {
         const backup = new Map(populationSettingsBackup);
         backup.set(originalRaceValue, currentPreset.populationSettings);
         setPopulationSettingsBackup(backup);
-        console.log(`💾 최초 종족 ${originalRaceValue} 인구수 설정 백업:`, currentPreset.populationSettings);
+      }
+      
+      // 최초 업그레이드 설정도 백업 (원래 프리셋 설정)
+      if (currentPreset.upgradeSettings) {
+        currentUpgradeBackupMap.set(originalRaceValue, currentPreset.upgradeSettings);
+        setUpgradeSettingsBackup(prev => {
+          const newBackup = new Map(prev);
+          newBackup.set(originalRaceValue, currentPreset.upgradeSettings);
+          return newBackup;
+        });
       }
     }
     
@@ -682,7 +706,16 @@ export default function App() {
       const backup = new Map(populationSettingsBackup);
       backup.set(currentRace, tempPopulationSettings);
       setPopulationSettingsBackup(backup);
-      console.log(`💾 종족 ${currentRace} 인구수 설정 백업:`, tempPopulationSettings);
+    }
+    
+    // 현재 편집 중인 종족의 업그레이드 설정 백업 (임시 설정이 있는 경우만)
+    if (tempUpgradeSettings && currentRace !== race) {
+      currentUpgradeBackupMap.set(currentRace, tempUpgradeSettings);
+      setUpgradeSettingsBackup(prev => {
+        const newBackup = new Map(prev);
+        newBackup.set(currentRace, tempUpgradeSettings);
+        return newBackup;
+      });
     }
     
     setCurrentEditingRace(race);
@@ -701,14 +734,13 @@ export default function App() {
     // 1. 백업된 설정이 있는지 확인 (이미 방문한 종족 또는 원래 종족)
     const backup = populationSettingsBackup.get(race);
     if (backup) {
-      console.log(`✅ 종족 ${race} 인구수 설정 복원:`, backup);
       setTempPopulationSettings(backup);
       
       // 변경사항 플래그 설정 로직
-      if (race === originalRace) {
+      const effectiveOriginalRace = originalRace ?? (currentPreset.selectedRace ?? RaceType.Protoss);
+      if (race === effectiveOriginalRace) {
         // 원래 종족으로 돌아왔으면 변경사항 플래그 해제
         setDetailChanges(prev => ({ ...prev, 1: false }));
-        console.log(`🎆 원래 종족 ${race}로 복귀 - 변경사항 플래그 해제`);
       } else {
         // 다른 종족(임시값 복원)으로 갈 때는 변경사항 플래그 유지
         // 백업된 설정이 원래 프리셋 설정과 다른지 확인
@@ -716,18 +748,15 @@ export default function App() {
         const isBackupDifferentFromOriginal = !isPopulationSettingsEqual(backup, originalPopulationSettings);
         if (isBackupDifferentFromOriginal) {
           setDetailChanges(prev => ({ ...prev, 1: true }));
-          console.log(`🟡 종족 ${race} 임시값 복원 - 변경사항 플래그 유지`);
         } else {
           setDetailChanges(prev => ({ ...prev, 1: false }));
-          console.log(`✅ 종족 ${race} 백업값이 원래와 동일 - 변경사항 플래그 해제`);
         }
       }
-      return; // 복원되었으면 추가 처리 없이 종료
+      // return 제거 - 업그레이드 설정 처리도 계속 진행해야 함
     }
     
     // 2. 현재 인구수 설정이 모드 B(건물 기반)인 경우만 처리
     if (currentPopulationSettings?.mode === 'building') {
-      console.log(`⚠️ 모드 B에서 종족 ${race}로 변경 - 모드 A로 초기화`);
       const defaultSettings = {
         mode: 'fixed' as const,
         fixedSettings: {
@@ -743,7 +772,6 @@ export default function App() {
       setDetailChanges(prev => ({ ...prev, 1: true })); // 인구수 변경사항 표시
     } else if (!currentPopulationSettings) {
       // 3. 인구수 설정이 아예 없는 경우 기본값 설정
-      console.log(`🏘️ 인구수 설정 없음 - 기본 모드 A 설정`);
       const defaultSettings = {
         mode: 'fixed' as const,
         fixedSettings: {
@@ -757,6 +785,57 @@ export default function App() {
       };
       setTempPopulationSettings(defaultSettings);
       setDetailChanges(prev => ({ ...prev, 1: true }));
+    }
+    
+    // 종족 변경에 따른 업그레이드 설정 처리
+    const currentUpgradeSettings = tempUpgradeSettings || currentPreset.upgradeSettings;
+    
+    // 1. 백업된 업그레이드 설정이 있는지 확인 (이미 방문한 종족 또는 원래 종족)
+    let upgradeBackup = currentUpgradeBackupMap.get(race);
+    
+    // 원래 종족으로 돌아가는데 백업이 없다면, 현재 프리셋 설정을 직접 사용
+    const effectiveOriginalRace = originalRace ?? (currentPreset.selectedRace ?? RaceType.Protoss);
+    if (!upgradeBackup && race === effectiveOriginalRace && currentPreset.upgradeSettings) {
+      upgradeBackup = currentPreset.upgradeSettings;
+      currentUpgradeBackupMap.set(race, upgradeBackup);
+    }
+    
+    if (upgradeBackup) {
+      setTempUpgradeSettings(upgradeBackup);
+      
+      // 변경사항 플래그 설정 로직
+      const effectiveOriginalRace = originalRace ?? (currentPreset.selectedRace ?? RaceType.Protoss);
+      if (race === effectiveOriginalRace) {
+        // 원래 종족으로 돌아왔으면 변경사항 플래그 해제
+        setDetailChanges(prev => ({ ...prev, 3: false }));
+      } else {
+        // 다른 종족(임시값 복원)으로 갈 때는 변경사항 플래그 유지
+        // 백업된 설정이 원래 프리셋 설정과 다른지 확인
+        const originalUpgradeSettings = currentPreset.upgradeSettings;
+        const isUpgradeBackupDifferentFromOriginal = !isUpgradeSettingsEqual(upgradeBackup, originalUpgradeSettings);
+        if (isUpgradeBackupDifferentFromOriginal) {
+          setDetailChanges(prev => ({ ...prev, 3: true }));
+        } else {
+          setDetailChanges(prev => ({ ...prev, 3: false }));
+        }
+      }
+    } else if (currentUpgradeSettings && currentRace !== race) {
+      // 2. 백업된 설정이 없고 다른 종족으로 변경되는 경우 기본값으로 초기화
+      const defaultUpgradeSettings: UpgradeSettings = {
+        categories: [{
+          id: 'default_category',
+          name: '기본 카테고리',
+          upgrades: [],
+          techs: []
+        }],
+        showRemainingTime: true,
+        showProgressPercentage: true,
+        showProgressBar: true,
+        upgradeCompletionAlert: true,
+        upgradeStateTracking: true
+      };
+      setTempUpgradeSettings(defaultUpgradeSettings);
+      setDetailChanges(prev => ({ ...prev, 3: true })); // 업그레이드 변경사항 표시
     }
   };
 
