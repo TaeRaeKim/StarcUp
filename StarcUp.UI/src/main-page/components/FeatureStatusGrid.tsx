@@ -26,15 +26,15 @@ export function FeatureStatusGrid({
   presets,
   isPro = false
 }: FeatureStatusGridProps) {
-  // 항상 5개 점으로 고정
-  const [featureStates, setFeatureStates] = useState(presets[0].featureStates);
-  
   const currentPreset = presets[currentPresetIndex];
+  
+  // 항상 5개 점으로 고정 - 현재 선택된 프리셋으로 초기화
+  const [featureStates, setFeatureStates] = useState(currentPreset?.featureStates || [false, false, false, false, false]);
 
-  // 프리셋 변경시에만 상태 업데이트
+  // 프리셋 변경시 및 featureStates 변경시 상태 업데이트
   useEffect(() => {
     setFeatureStates(currentPreset.featureStates);
-  }, [currentPreset]);
+  }, [currentPreset, currentPreset.featureStates]);
 
   // Pro 모드 무지개 색상 (빨강, 주황, 노랑, 초록, 파랑 순서)
   const rainbowColors = ['#ff4757', '#ff6348', '#ffa502', '#2ed573', '#3742fa'];
