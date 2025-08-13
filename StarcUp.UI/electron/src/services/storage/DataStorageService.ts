@@ -5,10 +5,10 @@ import {
   FilePresetRepository, 
   StoredPreset, 
   CreatePresetRequest, 
-  UpdatePresetRequest,
-  WorkerSettings
+  UpdatePresetRequest
 } from './repositories'
-import { RaceType } from '../../../../src/types/enums'
+import { WorkerSettings } from '../../../../src/types/preset'
+import { RaceType } from '../../../../src/types/game'
 
 export class DataStorageService implements IDataStorageService {
   private presetRepository: IPresetRepository

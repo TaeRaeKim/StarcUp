@@ -1,4 +1,4 @@
-import { UpgradeType, TechType, UPGRADE_NAMES, TECH_NAMES } from '../types/index';
+import { UpgradeType, TechType, UPGRADE_NAMES, TECH_NAMES } from '../types/game';
 
 // Terran Upgrade Icons
 import TerranInfantryArmorIcon from '/resources/UpgradeIcon/Terran/TerranInfantryArmor.png';

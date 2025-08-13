@@ -3,7 +3,7 @@ import { ScrollingText } from "./ScrollingText";
 import { FeatureStatusGrid } from "./FeatureStatusGrid";
 import { Switch } from "./ui/switch";
 import { SlidersHorizontal, Power, WifiOff, Clock, Zap, ChevronLeft, ChevronRight, Crown } from "lucide-react";
-import { RaceType } from "../../types/enums";
+import { RaceType } from "../../types/game";
 
 const starcraftTips = [
   "일꾼은 게임의 핵심! 항상 일꾼 생산을 우선하세요.",

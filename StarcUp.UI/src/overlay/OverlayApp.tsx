@@ -4,7 +4,7 @@ import { WorkerStatus, type WorkerStatusRef } from './components/WorkerStatus'
 import { PopulationWarning } from './components/PopulationWarning'
 import { OverlaySettingsPanel, type OverlaySettings } from './components/OverlaySettings'
 import { type EffectType } from './hooks/useEffectSystem'
-import { RaceType } from '../types/enums'
+import { RaceType } from '../types/game'
 import './styles/OverlayApp.css'
 
 /**

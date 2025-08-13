@@ -3,11 +3,10 @@ import {
   StoredPreset, 
   PresetCollection, 
   CreatePresetRequest, 
-  UpdatePresetRequest,
-  WorkerSettings,
-  PopulationSettings
+  UpdatePresetRequest
 } from './IPresetRepository'
-import { RaceType, UnitType } from '../../../../../src/types/enums'
+import { WorkerSettings, PopulationSettings } from '../../../../../src/types/preset'
+import { RaceType, UnitType } from '../../../../../src/types/game'
 import { 
   sanitizePresetForNonPro, 
   sanitizePresetsForNonPro 
@@ -73,7 +72,7 @@ export class FilePresetRepository implements IPresetRepository {
             race,
             trackedBuildings: [
               { 
-                buildingType: UnitType.ProtossGateway.toString(), 
+                buildingType: UnitType.ProtossGateway, 
                 enabled: true, 
                 multiplier: 2 
               }
@@ -84,7 +83,7 @@ export class FilePresetRepository implements IPresetRepository {
             race,
             trackedBuildings: [
               { 
-                buildingType: UnitType.TerranBarracks.toString(), 
+                buildingType: UnitType.TerranBarracks, 
                 enabled: true, 
                 multiplier: 1 
               }
@@ -95,7 +94,7 @@ export class FilePresetRepository implements IPresetRepository {
             race,
             trackedBuildings: [
               { 
-                buildingType: UnitType.ZergHatchery.toString(), 
+                buildingType: UnitType.ZergHatchery, 
                 enabled: true, 
                 multiplier: 2 
               }

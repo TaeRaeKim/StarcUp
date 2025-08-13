@@ -5,7 +5,7 @@ import { IDataStorageService } from '../storage'
 import { IWindowManager, IShortcutManager } from '../window'
 import { IOverlayAutoManager } from '../overlay'
 import { IPresetStateManager } from '../preset'
-import { RaceType } from '../../../../src/types/enums'
+import { RaceType } from '../../../../src/types/game'
 
 export class ChannelHandlers {
   private ipcService: IIPCService

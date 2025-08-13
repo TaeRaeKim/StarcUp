@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Zap, Plus, X, Clock, BarChart, Target, Info, Search, Shield, Home, Building2, Bell } from 'lucide-react';
-import { RaceType, RACE_NAMES, UpgradeType, TechType } from '../../types/index';
-import { UpgradeSettings, UpgradeCategory } from '../../types/UpgradeSettings';
+import { RaceType, RACE_NAMES, UpgradeType, TechType } from '../../types/game';
+import { UpgradeSettings, UpgradeCategory } from '../../types/preset';
 import { getBuildingsByRace, getUpgradesByBuilding } from '../data/buildingUpgrades';
 import { 
   getUpgradeIconPath, 
@@ -19,6 +19,15 @@ interface UpgradeDetailSettingsProps {
   isOpen: boolean;
   onClose: () => void;
   initialRace?: RaceType;
+  currentPreset?: {
+    id: string;
+    name: string;
+    description: string;
+    upgradeSettings: UpgradeSettings;
+  };
+  onSaveUpgradeSettings?: (presetId: string, upgradeSettings: UpgradeSettings) => void;
+  tempUpgradeSettings?: UpgradeSettings | null;
+  onTempSave?: (settings: UpgradeSettings) => void;
 }
 
 // 종족 정보 (enum 기반)
@@ -45,12 +54,20 @@ const RACES = {
 
 type RaceKey = RaceType;
 
-export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeDetailSettingsProps) {
+export function UpgradeDetailSettings({ 
+  isOpen, 
+  onClose, 
+  initialRace,
+  currentPreset,
+  onSaveUpgradeSettings,
+  tempUpgradeSettings,
+  onTempSave
+}: UpgradeDetailSettingsProps) {
   // 종족 상태 관리
   const [selectedRace, setSelectedRace] = useState<RaceKey>(initialRace ?? RaceType.Protoss);
   
-  // 업그레이드 설정 상태
-  const [settings, setSettings] = useState<UpgradeSettings>({
+  // 기본 설정값
+  const getDefaultUpgradeSettings = (): UpgradeSettings => ({
     categories: [{
       id: 'default_category',
       name: '기본 카테고리',
@@ -64,6 +81,12 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
     upgradeStateTracking: true
   });
 
+  // 임시 저장된 값이 있으면 사용, 없으면 프리셋값 사용 (PopulationDetailSettings, WorkerDetailSettings와 동일한 패턴)
+  const initialSettings = tempUpgradeSettings || currentPreset?.upgradeSettings || getDefaultUpgradeSettings();
+
+  // 업그레이드 설정 상태
+  const [settings, setSettings] = useState<UpgradeSettings>(initialSettings);
+
   // UI 상태
   const [showBuildingSelector, setShowBuildingSelector] = useState(false);
   const [showUpgradeSelector, setShowUpgradeSelector] = useState(false);
@@ -74,6 +97,9 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
   const [editingCategoryId, setEditingCategoryId] = useState<string>('');
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // 변경사항 감지 상태
+  const [hasChanges, setHasChanges] = useState(false);
 
   // 진행률 표기 설정
   const progressDisplaySettings = [
@@ -108,6 +134,14 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
       state: settings.upgradeCompletionAlert,
       setState: (value: boolean) => setSettings(prev => ({ ...prev, upgradeCompletionAlert: value })),
       icon: Bell
+    },
+    {
+      id: 'stateTracking',
+      title: '업그레이드 상태 추적',
+      description: '업그레이드 상태를 실시간으로 추적하고 관리해요',
+      state: settings.upgradeStateTracking,
+      setState: (value: boolean) => setSettings(prev => ({ ...prev, upgradeStateTracking: value })),
+      icon: Zap
     }
   ];
 
@@ -263,6 +297,23 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
     return items;
   };
 
+  // 프리셋 변경 시 업그레이드 설정 업데이트 (PopulationDetailSettings, WorkerDetailSettings와 동일한 패턴)
+  useEffect(() => {
+    console.log('🔧 UpgradeDetailSettings 프리셋 변경:', {
+      presetName: currentPreset?.name,
+      presetId: currentPreset?.id,
+      hasUpgradeSettings: !!currentPreset?.upgradeSettings,
+      upgradeSettings: currentPreset?.upgradeSettings,
+      tempUpgradeSettings: tempUpgradeSettings
+    });
+
+    // 임시 저장된 값이 있으면 사용, 없으면 프리셋값 사용
+    const newSettings = tempUpgradeSettings || currentPreset?.upgradeSettings || getDefaultUpgradeSettings();
+    
+    console.log('🔧 업그레이드 설정 업데이트:', newSettings);
+    setSettings(newSettings);
+  }, [currentPreset, tempUpgradeSettings]);
+
   // initialRace가 변경될 때 selectedRace 업데이트
   useEffect(() => {
     if (initialRace !== undefined) {
@@ -280,9 +331,41 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
     }
   }, [initialRace]);
 
-  const handleSave = () => {
-    console.log('업그레이드 설정 저장:', settings);
-    onClose();
+  // 변경사항 감지 - 원본 프리셋 설정과 현재 설정 비교 (PopulationDetailSettings, WorkerDetailSettings와 동일한 패턴)
+  useEffect(() => {
+    const originalSettings = currentPreset?.upgradeSettings || getDefaultUpgradeSettings();
+    
+    // JSON 직렬화를 통한 깊은 비교
+    const currentSettingsStr = JSON.stringify(settings);
+    const originalSettingsStr = JSON.stringify(originalSettings);
+    
+    const hasAnyChanges = currentSettingsStr !== originalSettingsStr;
+    
+    console.log('🔍 업그레이드 설정 변경사항 감지:', hasAnyChanges);
+    
+    setHasChanges(hasAnyChanges);
+  }, [settings, currentPreset?.upgradeSettings]);
+
+  const handleSave = async () => {
+    try {
+      console.log('💾 업그레이드 설정 임시 저장:', settings);
+
+      // 임시 저장 함수가 있으면 임시 저장만 수행
+      if (onTempSave) {
+        onTempSave(settings);
+      } else if (currentPreset && onSaveUpgradeSettings) {
+        // 임시 저장 함수가 없으면 기존처럼 직접 저장
+        onSaveUpgradeSettings(currentPreset.id, settings);
+      }
+
+      // TODO: Core API 통신은 필요에 따라 추후 구현
+      // Core로 업그레이드 설정을 전송하는 로직이 필요한 경우 여기에 추가
+
+      console.log('✅ 업그레이드 설정 저장 완료');
+      onClose();
+    } catch (error) {
+      console.error('❌ 업그레이드 설정 저장 실패:', error);
+    }
   };
 
   if (!isOpen) return null;
@@ -701,14 +784,19 @@ export function UpgradeDetailSettings({ isOpen, onClose, initialRace }: UpgradeD
           
           <button
             onClick={handleSave}
-            className="flex items-center gap-2 px-6 py-2 rounded-sm border transition-all duration-300 hover:bg-green-500/20"
+            disabled={!hasChanges}
+            className={`flex items-center gap-2 px-6 py-2 rounded-sm border transition-all duration-300 ${
+              hasChanges 
+                ? 'hover:bg-green-500/20' 
+                : 'opacity-50 cursor-not-allowed'
+            }`}
             style={{
-              color: 'var(--starcraft-green)',
-              borderColor: 'var(--starcraft-green)',
-              backgroundColor: 'var(--starcraft-bg-active)'
+              color: hasChanges ? 'var(--starcraft-green)' : 'var(--starcraft-inactive-text)',
+              borderColor: hasChanges ? 'var(--starcraft-green)' : 'var(--starcraft-inactive-border)',
+              backgroundColor: hasChanges ? 'var(--starcraft-bg-active)' : 'transparent'
             }}
           >
-            설정 완료
+            확인
           </button>
         </div>
       </div>

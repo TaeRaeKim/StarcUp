@@ -1,4 +1,4 @@
-import { RaceType } from '../types/enums'
+import { RaceType } from '../types/game'
 
 // 정적 애셋 import - Vite의 정적 자산 import 방식
 // Terran

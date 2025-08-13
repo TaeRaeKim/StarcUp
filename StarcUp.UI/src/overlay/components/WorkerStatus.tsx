@@ -3,7 +3,7 @@ import { useEffectSystem, type EffectType } from '../hooks/useEffectSystem'
 import { getIconStyle } from '../../utils/iconUtils'
 import { HDIcon } from './HDIcon'
 import { getWorkerImagesByRace, getWorkerNameByRace } from '../../utils/workerImageUtils'
-import { RaceType } from '../../types/enums'
+import { RaceType } from '../../types/game'
 
 interface WorkerStatusProps {
   totalWorkers: number

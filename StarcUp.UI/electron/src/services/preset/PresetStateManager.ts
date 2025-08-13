@@ -228,6 +228,10 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
           updateData = { populationSettings: { ...currentPreset.populationSettings, ...settings } }
           console.log('🏘️ 인구수 설정 업데이트:', updateData)
           break
+        case 'upgrade':
+          updateData = { upgradeSettings: { ...currentPreset.upgradeSettings, ...settings } }
+          console.log('⚡ 업그레이드 설정 업데이트:', updateData)
+          break
         case 'race':
           updateData = { selectedRace: settings.selectedRace }
           break
@@ -496,6 +500,9 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
           case 'population':
             batchUpdate.populationSettings = { ...currentPreset.populationSettings, ...settings }
             break
+          case 'upgrade':
+            batchUpdate.upgradeSettings = { ...currentPreset.upgradeSettings, ...settings }
+            break
           case 'race':
             batchUpdate.selectedRace = settings.selectedRace
             break
@@ -674,6 +681,7 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
       selectedRace: storedPreset.selectedRace,
       workerSettings: storedPreset.workerSettings,
       populationSettings: storedPreset.populationSettings,
+      upgradeSettings: storedPreset.upgradeSettings,
       createdAt: storedPreset.createdAt,
       updatedAt: storedPreset.updatedAt
     }
@@ -806,6 +814,7 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
           featureStates: sanitizedPreset.featureStates,
           workerSettings: sanitizedPreset.workerSettings,
           populationSettings: sanitizedPreset.populationSettings,
+          upgradeSettings: sanitizedPreset.upgradeSettings,
           createdAt: sanitizedPreset.createdAt,
           updatedAt: sanitizedPreset.updatedAt
         })
@@ -875,6 +884,7 @@ export class PresetStateManager extends EventEmitter implements IPresetStateMana
           featureStates: preset.featureStates,
           workerSettings: preset.workerSettings,
           populationSettings: preset.populationSettings,
+          upgradeSettings: preset.upgradeSettings,
           createdAt: preset.createdAt,
           updatedAt: preset.updatedAt
         })

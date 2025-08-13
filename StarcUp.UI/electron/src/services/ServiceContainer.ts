@@ -8,8 +8,8 @@ import { DataStorageService } from './storage'
 import { AuthService } from './auth'
 import { IPresetStateManager, PresetStateManager, IPresetChangeEvent } from './preset'
 import { FilePresetRepository } from './storage/repositories/FilePresetRepository'
-import { PresetInitMessage, PresetUpdateMessage, calculateWorkerSettingsMask, WorkerSettings } from '../../../src/utils/presetUtils'
-import { RaceType, UnitType, RACE_BUILDINGS } from '../../../src/types/enums'
+import { PresetInitMessage, PresetUpdateMessage, calculateWorkerSettingsMask } from '../../../src/utils/presetUtils'
+import { WorkerSettings } from '../../../src/types/preset'
 
 export interface IServiceContainer {
   register<T>(name: string, factory: () => T): void

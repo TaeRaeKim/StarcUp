@@ -3,10 +3,10 @@ import { ArrowLeft, Users, Wrench, AlertTriangle, Skull, Fuel, Info, Zap, Clock 
 import {
   calculateWorkerSettingsMask,
   debugWorkerSettings,
-  type WorkerSettings,
   type PresetUpdateMessage,
   type WorkerPreset
 } from '../../utils/presetUtils';
+import { WorkerSettings } from '../../types/preset';
 import { ProFeatureWrapper } from './ProFeatureWrapper';
 import { ProBadge } from './ProBadge';
 import { 

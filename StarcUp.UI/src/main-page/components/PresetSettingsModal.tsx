@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Save, RotateCcw, Settings, Cog, Shield, Bot, Star, Home, Zap, Building2 } from 'lucide-react';
-import { RaceType, RACE_NAMES } from '../../types/enums';
+import { RaceType, RACE_NAMES } from '../../types/game';
 
 interface PresetSettingsModalProps {
   isOpen: boolean;

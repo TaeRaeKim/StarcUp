@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Users, Plus, X, Skull, Zap, Clock, Info, Search, Shield, Home, Building2 } from 'lucide-react';
-import { RaceType, RACE_NAMES } from '../../types/enums';
+import { RaceType, RACE_NAMES } from '../../types/game';
 
 interface UnitDetailSettingsProps {
   isOpen: boolean;

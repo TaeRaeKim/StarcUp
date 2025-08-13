@@ -1,45 +1,7 @@
 // 프리셋 Repository 인터페이스 - 데이터 접근 계층 추상화
 
-import { RaceType } from '../../../../../src/types/enums'
-
-// 일꾼 설정 인터페이스 (presetUtils.ts와 동일)
-export interface WorkerSettings {
-  workerCountDisplay: boolean
-  includeProducingWorkers: boolean
-  idleWorkerDisplay: boolean
-  workerProductionDetection: boolean
-  workerDeathDetection: boolean
-  gasWorkerCheck: boolean
-}
-
-// 인구수 설정 인터페이스 (interfaces.ts와 동일)
-export interface PopulationSettings {
-  mode: 'fixed' | 'building'
-  fixedSettings?: FixedModeSettings
-  buildingSettings?: BuildingModeSettings
-}
-
-export interface FixedModeSettings {
-  thresholdValue: number
-  timeLimit?: TimeLimitSettings
-}
-
-export interface TimeLimitSettings {
-  enabled: boolean
-  minutes: number
-  seconds: number
-}
-
-export interface BuildingModeSettings {
-  race: RaceType
-  trackedBuildings: TrackedBuilding[]
-}
-
-export interface TrackedBuilding {
-  buildingType: string
-  multiplier: number
-  enabled: boolean
-}
+import { RaceType} from '../../../../../src/types/game';
+import {WorkerSettings, PopulationSettings, UpgradeSettings } from '../../../../../src/types/preset'
 
 // UI 계층과 호환되는 프리셋 데이터 구조
 export interface StoredPreset {
@@ -50,6 +12,7 @@ export interface StoredPreset {
   selectedRace: RaceType
   workerSettings?: WorkerSettings      // 일꾼 상세 설정 (선택적)
   populationSettings?: PopulationSettings // 인구수 상세 설정 (선택적)
+  upgradeSettings?: UpgradeSettings   // 업그레이드 상세 설정 (선택적)
   createdAt: Date
   updatedAt: Date
 }
@@ -69,6 +32,7 @@ export interface CreatePresetRequest {
   selectedRace: RaceType
   workerSettings?: WorkerSettings
   populationSettings?: PopulationSettings
+  upgradeSettings?: UpgradeSettings
 }
 
 export interface UpdatePresetRequest {
@@ -79,6 +43,7 @@ export interface UpdatePresetRequest {
   selectedRace?: RaceType
   workerSettings?: WorkerSettings
   populationSettings?: PopulationSettings
+  upgradeSettings?: UpgradeSettings
 }
 
 /**

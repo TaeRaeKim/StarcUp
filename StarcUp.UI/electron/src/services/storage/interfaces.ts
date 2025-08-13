@@ -1,5 +1,5 @@
 import { IUserData, IStoredPresetConfig, IGameHistory } from '../types'
-import { RaceType } from '../../../../src/types/enums'
+import { RaceType } from '../../../../src/types/game'
 
 export interface IDataStorageService {
   // 사용자 데이터 관리

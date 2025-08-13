@@ -1,6 +1,6 @@
-import { StoredPreset, WorkerSettings } from '../storage/repositories/IPresetRepository'
-import { RaceType } from '../../../../src/types/enums'
-import { EventEmitter } from 'events'
+import { StoredPreset } from '../storage/repositories/IPresetRepository'
+import { RaceType} from '../../../../src/types/game'
+import {WorkerSettings, PopulationSettings, UpgradeSettings } from '../../../../src/types/preset'
 
 /**
  * 프리셋 상태 관리자 인터페이스
@@ -51,38 +51,12 @@ export interface IPreset {
   selectedRace: RaceType
   workerSettings?: WorkerSettings
   populationSettings?: PopulationSettings
+  upgradeSettings?: UpgradeSettings
   createdAt: Date
   updatedAt: Date
 }
 
-// 인구수 설정 관련 타입들 (presetUtils.ts와 동기화)
-export interface PopulationSettings {
-  mode: 'fixed' | 'building'
-  fixedSettings?: FixedModeSettings
-  buildingSettings?: BuildingModeSettings
-}
-
-export interface FixedModeSettings {
-  thresholdValue: number
-  timeLimit?: TimeLimitSettings
-}
-
-export interface TimeLimitSettings {
-  enabled: boolean
-  minutes: number
-  seconds: number
-}
-
-export interface BuildingModeSettings {
-  race: RaceType
-  trackedBuildings: TrackedBuilding[]
-}
-
-export interface TrackedBuilding {
-  buildingType: string
-  multiplier: number
-  enabled: boolean
-}
+// PopulationSettings 관련 타입들은 이제 중앙 타입 정의에서 import
 
 /**
  * 전체 프리셋 상태를 나타내는 인터페이스
@@ -135,6 +109,7 @@ export interface IBatchPresetUpdate {
   selectedRace?: RaceType
   workerSettings?: WorkerSettings
   populationSettings?: PopulationSettings
+  upgradeSettings?: UpgradeSettings
 }
 
 

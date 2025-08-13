@@ -11,8 +11,7 @@ import { ModeSelectionLogin } from "@/main-page/components/ModeSelectionLogin";
 import { 
   calculateWorkerSettingsMask, 
   type PresetInitMessage, 
-  type WorkerPreset,
-  type WorkerSettings as PresetUtilsWorkerSettings
+  type WorkerPreset
 } from "../utils/presetUtils";
 import { 
   getProStatus, 
@@ -22,7 +21,8 @@ import {
   sanitizePopulationSettingsForNonPro,
   checkAndHandleSubscriptionChange
 } from "../utils/proUtils";
-import { RaceType, RACE_NAMES } from "../types/enums";
+import { RaceType } from "../types/game";
+import { UpgradeSettings, WorkerSettings } from "../types/preset";
 
 // 게임 상태 타입 정의
 type GameStatus = 'playing' | 'waiting' | 'error';
@@ -45,15 +45,7 @@ const VIEW_WINDOW_SIZES = {
   'development-progress': { width: 740, height: 840 }  // 700x800 + 40px 여유
 } as const;
 
-// 일꾼 설정 인터페이스 (완전한 데이터 보장)
-interface WorkerSettings {
-  workerCountDisplay: boolean;
-  includeProducingWorkers: boolean;
-  idleWorkerDisplay: boolean;
-  workerProductionDetection: boolean;
-  workerDeathDetection: boolean;
-  gasWorkerCheck: boolean;
-}
+// WorkerSettings는 중앙 타입 정의에서 import
 
 // 프리셋 타입 정의 (완전한 데이터 보장)
 interface Preset {
@@ -63,7 +55,25 @@ interface Preset {
   featureStates: boolean[];
   selectedRace: RaceType;
   workerSettings: WorkerSettings;
+  upgradeSettings?: UpgradeSettings;
 }
+
+// 기본 업그레이드 설정 생성 함수
+const getDefaultUpgradeSettings = (): UpgradeSettings => ({
+  categories: [{
+    id: 'default_category',
+    name: '기본 카테고리',
+    upgrades: [],
+    techs: []
+  }],
+  showRemainingTime: true,
+  showProgressPercentage: true,
+  showProgressBar: true,
+  upgradeCompletionAlert: true,
+  upgradeStateTracking: true
+});
+
+// 참고: upgradeSettings 타입이 IPreset과 StoredPreset에 추가되어 더 이상 기본값 주입이 불필요함
 
 export default function App() {
   // 애플리케이션 단계 관리 (로그인 → 로딩 → 메인)
@@ -110,6 +120,7 @@ export default function App() {
   // 임시 저장 상태 (상세 설정에서 저장하기 전 임시 데이터)
   const [tempWorkerSettings, setTempWorkerSettings] = useState<WorkerSettings | null>(null);
   const [tempPopulationSettings, setTempPopulationSettings] = useState<any | null>(null);
+  const [tempUpgradeSettings, setTempUpgradeSettings] = useState<UpgradeSettings | null>(null);
   
   // 기능별 변경사항 상태 (0: 일꾼, 1: 인구수, 2: 유닛, 3: 업그레이드, 4: 빌드오더)
   const [detailChanges, setDetailChanges] = useState<Record<number, boolean>>({});
@@ -242,9 +253,26 @@ export default function App() {
 
         // presetAPI를 통한 현재 상태 조회
         const stateResult = await window.presetAPI.getState();
+        console.log('📦 presetAPI 전체 응답:', stateResult);
         
         if (stateResult?.success && stateResult.data) {
           const state = stateResult.data;
+          
+          // 현재 프리셋의 세부 정보 로그
+          if (state.currentPreset) {
+            const preset = state.currentPreset;
+            console.log('📦 현재 프리셋 세부 정보:', {
+              name: preset.name,
+              id: preset.id,
+              keys: Object.keys(preset),
+              hasWorkerSettings: !!preset.workerSettings,
+              hasPopulationSettings: !!preset.populationSettings,
+              hasUpgradeSettings: !!preset.upgradeSettings,
+              workerSettings: preset.workerSettings,
+              populationSettings: preset.populationSettings,
+              upgradeSettings: preset.upgradeSettings
+            });
+          }
           
           // Pro 상태에 따라 프리셋 데이터 정리
           let sanitizedCurrentPreset = state.currentPreset;
@@ -277,7 +305,9 @@ export default function App() {
             count: state.allPresets?.length || 0,
             selected: state.selectedPresetIndex,
             currentName: state.currentPreset?.name,
-            proMode: isPro
+            proMode: isPro,
+            hasUpgradeSettings: !!state.currentPreset?.upgradeSettings,
+            upgradeSettings: state.currentPreset?.upgradeSettings
           });
           
           // 프리셋 초기화 완료 후 메인 단계로 진행
@@ -342,7 +372,10 @@ export default function App() {
                 selectedIndex: event.state.selectedPresetIndex || 0
               });
               
-              console.log('✅ 프리셋 상태 동기화 완료:', event.type);
+              console.log('✅ 프리셋 상태 동기화 완료:', event.type, {
+                hasUpgradeSettings: !!event.state.currentPreset?.upgradeSettings,
+                upgradeSettings: event.state.currentPreset?.upgradeSettings
+              });
             } else {
               console.warn('⚠️ 이벤트에 상태 정보가 없습니다:', event);
             }
@@ -489,6 +522,11 @@ export default function App() {
         batchUpdate.populationSettings = tempPopulationSettings;
       }
 
+      // 임시 저장된 업그레이드 설정이 있으면 포함
+      if (tempUpgradeSettings) {
+        batchUpdate.upgradeSettings = tempUpgradeSettings;
+      }
+
       // 모든 변경사항을 한 번에 배치 업데이트
       await window.presetAPI.updateBatch(batchUpdate);
       
@@ -499,6 +537,7 @@ export default function App() {
       setEditingPresetData(null);
       setTempWorkerSettings(null);
       setTempPopulationSettings(null);
+      setTempUpgradeSettings(null);
       setDetailChanges({});
       setPopulationSettingsBackup(new Map());
       setOriginalRace(null);
@@ -543,6 +582,25 @@ export default function App() {
     }
   };
 
+  // 업그레이드 설정 저장 핸들러 (presetAPI 전용)
+  const handleSaveUpgradeSettings = async (presetId: string, upgradeSettings: UpgradeSettings) => {
+    try {
+      console.log('⚡ 업그레이드 설정 저장:', presetId, upgradeSettings);
+      
+      if (!window.presetAPI?.updateSettings) {
+        console.error('❌ presetAPI.updateSettings를 사용할 수 없습니다.');
+        return;
+      }
+
+      console.log('💾 presetAPI에 전송할 업그레이드 설정:', upgradeSettings);
+      await window.presetAPI.updateSettings('upgrade', upgradeSettings);
+      console.log('✅ presetAPI 업그레이드 설정 업데이트 완료');
+      // 나머지는 이벤트로 자동 처리됨
+    } catch (error) {
+      console.error('❌ 업그레이드 설정 저장 중 오류:', error);
+    }
+  };
+
   // 뷰 전환 핸들러
   const handleOpenPresetSettings = () => {
     // 프리셋 설정을 열 때 편집 중인 데이터가 없으면 현재 프리셋으로 초기화
@@ -573,6 +631,7 @@ export default function App() {
     // 임시 저장 데이터도 초기화 (원래 설정으로 복원)
     setTempWorkerSettings(null);
     setTempPopulationSettings(null); // 원래 프리셋 설정을 사용
+    setTempUpgradeSettings(null);
     setDetailChanges({});
     setPopulationSettingsBackup(new Map());
     setOriginalRace(null);
@@ -584,6 +643,7 @@ export default function App() {
     setEditingPresetData(null);
     setTempWorkerSettings(null);
     setTempPopulationSettings(null);
+    setTempUpgradeSettings(null);
     setDetailChanges({});
     setPopulationSettingsBackup(new Map());
     setOriginalRace(null);
@@ -726,6 +786,12 @@ export default function App() {
     console.log('💾 인구수 설정 임시 저장:', settings);
     setTempPopulationSettings(settings);
     setDetailChanges(prev => ({ ...prev, 1: true })); // 인구수는 인덱스 1
+  };
+
+  const handleTempSaveUpgradeSettings = (settings: UpgradeSettings) => {
+    console.log('💾 업그레이드 설정 임시 저장:', settings);
+    setTempUpgradeSettings(settings);
+    setDetailChanges(prev => ({ ...prev, 3: true })); // 업그레이드는 인덱스 3
   };
   
   // 설정 페이지 전환 핸들러들
@@ -1116,6 +1182,10 @@ export default function App() {
             isOpen={true}
             onClose={handleBackToPresetSettings}
             initialRace={editingPresetData?.selectedRace ?? currentPreset.selectedRace}
+            currentPreset={currentPreset}
+            onSaveUpgradeSettings={handleSaveUpgradeSettings}
+            tempUpgradeSettings={tempUpgradeSettings}
+            onTempSave={handleTempSaveUpgradeSettings}
           />
         );
 

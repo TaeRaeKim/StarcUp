@@ -1,14 +1,4 @@
-import { RaceType, UnitType } from '../types/enums';
-
-// 일꾼 설정 인터페이스
-export interface WorkerSettings {
-  workerCountDisplay: boolean;          // Default (1): 일꾼 수 출력
-  includeProducingWorkers: boolean;     // IncludeProduction (2): 생산 중인 일꾼 수 포함
-  idleWorkerDisplay: boolean;           // Idle (4): 유휴 일꾼 수 출력
-  workerProductionDetection: boolean;   // DetectProduction (8): 일꾼 생산 감지
-  workerDeathDetection: boolean;        // DetectDeath (16): 일꾼 사망 감지
-  gasWorkerCheck: boolean;              // CheckGas (32): 가스 일꾼 체크
-}
+import { WorkerSettings, PopulationSettings } from '../types/preset';
 
 // WorkerPresetEnum과 동일한 값들을 사용 (Core와 동기화)
 export const WorkerPresetFlags = {
@@ -33,34 +23,8 @@ export interface PopulationPreset {
   settings?: PopulationSettings;  // 전체 설정 객체 (주로 사용)
 }
 
-// 인구수 설정 인터페이스 (Core PopulationSettings와 동기화)
-export interface PopulationSettings {
-  mode: 'fixed' | 'building';    // PopulationMode.Fixed or PopulationMode.Building
-  fixedSettings?: FixedModeSettings;
-  buildingSettings?: BuildingModeSettings;
-}
-
-export interface FixedModeSettings {
-  thresholdValue: number;         // 1-50 범위
-  timeLimit?: TimeLimitSettings;
-}
-
-export interface TimeLimitSettings {
-  enabled: boolean;
-  minutes: number;                // 0-59
-  seconds: number;                // 0-59
-}
-
-export interface BuildingModeSettings {
-  race: RaceType;  // RaceType enum 사용
-  trackedBuildings: TrackedBuilding[];
-}
-
-export interface TrackedBuilding {
-  buildingType: UnitType;         // UnitType enum 사용
-  multiplier: number;             // 1-10 범위
-  enabled: boolean;
-}
+// PopulationSettings 관련 인터페이스들은 중앙 타입 정의에서 import
+// 참고: TrackedBuilding의 buildingType은 UnitType을 사용하지만 중앙 정의에서는 string 사용
 
 export interface UnitPreset {
   enabled: boolean;

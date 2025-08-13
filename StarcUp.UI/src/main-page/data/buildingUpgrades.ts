@@ -1,5 +1,5 @@
-import { RaceType, UnitType, UpgradeType, TechType } from '../../types/index';
-import { BuildingInfo } from '../../types/UpgradeSettings';
+import { RaceType, UpgradeType, TechType } from '../../types/game';
+import { BuildingInfo } from '../../types/preset';
 import { BUILDING_ICONS } from '../../utils/buildingIcons';
 
 // 프로토스 건물별 업그레이드/테크 매핑
