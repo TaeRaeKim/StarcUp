@@ -172,7 +172,16 @@ namespace StarcUp.Common.Logging
                 var fileName = $"StarcUp_{fileDate:yyyy-MM-dd}.log";
                 var filePath = Path.Combine(_logDirectory, fileName);
                 
-                _currentWriter = new StreamWriter(filePath, append: true, Encoding.UTF8)
+                // FileShare.ReadWrite를 사용하여 다른 프로세스가 파일을 읽거나 쓸 수 있도록 허용
+                var fileStream = new FileStream(
+                    filePath,
+                    FileMode.Append,
+                    FileAccess.Write,
+                    FileShare.ReadWrite,  // 다른 프로세스의 읽기/쓰기 허용
+                    bufferSize: 4096,
+                    useAsync: false);
+                
+                _currentWriter = new StreamWriter(fileStream, Encoding.UTF8)
                 {
                     AutoFlush = false
                 };

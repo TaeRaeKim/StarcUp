@@ -13,7 +13,7 @@ export class CoreProcessService implements ICoreProcessService {
    */
   async startCoreProcess(isDevelopment: boolean = false): Promise<void> {
     this.isDevelopment = isDevelopment
-    
+
     console.log(`🚀 StarcUp.Core 시작 (${isDevelopment ? '개발' : '프로덕션'} 모드)`)
 
     try {
@@ -21,7 +21,7 @@ export class CoreProcessService implements ICoreProcessService {
       if (!this.isDevelopment) {
         await this.startCoreProcessInternal()
       }
-      
+
       console.log('✅ StarcUp.Core 시작 완료')
     } catch (error) {
       console.error('❌ StarcUp.Core 시작 실패:', error)
@@ -34,7 +34,7 @@ export class CoreProcessService implements ICoreProcessService {
    */
   async stopCoreProcess(): Promise<void> {
     console.log('🔌 StarcUp.Core 중지 중...')
-    
+
     // 프로세스 종료 (프로덕션 모드에서만)
     if (!this.isDevelopment && this.coreProcess) {
       this.coreProcess.kill('SIGTERM')
@@ -73,7 +73,7 @@ export class CoreProcessService implements ICoreProcessService {
     if (fs.existsSync(coreExePath)) {
       // EXE 파일이 있으면 직접 실행
       console.log(`📂 StarcUp.Core.exe 직접 실행: ${coreExePath}`)
-      
+
       this.coreProcess = spawn(coreExePath, [], {
         detached: false,
         windowsHide: true,
@@ -82,14 +82,14 @@ export class CoreProcessService implements ICoreProcessService {
     } else if (fs.existsSync(coreDllPath)) {
       // DLL 파일만 있으면 dotnet 경로를 찾아서 실행
       console.log(`📂 StarcUp.Core.dll 발견, dotnet으로 실행: ${coreDllPath}`)
-      
+
       const dotnetPath = this.findDotnetExecutable()
       if (!dotnetPath) {
         throw new Error('dotnet 실행 파일을 찾을 수 없습니다. .NET Runtime이 설치되어 있는지 확인하세요.')
       }
-      
+
       console.log(`📂 dotnet 경로: ${dotnetPath}`)
-      
+
       this.coreProcess = spawn(dotnetPath, [coreDllPath], {
         detached: false,
         windowsHide: true,
@@ -98,6 +98,15 @@ export class CoreProcessService implements ICoreProcessService {
     } else {
       throw new Error(`StarcUp.Core 실행 파일을 찾을 수 없습니다.\nEXE: ${coreExePath}\nDLL: ${coreDllPath}`)
     }
+    // stdout 로그 출력
+    this.coreProcess.stdout?.on('data', (data) => {
+      console.log(`[StarcUp.Core] ${data.toString().trim()}`)
+    })
+
+    // stderr 로그 출력
+    this.coreProcess.stderr?.on('data', (data) => {
+      console.error(`[StarcUp.Core Error] ${data.toString().trim()}`)
+    })
 
     // 프로세스 이벤트 핸들러
     this.coreProcess.on('exit', (code, signal) => {
@@ -112,7 +121,7 @@ export class CoreProcessService implements ICoreProcessService {
 
     // 프로세스 시작 대기
     await new Promise(resolve => setTimeout(resolve, 1000))
-    
+
     if (!this.coreProcess || this.coreProcess.killed) {
       throw new Error('StarcUp.Core 프로세스 시작 실패')
     }
