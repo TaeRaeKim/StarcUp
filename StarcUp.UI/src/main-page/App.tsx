@@ -362,7 +362,7 @@ export default function App() {
       console.log('🧹 presetAPI 이벤트 리스너 정리');
       unsubscribe();
     };
-  }, []);
+  }, [isPro]); // isPro 값이 변경되면 이벤트 리스너 재등록
 
   // 자동 overlay 관리는 이제 메인 프로세스에서 처리됩니다
 
