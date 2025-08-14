@@ -459,10 +459,9 @@ export class ServiceContainer implements IServiceContainer {
         upgradeCompletionAlert: false,
         categories: [
           {
-            id: 'default-protoss',
-            name: '프로토스 기본',
-            upgrades: [0, 1, 2], // 예시 업그레이드 타입들
-            techs: [0, 1, 2]     // 예시 테크 타입들
+            id: 'default-category',
+            name: '기본 카테고리',
+            items: []
           }
         ]
       }
@@ -471,11 +470,13 @@ export class ServiceContainer implements IServiceContainer {
     const converted = {
       upgradeStateTracking: upgradeSettings.upgradeStateTracking ?? true,
       upgradeCompletionAlert: upgradeSettings.upgradeCompletionAlert ?? false,
+      showRemainingTime: upgradeSettings.showRemainingTime ?? true,
+      showProgressPercentage: upgradeSettings.showProgressPercentage ?? true,
+      showProgressBar: upgradeSettings.showProgressBar ?? true,
       categories: upgradeSettings.categories?.map((category: any) => ({
         id: category.id,
         name: category.name,
-        upgrades: category.upgrades || [],
-        techs: category.techs || []
+        items: category.items || []
       })) || []
     }
 
@@ -485,7 +486,9 @@ export class ServiceContainer implements IServiceContainer {
       원본_alert: upgradeSettings.upgradeCompletionAlert,
       변환된_alert: converted.upgradeCompletionAlert,
       원본_categories: upgradeSettings.categories?.length || 0,
-      변환된_categories: converted.categories.length
+      변환된_categories: converted.categories.length,
+      원본_items_total: upgradeSettings.categories?.reduce((sum: number, cat: any) => sum + (cat.items?.length || 0), 0) || 0,
+      변환된_items_total: converted.categories.reduce((sum: number, cat: any) => sum + (cat.items?.length || 0), 0)
     })
 
     return converted

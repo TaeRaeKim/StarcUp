@@ -129,53 +129,61 @@ namespace StarcUp.Business.Profile
                 {
                     Id = categorySettings.Id,
                     Name = categorySettings.Name,
-                    Upgrades = new List<UpgradeData>(),
-                    Techs = new List<TechData>()
+                    Items = new List<UpgradeItemData>()
                 };
 
-                // 업그레이드 데이터 수집
-                foreach (var upgradeType in categorySettings.Upgrades)
+                // 업그레이드/테크 데이터 수집 (새로운 Items 구조)
+                foreach (var item in categorySettings.Items)
                 {
-                    try
+                    if (item.Type == UpgradeItemType.Upgrade)
                     {
-                        var level = _upgradeMemoryAdapter.GetUpgradeLevel(upgradeType, (byte)LocalPlayerId);
-                        var (isProgressing, remainingFrames, totalFrames) = _upgradeMemoryAdapter.GetProgressInfo((int)upgradeType, buildings);
-
-                        categoryData.Upgrades.Add(new UpgradeData
+                        var upgradeType = (UpgradeType)item.Value;
+                        try
                         {
-                            Type = upgradeType,
-                            Level = level,
-                            RemainingFrames = remainingFrames,
-                            TotalFrames = totalFrames,
-                            IsProgressing = isProgressing
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        LoggerHelper.Warning($" 업그레이드 데이터 수집 실패 - {upgradeType}: {ex.Message}");
-                    }
-                }
+                            var level = _upgradeMemoryAdapter.GetUpgradeLevel(upgradeType, (byte)LocalPlayerId);
+                            var (isProgressing, remainingFrames, totalFrames) = _upgradeMemoryAdapter.GetProgressInfo((int)upgradeType, buildings);
 
-                // 테크 데이터 수집
-                foreach (var techType in categorySettings.Techs)
-                {
-                    try
-                    {
-                        var isCompleted = _upgradeMemoryAdapter.IsTechCompleted(techType, (byte)LocalPlayerId);
-                        var (isProgressing, remainingFrames, totalFrames) = _upgradeMemoryAdapter.GetProgressInfo((int)techType, buildings);
-
-                        categoryData.Techs.Add(new TechData
+                            var progress = totalFrames > 0 ? (double)(totalFrames - remainingFrames) / totalFrames : (level > 0 ? 1.0 : 0.0);
+                            categoryData.Items.Add(new UpgradeItemData
+                            {
+                                Item = item,
+                                Level = level,
+                                IsCompleted = level > 0,
+                                RemainingFrames = remainingFrames,
+                                TotalFrames = totalFrames,
+                                IsProgressing = isProgressing,
+                                Progress = progress
+                            });
+                        }
+                        catch (Exception ex)
                         {
-                            Type = techType,
-                            IsCompleted = isCompleted,
-                            RemainingFrames = remainingFrames,
-                            TotalFrames = totalFrames,
-                            IsProgressing = isProgressing
-                        });
+                            LoggerHelper.Warning($" 업그레이드 데이터 수집 실패 - {upgradeType}: {ex.Message}");
+                        }
                     }
-                    catch (Exception ex)
+                    else if (item.Type == UpgradeItemType.Tech)
                     {
-                        LoggerHelper.Warning($" 테크 데이터 수집 실패 - {techType}: {ex.Message}");
+                        var techType = (TechType)item.Value;
+                        try
+                        {
+                            var isCompleted = _upgradeMemoryAdapter.IsTechCompleted(techType, (byte)LocalPlayerId);
+                            var (isProgressing, remainingFrames, totalFrames) = _upgradeMemoryAdapter.GetProgressInfo((int)techType, buildings);
+
+                            var progress = totalFrames > 0 ? (double)(totalFrames - remainingFrames) / totalFrames : (isCompleted ? 1.0 : 0.0);
+                            categoryData.Items.Add(new UpgradeItemData
+                            {
+                                Item = item,
+                                Level = 0, // 테크는 레벨이 없음
+                                IsCompleted = isCompleted,
+                                RemainingFrames = remainingFrames,
+                                TotalFrames = totalFrames,
+                                IsProgressing = isProgressing,
+                                Progress = progress
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            LoggerHelper.Warning($" 테크 데이터 수집 실패 - {techType}: {ex.Message}");
+                        }
                     }
                 }
 
@@ -202,68 +210,43 @@ namespace StarcUp.Business.Profile
                     var previousCategory = _previousStats.Categories.FirstOrDefault(c => c.Id == currentCategory.Id);
                     if (previousCategory == null) continue;
 
-                    // 업그레이드 변경사항 확인
-                    foreach (var currentUpgrade in currentCategory.Upgrades)
+                    // 아이템 변경사항 확인 (새로운 Items 구조)
+                    foreach (var currentItem in currentCategory.Items)
                     {
-                        var previousUpgrade = previousCategory.Upgrades.FirstOrDefault(u => u.Type == currentUpgrade.Type);
-                        if (previousUpgrade == null) continue;
+                        var previousItem = previousCategory.Items.FirstOrDefault(i => 
+                            i.Item.Type == currentItem.Item.Type && i.Item.Value == currentItem.Item.Value);
+                        if (previousItem == null) continue;
 
-                        if (currentUpgrade.Level != previousUpgrade.Level)
+                        if (currentItem.Item.Type == UpgradeItemType.Upgrade)
                         {
-                            // 상태 변경 이벤트 (주석처리 - UpgradeCompleted만 사용)
-                            // StateChanged?.Invoke(this, new UpgradeStateChangedEventArgs
-                            // {
-                            //     UpgradeType = currentUpgrade.Type,
-                            //     OldLevel = previousUpgrade.Level,
-                            //     NewLevel = currentUpgrade.Level,
-                            //     WasCompleted = previousUpgrade.IsCompleted,
-                            //     IsCompleted = currentUpgrade.IsCompleted,
-                            //     PlayerIndex = (byte)LocalPlayerId
-                            // });
-
-                            // 완료 알림 (레벨이 증가한 경우) - 항상 전송
-                            if (currentUpgrade.Level > previousUpgrade.Level)
+                            // 업그레이드 변경사항 확인
+                            if (currentItem.Level != previousItem.Level)
                             {
-                                UpgradeCompleted?.Invoke(this, new UpgradeCompletedEventArgs
+                                // 완료 알림 (레벨이 증가한 경우)
+                                if (currentItem.Level > previousItem.Level)
                                 {
-                                    UpgradeType = currentUpgrade.Type,
-                                    Name = currentUpgrade.Type.ToString(),
-                                    Level = currentUpgrade.Level,
-                                    PlayerIndex = (byte)LocalPlayerId
-                                });
+                                    UpgradeCompleted?.Invoke(this, new UpgradeCompletedEventArgs
+                                    {
+                                        Item = currentItem.Item,
+                                        Level = (byte)currentItem.Level
+                                    });
+                                }
                             }
                         }
-                    }
-
-                    // 테크 변경사항 확인
-                    foreach (var currentTech in currentCategory.Techs)
-                    {
-                        var previousTech = previousCategory.Techs.FirstOrDefault(t => t.Type == currentTech.Type);
-                        if (previousTech == null) continue;
-
-                        if (currentTech.IsCompleted != previousTech.IsCompleted)
+                        else if (currentItem.Item.Type == UpgradeItemType.Tech)
                         {
-                            // 상태 변경 이벤트 (주석처리 - UpgradeCompleted만 사용)
-                            // StateChanged?.Invoke(this, new UpgradeStateChangedEventArgs
-                            // {
-                            //     TechType = currentTech.Type,
-                            //     OldLevel = (byte)(previousTech.IsCompleted ? 1 : 0),
-                            //     NewLevel = (byte)(currentTech.IsCompleted ? 1 : 0),
-                            //     WasCompleted = previousTech.IsCompleted,
-                            //     IsCompleted = currentTech.IsCompleted,
-                            //     PlayerIndex = (byte)LocalPlayerId
-                            // });
-
-                            // 완료 알림 (새로 완료된 경우) - 항상 전송
-                            if (currentTech.IsCompleted && !previousTech.IsCompleted)
+                            // 테크 변경사항 확인
+                            if (currentItem.IsCompleted != previousItem.IsCompleted)
                             {
-                                UpgradeCompleted?.Invoke(this, new UpgradeCompletedEventArgs
+                                // 완료 알림 (새로 완료된 경우)
+                                if (currentItem.IsCompleted && !previousItem.IsCompleted)
                                 {
-                                    TechType = currentTech.Type,
-                                    Name = currentTech.Type.ToString(),
-                                    Level = 1,
-                                    PlayerIndex = (byte)LocalPlayerId
-                                });
+                                    UpgradeCompleted?.Invoke(this, new UpgradeCompletedEventArgs
+                                    {
+                                        Item = currentItem.Item,
+                                        Level = 1
+                                    });
+                                }
                             }
                         }
                     }
@@ -294,26 +277,13 @@ namespace StarcUp.Business.Profile
 
                 foreach (var category in _currentStats.Categories)
                 {
-                    // 진행 중인 업그레이드 확인
-                    foreach (var upgrade in category.Upgrades)
+                    // 진행 중인 아이템 확인 (새로운 Items 구조)
+                    foreach (var item in category.Items)
                     {
-                        if (upgrade.IsProgressing)
+                        if (item.IsProgressing)
                         {
                             hasProgressingItems = true;
                             break;
-                        }
-                    }
-
-                    // 진행 중인 테크 확인
-                    if (!hasProgressingItems)
-                    {
-                        foreach (var tech in category.Techs)
-                        {
-                            if (tech.IsProgressing)
-                            {
-                                hasProgressingItems = true;
-                                break;
-                            }
                         }
                     }
 
@@ -355,26 +325,13 @@ namespace StarcUp.Business.Profile
 
                 foreach (var category in _currentStats.Categories)
                 {
-                    // 완료된 업그레이드 확인
-                    foreach (var upgrade in category.Upgrades)
+                    // 완료된 아이템 확인 (새로운 Items 구조)
+                    foreach (var item in category.Items)
                     {
-                        if (upgrade.Level > 0)
+                        if (item.IsCompleted)
                         {
                             hasCompletedItems = true;
                             break;
-                        }
-                    }
-
-                    // 완료된 테크 확인
-                    if (!hasCompletedItems)
-                    {
-                        foreach (var tech in category.Techs)
-                        {
-                            if (tech.IsCompleted)
-                            {
-                                hasCompletedItems = true;
-                                break;
-                            }
                         }
                     }
 
@@ -397,64 +354,6 @@ namespace StarcUp.Business.Profile
             {
                 LoggerHelper.Error($" 초기 상태 전송 실패: {ex.Message}");
             }
-        }
-
-        /// <summary>
-        /// 게임 중간 실행 시 완료된 업그레이드/테크 감지를 위한 초기 빈 통계 생성
-        /// </summary>
-        private UpgradeTechStatistics CreateInitialEmptyStats(byte playerIndex)
-        {
-            var emptyStats = new UpgradeTechStatistics
-            {
-                PlayerIndex = playerIndex,
-                Timestamp = DateTime.Now,
-                Categories = new List<UpgradeCategoryData>()
-            };
-
-            // 설정이 있는 경우에만 빈 데이터 구조 생성
-            if (_currentSettings != null)
-            {
-                foreach (var categorySettings in _currentSettings.Categories)
-                {
-                    var emptyCategory = new UpgradeCategoryData
-                    {
-                        Id = categorySettings.Id,
-                        Name = categorySettings.Name,
-                        Upgrades = new List<UpgradeData>(),
-                        Techs = new List<TechData>()
-                    };
-
-                    // 모든 업그레이드를 레벨 0으로 초기화
-                    foreach (var upgradeType in categorySettings.Upgrades)
-                    {
-                        emptyCategory.Upgrades.Add(new UpgradeData
-                        {
-                            Type = upgradeType,
-                            Level = 0,
-                            RemainingFrames = 0,
-                            TotalFrames = 0,
-                            IsProgressing = false
-                        });
-                    }
-
-                    // 모든 테크를 미완료로 초기화
-                    foreach (var techType in categorySettings.Techs)
-                    {
-                        emptyCategory.Techs.Add(new TechData
-                        {
-                            Type = techType,
-                            IsCompleted = false,
-                            RemainingFrames = 0,
-                            TotalFrames = 0,
-                            IsProgressing = false
-                        });
-                    }
-
-                    emptyStats.Categories.Add(emptyCategory);
-                }
-            }
-
-            return emptyStats;
         }
 
         public void Dispose()

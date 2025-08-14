@@ -63,8 +63,7 @@ const getDefaultUpgradeSettings = (): UpgradeSettings => ({
   categories: [{
     id: 'default_category',
     name: '기본 카테고리',
-    upgrades: [],
-    techs: []
+    items: []
   }],
   showRemainingTime: true,
   showProgressPercentage: true,
@@ -829,8 +828,7 @@ export default function App() {
         categories: [{
           id: 'default_category',
           name: '기본 카테고리',
-          upgrades: [],
-          techs: []
+          items: []
         }],
         showRemainingTime: true,
         showProgressPercentage: true,

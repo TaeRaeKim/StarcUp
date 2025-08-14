@@ -1,18 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Zap, Plus, X, Clock, BarChart, Target, Info, Search, Shield, Home, Building2, Bell } from 'lucide-react';
 import { RaceType, RACE_NAMES, UpgradeType, TechType } from '../../types/game';
-import { UpgradeSettings, UpgradeCategory } from '../../types/preset';
-import { getBuildingsByRace, getUpgradesByBuilding } from '../data/buildingUpgrades';
+import { UpgradeSettings, UpgradeCategory, UpgradeItem, UpgradeItemType } from '../../types/preset';
+import { getBuildingsByRace, getUpgradeItemsByBuilding } from '../data/buildingUpgrades';
 import { 
-  getUpgradeIconPath, 
-  getTechIconPath, 
-  getBuildingIconPath, 
-  getUpgradeName, 
-  getTechName,
-  UpgradeItemInfo,
-  createUpgradeItemInfo,
-  createTechItemInfo 
+  getBuildingIconPath,
+  createUIUpgradeItem,
+  createUITechItem 
 } from '../../utils/upgradeImageUtils';
+import { UIUpgradeItem } from '../../types/preset';
 import { getIconStyle } from '../../utils/iconUtils';
 
 interface UpgradeDetailSettingsProps {
@@ -71,8 +67,7 @@ export function UpgradeDetailSettings({
     categories: [{
       id: 'default_category',
       name: '기본 카테고리',
-      upgrades: [],
-      techs: []
+      items: []
     }],
     showRemainingTime: true,
     showProgressPercentage: true,
@@ -151,8 +146,7 @@ export function UpgradeDetailSettings({
       const newCategory: UpgradeCategory = {
         id: Date.now().toString(),
         name: newCategoryName.trim(),
-        upgrades: [],
-        techs: []
+        items: []
       };
       setSettings(prev => ({
         ...prev,
@@ -200,27 +194,21 @@ export function UpgradeDetailSettings({
     setShowUpgradeSelector(true);
   };
 
-  const handleSelectUpgradeItem = (item: UpgradeItemInfo) => {
+  const handleSelectUpgradeItem = (uiItem: UIUpgradeItem) => {
     if (selectedCategoryId) {
       setSettings(prev => ({
         ...prev,
         categories: prev.categories.map(cat => {
           if (cat.id === selectedCategoryId) {
-            if (item.type === 'upgrade') {
-              const upgradeId = item.id as UpgradeType;
+            // 이미 존재하는지 확인
+            const exists = cat.items.some(existingItem => 
+              existingItem.type === uiItem.item.type && existingItem.value === uiItem.item.value
+            );
+            
+            if (!exists) {
               return {
                 ...cat,
-                upgrades: cat.upgrades.includes(upgradeId) 
-                  ? cat.upgrades 
-                  : [...cat.upgrades, upgradeId]
-              };
-            } else {
-              const techId = item.id as TechType;
-              return {
-                ...cat,
-                techs: cat.techs.includes(techId) 
-                  ? cat.techs 
-                  : [...cat.techs, techId]
+                items: [...cat.items, uiItem.item]
               };
             }
           }
@@ -235,24 +223,17 @@ export function UpgradeDetailSettings({
     }
   };
 
-  const handleRemoveUpgradeFromCategory = (categoryId: string, item: UpgradeItemInfo) => {
+  const handleRemoveUpgradeFromCategory = (categoryId: string, uiItem: UIUpgradeItem) => {
     setSettings(prev => ({
       ...prev,
       categories: prev.categories.map(cat => {
         if (cat.id === categoryId) {
-          if (item.type === 'upgrade') {
-            const upgradeId = item.id as UpgradeType;
-            return {
-              ...cat,
-              upgrades: cat.upgrades.filter(u => u !== upgradeId)
-            };
-          } else {
-            const techId = item.id as TechType;
-            return {
-              ...cat,
-              techs: cat.techs.filter(t => t !== techId)
-            };
-          }
+          return {
+            ...cat,
+            items: cat.items.filter(existingItem => 
+              !(existingItem.type === uiItem.item.type && existingItem.value === uiItem.item.value)
+            )
+          };
         }
         return cat;
       })
@@ -260,38 +241,37 @@ export function UpgradeDetailSettings({
   };
 
   // 현재 선택된 건물의 업그레이드/테크 가져오기
-  const getAvailableUpgradeItems = (): UpgradeItemInfo[] => {
+  const getAvailableUpgradeItems = (): UIUpgradeItem[] => {
     if (!selectedBuildingId) return [];
     
-    const { upgrades, techs } = getUpgradesByBuilding(selectedRace, selectedBuildingId);
-    const items: UpgradeItemInfo[] = [];
+    const upgradeItems = getUpgradeItemsByBuilding(selectedRace, selectedBuildingId);
+    const uiItems: UIUpgradeItem[] = [];
     
-    // 업그레이드 추가
-    upgrades.forEach(upgrade => {
-      items.push(createUpgradeItemInfo(upgrade));
-    });
-    
-    // 테크 추가
-    techs.forEach(tech => {
-      items.push(createTechItemInfo(tech));
+    // UpgradeItem을 UIUpgradeItem으로 변환
+    upgradeItems.forEach(item => {
+      if (item.type === UpgradeItemType.Upgrade) {
+        uiItems.push(createUIUpgradeItem(item.value as UpgradeType, selectedBuildingId));
+      } else if (item.type === UpgradeItemType.Tech) {
+        uiItems.push(createUITechItem(item.value as TechType, selectedBuildingId));
+      }
     });
     
     // 검색 필터링
-    return items.filter(item =>
+    return uiItems.filter(item =>
       item.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
 
   // 카테고리의 모든 아이템 가져오기
-  const getCategoryItems = (category: UpgradeCategory): UpgradeItemInfo[] => {
-    const items: UpgradeItemInfo[] = [];
+  const getCategoryItems = (category: UpgradeCategory): UIUpgradeItem[] => {
+    const items: UIUpgradeItem[] = [];
     
-    category.upgrades.forEach(upgrade => {
-      items.push(createUpgradeItemInfo(upgrade));
-    });
-    
-    category.techs.forEach(tech => {
-      items.push(createTechItemInfo(tech));
+    category.items.forEach(item => {
+      if (item.type === UpgradeItemType.Upgrade) {
+        items.push(createUIUpgradeItem(item.value as UpgradeType, ''));
+      } else if (item.type === UpgradeItemType.Tech) {
+        items.push(createUITechItem(item.value as TechType, ''));
+      }
     });
     
     return items;
@@ -554,7 +534,7 @@ export function UpgradeDetailSettings({
                     {/* 업그레이드 그리드 */}
                     <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-3">
                       {categoryItems.map((item) => (
-                        <div key={`${item.type}_${item.id}`} 
+                        <div key={`${item.item.type}_${item.item.value}`} 
                           className="relative group flex flex-col items-center justify-center rounded-lg border-2 cursor-pointer transition-all duration-300 hover:border-opacity-60 p-2 min-h-[80px]"
                           style={{
                             backgroundColor: 'var(--starcraft-bg-active)',
@@ -859,7 +839,7 @@ export function UpgradeDetailSettings({
                         {building.name}
                       </span>
                       <span className="text-xs opacity-70 text-center">
-                        {building.upgrades.length + building.techs.length}개 항목
+                        {building.items.length}개 항목
                       </span>
                     </div>
                   </button>
@@ -954,7 +934,7 @@ export function UpgradeDetailSettings({
               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
                 {getAvailableUpgradeItems().map((item) => (
                   <button
-                    key={`${item.type}_${item.id}`}
+                    key={`${item.item.type}_${item.item.value}`}
                     onClick={() => handleSelectUpgradeItem(item)}
                     className="flex flex-col items-center justify-center rounded-lg border-2 transition-all duration-300 hover:border-opacity-80 hover:scale-105 p-3 min-h-[100px]"
                     style={{

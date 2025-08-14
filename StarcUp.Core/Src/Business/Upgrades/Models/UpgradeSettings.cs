@@ -29,6 +29,27 @@ namespace StarcUp.Business.Upgrades.Models
     }
     
     /// <summary>
+    /// 업그레이드 아이템 타입
+    /// </summary>
+    public enum UpgradeItemType
+    {
+        Upgrade = 0,
+        Tech = 1
+    }
+    
+    /// <summary>
+    /// 업그레이드 아이템
+    /// </summary>
+    public class UpgradeItem
+    {
+        [JsonPropertyName("type")]
+        public UpgradeItemType Type { get; set; }
+        
+        [JsonPropertyName("value")]
+        public int Value { get; set; }
+    }
+    
+    /// <summary>
     /// 업그레이드 카테고리
     /// </summary>
     public class UpgradeCategory
@@ -39,10 +60,7 @@ namespace StarcUp.Business.Upgrades.Models
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
         
-        [JsonPropertyName("upgrades")]
-        public List<UpgradeType> Upgrades { get; set; } = new();
-        
-        [JsonPropertyName("techs")]
-        public List<TechType> Techs { get; set; } = new();
+        [JsonPropertyName("items")]
+        public List<UpgradeItem> Items { get; set; } = new();
     }
 }

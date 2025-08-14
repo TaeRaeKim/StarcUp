@@ -1,4 +1,5 @@
 import { UpgradeType, TechType, UPGRADE_NAMES, TECH_NAMES } from '../types/game';
+import { UIUpgradeItem, UpgradeItem, UpgradeItemType } from '../types/preset';
 
 // Terran Upgrade Icons
 import TerranInfantryArmorIcon from '/resources/UpgradeIcon/Terran/TerranInfantryArmor.png';
@@ -240,28 +241,27 @@ export const getTechName = (techType: TechType): string => {
   return TECH_NAMES[techType] || techType.toString();
 };
 
-// 업그레이드 아이템 정보 생성
-export interface UpgradeItemInfo {
-  type: 'upgrade' | 'tech';
-  id: UpgradeType | TechType;
-  name: string;
-  iconPath: string;
-}
-
-export const createUpgradeItemInfo = (upgradeType: UpgradeType): UpgradeItemInfo => {
+// 업그레이드 아이템 정보 생성 (새로운 UIUpgradeItem 사용)
+export const createUIUpgradeItem = (upgradeType: UpgradeType, buildingId: string = ''): UIUpgradeItem => {
   return {
-    type: 'upgrade',
-    id: upgradeType,
+    item: {
+      type: UpgradeItemType.Upgrade,
+      value: upgradeType
+    },
     name: getUpgradeName(upgradeType),
-    iconPath: getUpgradeIconPath(upgradeType)
+    iconPath: getUpgradeIconPath(upgradeType),
+    buildingId
   };
 };
 
-export const createTechItemInfo = (techType: TechType): UpgradeItemInfo => {
+export const createUITechItem = (techType: TechType, buildingId: string = ''): UIUpgradeItem => {
   return {
-    type: 'tech',
-    id: techType,
+    item: {
+      type: UpgradeItemType.Tech,
+      value: techType
+    },
     name: getTechName(techType),
-    iconPath: getTechIconPath(techType)
+    iconPath: getTechIconPath(techType),
+    buildingId
   };
 };

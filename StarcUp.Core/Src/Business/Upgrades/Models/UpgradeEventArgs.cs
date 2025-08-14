@@ -19,15 +19,12 @@ namespace StarcUp.Business.Upgrades.Models
     }
     
     /// <summary>
-    /// 업그레이드 완료 이벤트 인수
+    /// 업그레이드 완료 이벤트 인수 (UpgradeItem 기반)
     /// </summary>
     public class UpgradeCompletedEventArgs : EventArgs
     {
-        public UpgradeType? UpgradeType { get; set; }
-        public TechType? TechType { get; set; }
-        public string Name { get; set; } = string.Empty;
+        public UpgradeItem Item { get; set; } = new();
         public byte Level { get; set; }
-        public byte PlayerIndex { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 

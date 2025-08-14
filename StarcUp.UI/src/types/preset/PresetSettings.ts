@@ -52,27 +52,34 @@ export interface UpgradeSettings {
   upgradeStateTracking: boolean;     // 업그레이드상태추적
 }
 
+export enum UpgradeItemType {
+  Upgrade = 0,
+  Tech = 1
+}
+
+export interface UpgradeItem {
+  type: UpgradeItemType;
+  value: UpgradeType | TechType;
+}
+
 export interface UpgradeCategory {
   id: string;
   name: string;
-  upgrades: UpgradeType[];
-  techs: TechType[];
+  items: UpgradeItem[];
 }
 
 // 업그레이드/테크 통합 아이템 (UI에서 사용)
-export interface UpgradeItem {
-  type: 'upgrade' | 'tech';
-  id: UpgradeType | TechType;
+export interface UIUpgradeItem {
+  item: UpgradeItem;
   name: string;
   iconPath: string;
   buildingId: string;
 }
 
-// 건물 정보
-export interface BuildingInfo {
+// 건물 정보 (UI에서 사용)
+export interface UIBuildingInfo {
   id: string;
   name: string;
   iconPath: string;
-  upgrades: UpgradeType[];
-  techs: TechType[];
+  items: UpgradeItem[];
 }

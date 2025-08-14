@@ -871,7 +871,7 @@ namespace StarcUp.Business.Communication
         // }
 
         /// <summary>
-        /// 업그레이드 완료 이벤트 처리
+        /// 업그레이드 완료 이벤트 처리 (UpgradeItem 기반)
         /// </summary>
         private void OnUpgradeCompleted(object sender, UpgradeCompletedEventArgs e)
         {
@@ -879,11 +879,12 @@ namespace StarcUp.Business.Communication
             {
                 var eventData = new
                 {
-                    upgradeType = e.UpgradeType.HasValue ? (int)e.UpgradeType.Value : (int?)null,
-                    techType = e.TechType.HasValue ? (int)e.TechType.Value : (int?)null,
-                    name = e.Name,
+                    item = new
+                    {
+                        type = (int)e.Item.Type,
+                        value = e.Item.Value
+                    },
                     level = e.Level,
-                    playerIndex = e.PlayerIndex,
                     timestamp = e.Timestamp
                 };
 
