@@ -17,9 +17,7 @@ namespace StarcUp.Business.Upgrades.Adapters
     {
         private readonly IMemoryService _memoryService;
         private readonly IGameOffsetRepository _offsetRepository;
-        private nint _threadStackBase;
         private bool _disposed;
-        private bool _isInitialized;
         
         // 업그레이드 총 개수
         private const int UPGRADE_COUNT_SECTION1 = 44;  // 0-43
@@ -39,41 +37,12 @@ namespace StarcUp.Business.Upgrades.Adapters
         
         public bool Initialize()
         {
-            try
-            {
-                LoggerHelper.Debug("[UpgradeMemoryAdapter] 초기화 시작...");
-                
-                // 스레드 스택 주소 가져오기 (0번째 스레드)
-                _threadStackBase = _memoryService.GetThreadStackAddress(0);
-                if (_threadStackBase == 0)
-                {
-                    LoggerHelper.Error("[UpgradeMemoryAdapter] 스레드 스택 주소를 찾을 수 없습니다.");
-                    return false;
-                }
-                
-                // 베이스 주소 조정 (["THREADSTACK0"-00000520])
-                _threadStackBase -= 0x520;
-                
-                LoggerHelper.Debug($"[UpgradeMemoryAdapter] THREADSTACK0 베이스 주소: 0x{_threadStackBase:X}");
-                
-                _isInitialized = true;
-                return true;
-            }
-            catch (Exception ex)
-            {
-                LoggerHelper.Error($"[UpgradeMemoryAdapter] 초기화 실패: {ex.Message}");
-                return false;
-            }
+            // 베이스 포인터는 MemoryService에서 관리하므로 별도 초기화 불필요
+            return true;
         }
         
         public byte GetUpgradeLevel(UpgradeType type, byte playerIndex)
         {
-            if (!_isInitialized)
-            {
-                LoggerHelper.Warning("[UpgradeMemoryAdapter] 초기화되지 않음");
-                return 0;
-            }
-            
             try
             {
                 int upgradeIndex = (int)type;
@@ -96,12 +65,6 @@ namespace StarcUp.Business.Upgrades.Adapters
         
         public bool IsTechCompleted(TechType type, byte playerIndex)
         {
-            if (!_isInitialized)
-            {
-                LoggerHelper.Warning("[UpgradeMemoryAdapter] 초기화되지 않음");
-                return false;
-            }
-            
             try
             {
                 int techIndex = (int)type;
@@ -125,9 +88,6 @@ namespace StarcUp.Business.Upgrades.Adapters
         
         public (bool isProgressing, int remainingFrames, int totalFrames, int currentUpgradeLevel) GetProgressInfo(int upgradeOrTechId, IEnumerable<Unit> buildings, bool isUpgrade)
         {
-            if (!_isInitialized)
-                return (false, 0, 0, 0);
-            
             try
             {
                 // ActionIndex 76 (업그레이드 중)인 건물들 확인
@@ -207,16 +167,10 @@ namespace StarcUp.Business.Upgrades.Adapters
         
         public byte[] ReadAllUpgrades(byte playerIndex)
         {
-            if (!_isInitialized)
-            {
-                LoggerHelper.Warning("[UpgradeMemoryAdapter] 초기화되지 않음");
-                return new byte[TOTAL_UPGRADE_COUNT];
-            }
-            
             try
             {
-                // 먼저 _threadStackBase에서 포인터 값을 읽음
-                nint basePointer = _memoryService.ReadPointer(_threadStackBase);
+                // MemoryService에서 캐싱된 베이스 포인터 가져오기
+                nint basePointer = _memoryService.GetBasePointer();
                 if (basePointer == 0)
                 {
                     LoggerHelper.Warning($"[UpgradeMemoryAdapter] THREADSTACK0 포인터 읽기 실패");
@@ -258,16 +212,10 @@ namespace StarcUp.Business.Upgrades.Adapters
         
         public byte[] ReadAllTechs(byte playerIndex)
         {
-            if (!_isInitialized)
-            {
-                LoggerHelper.Warning("[UpgradeMemoryAdapter] 초기화되지 않음");
-                return new byte[TOTAL_TECH_COUNT];
-            }
-            
             try
             {
-                // 먼저 _threadStackBase에서 포인터 값을 읽음
-                nint basePointer = _memoryService.ReadPointer(_threadStackBase);
+                // MemoryService에서 캐싱된 베이스 포인터 가져오기
+                nint basePointer = _memoryService.GetBasePointer();
                 if (basePointer == 0)
                 {
                     LoggerHelper.Warning($"[UpgradeMemoryAdapter] THREADSTACK0 포인터 읽기 실패");
@@ -312,8 +260,8 @@ namespace StarcUp.Business.Upgrades.Adapters
             
             try
             {
-                // 먼저 _threadStackBase에서 포인터 값을 읽음
-                nint basePointer = _memoryService.ReadPointer(_threadStackBase);
+                // MemoryService에서 캐싱된 베이스 포인터 가져오기
+                nint basePointer = _memoryService.GetBasePointer();
                 if (basePointer == 0)
                 {
                     LoggerHelper.Warning($"[UpgradeMemoryAdapter] THREADSTACK0 포인터 읽기 실패");
@@ -350,8 +298,8 @@ namespace StarcUp.Business.Upgrades.Adapters
             
             try
             {
-                // 먼저 _threadStackBase에서 포인터 값을 읽음
-                nint basePointer = _memoryService.ReadPointer(_threadStackBase);
+                // MemoryService에서 캐싱된 베이스 포인터 가져오기
+                nint basePointer = _memoryService.GetBasePointer();
                 if (basePointer == 0)
                 {
                     LoggerHelper.Warning($"[UpgradeMemoryAdapter] THREADSTACK0 포인터 읽기 실패");

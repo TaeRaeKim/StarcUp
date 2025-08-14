@@ -64,6 +64,14 @@ namespace StarcUp.Business.MemoryService
         /// <returns>치트엔진 방식 스택 주소</returns>
         nint GetThreadStackAddress(int threadIndex = 0);
 
+        /// <summary>
+        /// 캐싱된 베이스 포인터를 가져옵니다.
+        /// 이 값은 ConnectToProcess 시점에 한 번 계산되어 캐싱됩니다.
+        /// (ThreadStack0 - baseOffset에서 ReadPointer한 값)
+        /// </summary>
+        /// <returns>캐싱된 베이스 포인터</returns>
+        nint GetBasePointer();
+
         bool FindModule(string moduleName, out ModuleInfo moduleInfo);
         ModuleInfo FindModule(string targetModuleName);
         ModuleInfo GetKernel32Module();

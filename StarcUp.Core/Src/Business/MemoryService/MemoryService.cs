@@ -28,6 +28,7 @@ namespace StarcUp.Business.MemoryService
         private ModuleInfo _cachedKernel32Module;
         private ModuleInfo _cachedUser32Module;
         private ModuleInfo _cachedStarCraftModule;
+        private nint _cachedThreadStackBasePointer;
 
         public bool IsConnected => _memoryReader?.IsConnected ?? false;
         public int ConnectedProcessId => _memoryReader?.ConnectedProcessId ?? 0;
@@ -74,6 +75,7 @@ namespace StarcUp.Business.MemoryService
                 if (_memoryReader.ConnectToProcess(processId))
                 {
                     RefreshAllCache();
+                    InitializeBasePointer();
                     LoggerHelper.Info($"프로세스 {processId} 연결 성공");
                     ProcessConnect?.Invoke(this, new ProcessEventArgs(processId));
                     return true;
@@ -100,6 +102,7 @@ namespace StarcUp.Business.MemoryService
                 int processId = ConnectedProcessId;
                 _memoryReader.Disconnect();
                 RefreshAllCache();
+                _cachedThreadStackBasePointer = 0;
                 LoggerHelper.Info($"프로세스 {processId} 연결 해제됨");
                 ProcessDisconnect?.Invoke(this, new ProcessEventArgs(processId));
             }
@@ -736,6 +739,47 @@ namespace StarcUp.Business.MemoryService
             }
         }
 
+        private void InitializeBasePointer()
+        {
+            try
+            {
+                // ThreadStack 주소 가져오기
+                nint threadStackAddress = GetThreadStackAddress(0);
+                if (threadStackAddress == 0)
+                {
+                    LoggerHelper.Warning("InitializeBasePointer: ThreadStack 주소를 찾을 수 없습니다.");
+                    _cachedThreadStackBasePointer = 0;
+                    return;
+                }
+
+                // BaseOffset 가져오기
+                int baseOffset = _unitOffsetRepository.GetBaseOffset();
+                
+                // ThreadStack - baseOffset 위치에서 포인터 읽기
+                nint baseAddress = threadStackAddress - baseOffset;
+                _cachedThreadStackBasePointer = ReadPointer(baseAddress);
+                
+                if (_cachedThreadStackBasePointer == 0)
+                {
+                    LoggerHelper.Warning("InitializeBasePointer: 베이스 포인터를 읽을 수 없습니다.");
+                }
+                else
+                {
+                    LoggerHelper.Info($"베이스 포인터 캐싱 완료: 0x{_cachedThreadStackBasePointer:X}");
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error($"InitializeBasePointer 오류: {ex.Message}");
+                _cachedThreadStackBasePointer = 0;
+            }
+        }
+
+        public nint GetBasePointer()
+        {
+            return _cachedThreadStackBasePointer;
+        }
+
         public bool ReadMemoryIntoBuffer(nint address, byte[] buffer, int size)
         {
             if (!IsConnected)
@@ -1237,9 +1281,8 @@ namespace StarcUp.Business.MemoryService
                 }
 
 
-                nint baseAddress = threadStackAddress - 0x520;
-                
-                nint pointerAddress = ReadPointer(baseAddress);
+                // GetBasePointer()는 이미 ThreadStack - baseOffset에서 ReadPointer한 값
+                nint pointerAddress = GetBasePointer();
                 
                 if (pointerAddress == 0)
                 {

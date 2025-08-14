@@ -49,26 +49,15 @@ namespace StarcUp.Business.Units.Runtime.Adapters
                     return false;
                 }
 
-                // MemoryService의 GetThreadStackAddress 사용
-                var threadStackAddress = _memoryService.GetThreadStackAddress(0);
-                LoggerHelper.Debug($"[UnitCountAdapter] THREADSTACK0 주소: 0x{threadStackAddress:X}");
-
-                if (threadStackAddress == 0)
+                // MemoryService에서 캐싱된 베이스 포인터 가져오기
+                nint basePointer = _memoryService.GetBasePointer();
+                if (basePointer == 0)
                 {
-                    LoggerHelper.Debug("[UnitCountAdapter] ❌ THREADSTACK0 주소를 찾을 수 없습니다.");
+                    LoggerHelper.Debug("[UnitCountAdapter] ❌ 베이스 포인터를 가져올 수 없습니다.");
                     return false;
                 }
 
-                LoggerHelper.Debug($"[UnitCountAdapter] 포인터 읽기 시도: 0x{threadStackAddress - _baseOffset:X}");
-
-                nint pointerAddress = _memoryService.ReadPointer(threadStackAddress - _baseOffset);
-                if (pointerAddress == 0)
-                {
-                    LoggerHelper.Debug("[UnitCountAdapter] ❌ 포인터 읽기 실패");
-                    return false;
-                }
-
-                _baseAddress = pointerAddress;
+                _baseAddress = basePointer;
                 LoggerHelper.Debug($"[UnitCountAdapter] ✅ 베이스 주소 설정: 0x{_baseAddress:X}");
                 return true;
             }

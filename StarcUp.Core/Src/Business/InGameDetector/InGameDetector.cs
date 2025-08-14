@@ -112,7 +112,7 @@ namespace StarcUp.Business.InGameDetector
 
                 nint inGamePointer = _memoryService.ReadPointer(finalAddress);
 
-                nint baseAddress = _memoryService.ReadPointer(_memoryService.GetThreadStackAddress(0) - _offsetRepository.GetBaseOffset());
+                nint baseAddress = _memoryService.GetBasePointer();
                 
                 nint mapFileNameAddress = baseAddress + _offsetRepository.GetMapNameOffset();
                 string mapFileName =_memoryService.IsValidAddress(mapFileNameAddress)
