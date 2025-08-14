@@ -102,6 +102,7 @@ namespace StarcUp.Business.Communication
                 // UpgradeManager 이벤트 구독
                 // _upgradeManager.StateChanged += OnUpgradeStateChanged;  // 주석처리 - UpgradeCompleted만 사용
                 _upgradeManager.UpgradeCompleted += OnUpgradeCompleted;
+                _upgradeManager.UpgradeCancelled += OnUpgradeCancelled;
                 _upgradeManager.ProgressChanged += OnUpgradeProgressChanged;
                 _upgradeManager.InitialStateDetected += OnUpgradeInitialStateDetected;
 
@@ -180,6 +181,7 @@ namespace StarcUp.Business.Communication
                 // UpgradeManager 이벤트 구독 해제
                 // _upgradeManager.StateChanged -= OnUpgradeStateChanged;  // 주석처리 - UpgradeCompleted만 사용
                 _upgradeManager.UpgradeCompleted -= OnUpgradeCompleted;
+                _upgradeManager.UpgradeCancelled -= OnUpgradeCancelled;
                 _upgradeManager.ProgressChanged -= OnUpgradeProgressChanged;
                 _upgradeManager.InitialStateDetected -= OnUpgradeInitialStateDetected;
 
@@ -897,6 +899,45 @@ namespace StarcUp.Business.Communication
         }
 
         /// <summary>
+        /// 업그레이드 취소 이벤트 핸들러
+        /// </summary>
+        private void OnUpgradeCancelled(object sender, UpgradeCancelledEventArgs e)
+        {
+            try
+            {
+                var eventData = new
+                {
+                    item = new
+                    {
+                        type = (int)e.Item.Type,
+                        value = e.Item.Value
+                    },
+                    lastUpgradeItemData = new
+                    {
+                        item = new
+                        {
+                            type = (int)e.LastUpgradeItemData.Item.Type,
+                            value = e.LastUpgradeItemData.Item.Value
+                        },
+                        level = e.LastUpgradeItemData.Level,
+                        remainingFrames = e.LastUpgradeItemData.RemainingFrames,
+                        totalFrames = e.LastUpgradeItemData.TotalFrames,
+                        isProgressing = e.LastUpgradeItemData.IsProgressing,
+                        currentUpgradeLevel = e.LastUpgradeItemData.CurrentUpgradeLevel,
+                        progress = e.LastUpgradeItemData.Progress
+                    },
+                    timestamp = e.Timestamp
+                };
+
+                _pipeClient.SendEvent(NamedPipeProtocol.Events.UpgradeCancelled, eventData);
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error($"🛠️ 업그레이드 취소 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 업그레이드 진행률 이벤트 핸들러
         /// </summary>
         private void OnUpgradeProgressChanged(object sender, UpgradeProgressEventArgs e)
@@ -921,7 +962,7 @@ namespace StarcUp.Business.Communication
             {
                 // 초기 완료된 상태를 upgrade-init 이벤트로 전송
                 _pipeClient.SendEvent(NamedPipeProtocol.Events.UpgradeInit, e.Statistics);
-                LoggerHelper.Info($"🛠️ 업그레이드 초기 상태 전송 - 플레이어: {e.PlayerIndex}");
+                LoggerHelper.Info($"🛠️ 업그레이드 초기 상태 전송");
             }
             catch (Exception ex)
             {

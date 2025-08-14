@@ -15,9 +15,6 @@ namespace StarcUp.Business.Upgrades.Models
         [JsonPropertyName("timestamp")]
         public DateTime Timestamp { get; set; } = DateTime.Now;
         
-        [JsonPropertyName("playerIndex")]
-        public byte PlayerIndex { get; set; }
-        
         /// <summary>
         /// 복사본 생성
         /// </summary>
@@ -26,7 +23,6 @@ namespace StarcUp.Business.Upgrades.Models
             var clone = new UpgradeTechStatistics
             {
                 Timestamp = Timestamp,
-                PlayerIndex = PlayerIndex,
                 Categories = new List<UpgradeCategoryData>()
             };
             

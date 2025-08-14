@@ -158,5 +158,6 @@ export const Events = {
   // UpgradeManager 관련 이벤트
   UpgradeDataUpdated: 'upgrade-data-updated',
   UpgradeStateChanged: 'upgrade-state-changed',
-  UpgradeCompleted: 'upgrade-completed'
+  UpgradeCompleted: 'upgrade-completed',
+  UpgradeCancelled: 'upgrade-cancelled'
 } as const

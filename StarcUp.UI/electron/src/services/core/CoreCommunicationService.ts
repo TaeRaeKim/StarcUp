@@ -263,6 +263,11 @@ export class CoreCommunicationService implements ICoreCommunicationService {
       // 필요시 콜백 추가
     })
 
+    this.namedPipeService.onEvent(Events.UpgradeCancelled, (data: any) => {
+      //console.log('❌ 업그레이드 취소:', data)
+      // 필요시 콜백 추가
+    })
+
     console.log('✅ Core 이벤트 핸들러 설정 완료')
   }
 

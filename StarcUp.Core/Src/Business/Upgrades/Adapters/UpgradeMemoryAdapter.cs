@@ -123,17 +123,13 @@ namespace StarcUp.Business.Upgrades.Adapters
             }
         }
         
-        public (bool isProgressing, int remainingFrames, int totalFrames) GetProgressInfo(int upgradeOrTechId, IEnumerable<Unit> buildings)
+        public (bool isProgressing, int remainingFrames, int totalFrames, int currentUpgradeLevel) GetProgressInfo(int upgradeOrTechId, IEnumerable<Unit> buildings, bool isUpgrade)
         {
             if (!_isInitialized)
-                return (false, 0, 0);
+                return (false, 0, 0, 0);
             
             try
             {
-                // 업그레이드/테크 타입 확인
-                bool isUpgrade = Enum.IsDefined(typeof(UpgradeType), (byte)upgradeOrTechId);
-                bool isTech = Enum.IsDefined(typeof(TechType), (byte)upgradeOrTechId);
-                
                 // ActionIndex 76 (업그레이드 중)인 건물들 확인
                 if (isUpgrade)
                 {
@@ -146,14 +142,15 @@ namespace StarcUp.Business.Upgrades.Adapters
                             // Timer 값을 remainingFrames로 사용
                             int totalFrames = GetTotalFrames(upgradeOrTechId, true, building.CurrentUpgradeLevel);
                             int remainingFrames = building.Timer;
+                            int currentUpgradeLevel = building.CurrentUpgradeLevel;
                             
-                            return (true, remainingFrames, totalFrames);
+                            return (true, remainingFrames, totalFrames, currentUpgradeLevel);
                         }
                     }
                 }
                 
                 // ActionIndex 75 (테크 연구 중)인 건물들 확인
-                if (isTech)
+                else
                 {
                     var researchingBuildings = buildings.Where(b => b.ActionIndex == 75);
                     foreach (var building in researchingBuildings)
@@ -165,17 +162,17 @@ namespace StarcUp.Business.Upgrades.Adapters
                             int totalFrames = GetTotalFrames(upgradeOrTechId, false, 0);
                             int remainingFrames = building.Timer;
                             
-                            return (true, remainingFrames, totalFrames);
+                            return (true, remainingFrames, totalFrames, 1); // 테크는 진행 중일 때 1
                         }
                     }
                 }
                 
-                return (false, 0, 0);
+                return (false, 0, 0, 0);
             }
             catch (Exception ex)
             {
                 LoggerHelper.Error($"[UpgradeMemoryAdapter] GetProgressInfo 실패: {ex.Message}");
-                return (false, 0, 0);
+                return (false, 0, 0, 0);
             }
         }
         

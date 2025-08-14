@@ -16,9 +16,6 @@ namespace StarcUp.Business.Upgrades.Models
         [JsonPropertyName("level")]
         public int Level { get; set; }
         
-        [JsonPropertyName("isCompleted")]
-        public bool IsCompleted { get; set; }
-        
         [JsonPropertyName("remainingFrames")]
         public int RemainingFrames { get; set; }
         
@@ -27,6 +24,9 @@ namespace StarcUp.Business.Upgrades.Models
         
         [JsonPropertyName("isProgressing")]
         public bool IsProgressing { get; set; }
+        
+        [JsonPropertyName("currentUpgradeLevel")]
+        public int CurrentUpgradeLevel { get; set; }
         
         [JsonPropertyName("progress")]
         public double Progress { get; set; }
@@ -40,10 +40,10 @@ namespace StarcUp.Business.Upgrades.Models
             {
                 Item = new UpgradeItem { Type = Item.Type, Value = Item.Value },
                 Level = Level,
-                IsCompleted = IsCompleted,
                 RemainingFrames = RemainingFrames,
                 TotalFrames = TotalFrames,
                 IsProgressing = IsProgressing,
+                CurrentUpgradeLevel = CurrentUpgradeLevel,
                 Progress = Progress
             };
         }

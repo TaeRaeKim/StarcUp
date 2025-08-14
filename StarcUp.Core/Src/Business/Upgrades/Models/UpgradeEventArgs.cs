@@ -14,7 +14,6 @@ namespace StarcUp.Business.Upgrades.Models
         public byte NewLevel { get; set; }
         public bool WasCompleted { get; set; }
         public bool IsCompleted { get; set; }
-        public byte PlayerIndex { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.Now;
     }
     
@@ -34,7 +33,16 @@ namespace StarcUp.Business.Upgrades.Models
     public class UpgradeProgressEventArgs : EventArgs
     {
         public UpgradeTechStatistics Statistics { get; set; } = null!;
-        public byte PlayerIndex { get; set; }
+        public DateTime Timestamp { get; set; } = DateTime.Now;
+    }
+
+    /// <summary>
+    /// 업그레이드 취소 이벤트 인수
+    /// </summary>
+    public class UpgradeCancelledEventArgs : EventArgs
+    {
+        public UpgradeItem Item { get; set; } = new();
+        public UpgradeItemData LastUpgradeItemData { get; set; } = new();
         public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }

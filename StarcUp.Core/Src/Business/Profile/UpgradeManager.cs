@@ -24,6 +24,7 @@ namespace StarcUp.Business.Profile
 
         public event EventHandler<UpgradeStateChangedEventArgs>? StateChanged;
         public event EventHandler<UpgradeCompletedEventArgs>? UpgradeCompleted;
+        public event EventHandler<UpgradeCancelledEventArgs>? UpgradeCancelled;
         public event EventHandler<UpgradeProgressEventArgs>? ProgressChanged;
         public event EventHandler<UpgradeProgressEventArgs>? InitialStateDetected;
 
@@ -117,7 +118,6 @@ namespace StarcUp.Business.Profile
 
             var newStats = new UpgradeTechStatistics
             {
-                PlayerIndex = (byte)LocalPlayerId,
                 Timestamp = DateTime.Now,
                 Categories = new List<UpgradeCategoryData>()
             };
@@ -141,17 +141,17 @@ namespace StarcUp.Business.Profile
                         try
                         {
                             var level = _upgradeMemoryAdapter.GetUpgradeLevel(upgradeType, (byte)LocalPlayerId);
-                            var (isProgressing, remainingFrames, totalFrames) = _upgradeMemoryAdapter.GetProgressInfo((int)upgradeType, buildings);
+                            var (isProgressing, remainingFrames, totalFrames, currentUpgradeLevel) = _upgradeMemoryAdapter.GetProgressInfo((int)upgradeType, buildings, true);
 
                             var progress = totalFrames > 0 ? (double)(totalFrames - remainingFrames) / totalFrames : (level > 0 ? 1.0 : 0.0);
                             categoryData.Items.Add(new UpgradeItemData
                             {
                                 Item = item,
                                 Level = level,
-                                IsCompleted = level > 0,
                                 RemainingFrames = remainingFrames,
                                 TotalFrames = totalFrames,
                                 IsProgressing = isProgressing,
+                                CurrentUpgradeLevel = currentUpgradeLevel,
                                 Progress = progress
                             });
                         }
@@ -166,17 +166,17 @@ namespace StarcUp.Business.Profile
                         try
                         {
                             var isCompleted = _upgradeMemoryAdapter.IsTechCompleted(techType, (byte)LocalPlayerId);
-                            var (isProgressing, remainingFrames, totalFrames) = _upgradeMemoryAdapter.GetProgressInfo((int)techType, buildings);
+                            var (isProgressing, remainingFrames, totalFrames, currentUpgradeLevel) = _upgradeMemoryAdapter.GetProgressInfo((int)techType, buildings, false);
 
                             var progress = totalFrames > 0 ? (double)(totalFrames - remainingFrames) / totalFrames : (isCompleted ? 1.0 : 0.0);
                             categoryData.Items.Add(new UpgradeItemData
                             {
                                 Item = item,
-                                Level = 0, // 테크는 레벨이 없음
-                                IsCompleted = isCompleted,
+                                Level = isCompleted ? 1 : 0, // 테크는 완료 시 1, 미완료 시 0
                                 RemainingFrames = remainingFrames,
                                 TotalFrames = totalFrames,
                                 IsProgressing = isProgressing,
+                                CurrentUpgradeLevel = currentUpgradeLevel, // GetProgressInfo에서 반환된 값 사용
                                 Progress = progress
                             });
                         }
@@ -232,14 +232,25 @@ namespace StarcUp.Business.Profile
                                     });
                                 }
                             }
+                            
+                            // 업그레이드 취소 감지: 이전에 진행 중이었으나 현재 진행 중이지 않고, 완료된 레벨에 변화가 없는 경우
+                            if (previousItem.IsProgressing && !currentItem.IsProgressing && 
+                                currentItem.Level == previousItem.Level)
+                            {
+                                UpgradeCancelled?.Invoke(this, new UpgradeCancelledEventArgs
+                                {
+                                    Item = currentItem.Item,
+                                    LastUpgradeItemData = previousItem.Clone()
+                                });
+                            }
                         }
                         else if (currentItem.Item.Type == UpgradeItemType.Tech)
                         {
                             // 테크 변경사항 확인
-                            if (currentItem.IsCompleted != previousItem.IsCompleted)
+                            if (currentItem.Level != previousItem.Level)
                             {
                                 // 완료 알림 (새로 완료된 경우)
-                                if (currentItem.IsCompleted && !previousItem.IsCompleted)
+                                if (currentItem.Level > previousItem.Level)
                                 {
                                     UpgradeCompleted?.Invoke(this, new UpgradeCompletedEventArgs
                                     {
@@ -247,6 +258,17 @@ namespace StarcUp.Business.Profile
                                         Level = 1
                                     });
                                 }
+                            }
+                            
+                            // 테크 취소 감지: 이전에 진행 중이었으나 현재 진행 중이지 않고, 완료되지 않은 경우
+                            if (previousItem.IsProgressing && !currentItem.IsProgressing && 
+                                currentItem.Level == 0 && previousItem.Level == 0)
+                            {
+                                UpgradeCancelled?.Invoke(this, new UpgradeCancelledEventArgs
+                                {
+                                    Item = currentItem.Item,
+                                    LastUpgradeItemData = previousItem.Clone()
+                                });
                             }
                         }
                     }
@@ -295,8 +317,7 @@ namespace StarcUp.Business.Profile
                 {
                     ProgressChanged?.Invoke(this, new UpgradeProgressEventArgs
                     {
-                        Statistics = _currentStats,
-                        PlayerIndex = (byte)LocalPlayerId
+                        Statistics = _currentStats
                     });
                 }
             }
@@ -325,10 +346,10 @@ namespace StarcUp.Business.Profile
 
                 foreach (var category in _currentStats.Categories)
                 {
-                    // 완료된 아이템 확인 (새로운 Items 구조)
+                    // 완료된 아이템 확인 (Level > 0인 항목)
                     foreach (var item in category.Items)
                     {
-                        if (item.IsCompleted)
+                        if (item.Level > 0)
                         {
                             hasCompletedItems = true;
                             break;
@@ -343,8 +364,7 @@ namespace StarcUp.Business.Profile
                 {
                     InitialStateDetected?.Invoke(this, new UpgradeProgressEventArgs
                     {
-                        Statistics = _currentStats,
-                        PlayerIndex = (byte)LocalPlayerId
+                        Statistics = _currentStats
                     });
 
                     LoggerHelper.Info($" 초기 완료 상태 감지 - 플레이어: {LocalPlayerId}");

@@ -23,7 +23,7 @@ namespace StarcUp.Business.Upgrades.Adapters
         /// <summary>
         /// 진행 중인 업그레이드/테크 정보
         /// </summary>
-        (bool isProgressing, int remainingFrames, int totalFrames) GetProgressInfo(int upgradeOrTechId, IEnumerable<Unit> buildings);
+        (bool isProgressing, int remainingFrames, int totalFrames, int currentUpgradeLevel) GetProgressInfo(int upgradeOrTechId, IEnumerable<Unit> buildings, bool isUpgrade);
         
         /// <summary>
         /// 전체 업그레이드 상태 읽기 (성능 최적화용 배치 읽기)

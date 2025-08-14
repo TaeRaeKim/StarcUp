@@ -13,6 +13,7 @@ namespace StarcUp.Business.Profile
         // 이벤트
         event EventHandler<UpgradeStateChangedEventArgs>? StateChanged;
         event EventHandler<UpgradeCompletedEventArgs>? UpgradeCompleted;
+        event EventHandler<UpgradeCancelledEventArgs>? UpgradeCancelled;
         event EventHandler<UpgradeProgressEventArgs>? ProgressChanged;
         event EventHandler<UpgradeProgressEventArgs>? InitialStateDetected;
         
