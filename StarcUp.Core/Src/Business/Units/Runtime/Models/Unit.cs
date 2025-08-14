@@ -16,6 +16,7 @@ namespace StarcUp.Business.Units.Runtime.Models
         public byte ActionState { get; set; }
         public byte AttackCooldown { get; set; }
         public ushort Timer { get; set; }
+        public byte CurrentTech { get; set; }
         public byte CurrentUpgrade { get; set; }
         public byte CurrentUpgradeLevel { get; set; }
         public byte ProductionQueueIndex { get; set; }
@@ -101,6 +102,7 @@ namespace StarcUp.Business.Units.Runtime.Models
             ActionState = raw.actionState;
             AttackCooldown = raw.attackCooldown;
             Timer = raw.timer;
+            CurrentTech = raw.currentTech;
             CurrentUpgrade = raw.currentUpgrade;
             CurrentUpgradeLevel = raw.currentUpgradeLevel;
             ProductionQueueIndex = raw.productionQueueIndex;
@@ -138,6 +140,7 @@ namespace StarcUp.Business.Units.Runtime.Models
             ActionState = other.ActionState;
             AttackCooldown = other.AttackCooldown;
             Timer = other.Timer;
+            CurrentTech = other.CurrentTech;
             CurrentUpgrade = other.CurrentUpgrade;
             CurrentUpgradeLevel = other.CurrentUpgradeLevel;
 

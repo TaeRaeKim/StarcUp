@@ -95,7 +95,7 @@ namespace StarcUp.Business.Game
             LoggerHelper.Info("PopulationManager 초기화 완료");
 
             // UpgradeManager 초기화
-            _upgradeManager.Initialize(LocalGameData.LocalPlayerIndex, localPlayer.GetBuildings());
+            _upgradeManager.Initialize(LocalGameData.LocalPlayerIndex);
 
             LoggerHelper.Info("UpgradeManager 초기화 완료");
 

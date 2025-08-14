@@ -22,7 +22,7 @@ namespace StarcUp.Business.Profile
         int LocalPlayerId { get; }
         
         // 초기화
-        void Initialize(int localPlayerId, IEnumerable<Unit> buildings);
+        void Initialize(int localPlayerId);
         
         // 설정 업데이트
         void UpdateSettings(UpgradeSettings settings);

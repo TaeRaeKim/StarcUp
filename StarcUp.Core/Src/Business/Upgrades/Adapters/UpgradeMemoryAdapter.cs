@@ -130,22 +130,39 @@ namespace StarcUp.Business.Upgrades.Adapters
             
             try
             {
-                // ActionIndex 76 (업그레이드 중)인 건물들을 찾음
-                var upgradingBuildings = buildings.Where(b => b.ActionIndex == 76);
+                // 업그레이드/테크 타입 확인
+                bool isUpgrade = Enum.IsDefined(typeof(UpgradeType), (byte)upgradeOrTechId);
+                bool isTech = Enum.IsDefined(typeof(TechType), (byte)upgradeOrTechId);
                 
-                foreach (var building in upgradingBuildings)
+                // ActionIndex 76 (업그레이드 중)인 건물들 확인
+                if (isUpgrade)
                 {
-                    // CurrentUpgrade 값이 요청한 upgradeOrTechId와 일치하는지 확인
-                    if (building.CurrentUpgrade == upgradeOrTechId)
+                    var upgradingBuildings = buildings.Where(b => b.ActionIndex == 76);
+                    foreach (var building in upgradingBuildings)
                     {
-                        // 업그레이드/테크 타입 확인
-                        bool isUpgrade = Enum.IsDefined(typeof(UpgradeType), (byte)upgradeOrTechId);
-                        bool isTech = Enum.IsDefined(typeof(TechType), (byte)upgradeOrTechId);
-                        
-                        if (isUpgrade || isTech)
+                        // CurrentUpgrade 값이 요청한 upgradeOrTechId와 일치하는지 확인
+                        if (building.CurrentUpgrade == upgradeOrTechId)
                         {
                             // Timer 값을 remainingFrames로 사용
-                            int totalFrames = GetTotalFrames(upgradeOrTechId, isUpgrade, building.CurrentUpgradeLevel);
+                            int totalFrames = GetTotalFrames(upgradeOrTechId, true, building.CurrentUpgradeLevel);
+                            int remainingFrames = building.Timer;
+                            
+                            return (true, remainingFrames, totalFrames);
+                        }
+                    }
+                }
+                
+                // ActionIndex 75 (테크 연구 중)인 건물들 확인
+                if (isTech)
+                {
+                    var researchingBuildings = buildings.Where(b => b.ActionIndex == 75);
+                    foreach (var building in researchingBuildings)
+                    {
+                        // CurrentTech 값이 요청한 upgradeOrTechId와 일치하는지 확인 (44 = TechType.None)
+                        if (building.CurrentTech != 44 && building.CurrentTech == upgradeOrTechId)
+                        {
+                            // Timer 값을 remainingFrames로 사용
+                            int totalFrames = GetTotalFrames(upgradeOrTechId, false, 0);
                             int remainingFrames = building.Timer;
                             
                             return (true, remainingFrames, totalFrames);

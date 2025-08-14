@@ -80,8 +80,8 @@ namespace StarcUp.Business.Units.Runtime.Models
         // 타이머 (0x112-0x113)
         public ushort timer;                // 0x112: 타이머 (2바이트)
 
-        // 패딩 (0x114)
-        public byte reserved4;              // 0x114: 패딩 (1바이트)
+        // 테크 연구 정보 (0x114)
+        public byte currentTech;            // 0x114: 현재 연구중인 테크 (TechType, 44=None)
 
         // 업그레이드 정보 (0x115, 0x119)
         public byte currentUpgrade;         // 0x115: 현재 업그레이드 (1바이트)
