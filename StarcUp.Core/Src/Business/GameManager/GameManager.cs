@@ -22,7 +22,7 @@ namespace StarcUp.Business.Game
     {
         private const int MAX_PLAYERS = 8;
         
-        public GameManager(IInGameDetector inGameDetector, IUnitService unitService, IMemoryService memoryService, IUnitCountService unitCountService, IWorkerManager workerManager, IPopulationManager populationManager)
+        public GameManager(IInGameDetector inGameDetector, IUnitService unitService, IMemoryService memoryService, IUnitCountService unitCountService, IWorkerManager workerManager, IPopulationManager populationManager, IUpgradeManager upgradeManager)
         {
             _inGameDetector = inGameDetector ?? throw new ArgumentNullException(nameof(inGameDetector));
             _unitService = unitService ?? throw new ArgumentNullException(nameof(unitService));
@@ -30,6 +30,7 @@ namespace StarcUp.Business.Game
             _unitCountService = unitCountService ?? throw new ArgumentNullException(nameof(unitCountService));
             _workerManager = workerManager ?? throw new ArgumentNullException(nameof(workerManager));
             _populationManager = populationManager ?? throw new ArgumentNullException(nameof(populationManager));
+            _upgradeManager = upgradeManager ?? throw new ArgumentNullException(nameof(upgradeManager));
 
             // Player 배열 초기화
             Players = new Player[MAX_PLAYERS];
@@ -52,6 +53,7 @@ namespace StarcUp.Business.Game
         private readonly IUnitCountService _unitCountService;
         private readonly IWorkerManager _workerManager;
         private readonly IPopulationManager _populationManager;
+        private readonly IUpgradeManager _upgradeManager;
         private readonly Timer _updateTimer;
         private bool _isGameActive;
         private bool _disposed;
@@ -86,6 +88,11 @@ namespace StarcUp.Business.Game
             _populationManager.Initialize(LocalGameData.LocalPlayerIndex, LocalGameData.LocalPlayerRace);
 
             LoggerHelper.Info("PopulationManager 초기화 완료");
+
+            // UpgradeManager 초기화
+            _upgradeManager.Initialize(LocalGameData.LocalPlayerIndex);
+
+            LoggerHelper.Info("UpgradeManager 초기화 완료");
 
             // 통합 타이머 시작
             _isGameActive = true;
@@ -140,6 +147,7 @@ namespace StarcUp.Business.Game
                 UpdateUnitCountService();
                 LoadGameData();
                 UpdatePopulationData();
+                UpdateUpgradeData();
             }
             catch (Exception ex)
             {
@@ -202,6 +210,17 @@ namespace StarcUp.Business.Game
             }
         }
 
+        private void UpdateUpgradeData()
+        {
+            try
+            {
+                _upgradeManager.Update();
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error("UpgradeManager 업데이트 중 오류 발생", ex);
+            }
+        }
 
         private void LoadLocalPlayerIndex()
         {
@@ -269,6 +288,11 @@ namespace StarcUp.Business.Game
             if (_populationManager != null)
             {
                 _populationManager.Dispose();
+            }
+
+            if (_upgradeManager != null)
+            {
+                _upgradeManager.Dispose();
             }
 
             _disposed = true;

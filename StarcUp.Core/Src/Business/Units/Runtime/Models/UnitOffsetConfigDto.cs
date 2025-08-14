@@ -43,14 +43,39 @@ namespace StarcUp.Business.Units.Runtime.Models
         public RacePopulationDto Protoss { get; set; } = new();
     }
 
-    public class UnitOffsetConfigDto
+    public class UpgradeSectionDto
+    {
+        public int Offset { get; set; }
+        public string Comment { get; set; } = string.Empty;
+    }
+
+    public class UpgradeTypesDto
+    {
+        public UpgradeSectionDto Section1 { get; set; } = new();
+        public UpgradeSectionDto Section2 { get; set; } = new();
+    }
+
+    public class UpgradeOffsetsDto
+    {
+        public string Comment { get; set; } = string.Empty;
+        public UpgradeTypesDto Upgrades { get; set; } = new();
+        public UpgradeTypesDto Techs { get; set; } = new();
+    }
+
+    public class GameOffsetConfigDto
     {
         public int BaseOffset { get; set; }
         public int ProductionOffset { get; set; }
         public int MapNameOffset { get; set; }
         public string Comment { get; set; } = string.Empty;
         public PopulationOffsetsDto PopulationOffsets { get; set; } = new();
+        public UpgradeOffsetsDto UpgradeOffsets { get; set; } = new();
         public BufferInfoDto BufferInfo { get; set; } = new();
         public RacesDto Races { get; set; } = new();
+    }
+
+    // 하위 호환성을 위한 별칭
+    public class UnitOffsetConfigDto : GameOffsetConfigDto
+    {
     }
 }

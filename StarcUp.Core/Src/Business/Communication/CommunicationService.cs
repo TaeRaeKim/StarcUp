@@ -11,6 +11,7 @@ using StarcUp.Business.GameDetection;
 using StarcUp.Business.InGameDetector;
 using StarcUp.Business.Profile;
 using StarcUp.Business.Profile.Models;
+using StarcUp.Business.Upgrades.Models;
 
 namespace StarcUp.Business.Communication
 {
@@ -25,6 +26,7 @@ namespace StarcUp.Business.Communication
         private readonly IWindowManager _windowManager;
         private readonly IWorkerManager _workerManager;
         private readonly IPopulationManager _populationManager;
+        private readonly IUpgradeManager _upgradeManager;
         private bool _disposed = false;
         
         // 윈도우 위치 변경 관련 필드
@@ -42,7 +44,7 @@ namespace StarcUp.Business.Communication
 
         public event EventHandler<bool> ConnectionStateChanged;
 
-        public CommunicationService(INamedPipeClient pipeClient, IGameDetector gameDetector, IInGameDetector inGameDetector, IWindowManager windowManager, IWorkerManager workerManager, IPopulationManager populationManager)
+        public CommunicationService(INamedPipeClient pipeClient, IGameDetector gameDetector, IInGameDetector inGameDetector, IWindowManager windowManager, IWorkerManager workerManager, IPopulationManager populationManager, IUpgradeManager upgradeManager)
         {
             _pipeClient = pipeClient ?? throw new ArgumentNullException(nameof(pipeClient));
             _gameDetector = gameDetector ?? throw new ArgumentNullException(nameof(gameDetector));
@@ -50,6 +52,7 @@ namespace StarcUp.Business.Communication
             _windowManager = windowManager ?? throw new ArgumentNullException(nameof(windowManager));
             _workerManager = workerManager ?? throw new ArgumentNullException(nameof(workerManager));
             _populationManager = populationManager ?? throw new ArgumentNullException(nameof(populationManager));
+            _upgradeManager = upgradeManager ?? throw new ArgumentNullException(nameof(upgradeManager));
         }
 
         public async Task<bool> StartAsync(string pipeName = "StarcUp.Dev")
@@ -96,6 +99,9 @@ namespace StarcUp.Business.Communication
                 // PopulationManager 이벤트 구독
                 _populationManager.SupplyAlert += OnSupplyAlert;
 
+                // UpgradeManager 이벤트 구독
+                _upgradeManager.StateChanged += OnUpgradeStateChanged;
+                _upgradeManager.UpgradeCompleted += OnUpgradeCompleted;
 
                 // 자동 재연결 시작 (3초 간격, 최대 10회 재시도)
                 _pipeClient.StartAutoReconnect(pipeName, 3000, 10);
@@ -510,9 +516,14 @@ namespace StarcUp.Business.Communication
                     HandlePopulationPreset(initData.Presets.Population);
                 }
                 
+                // 업그레이드 프리셋 처리
+                if (initData.Presets?.Upgrade != null)
+                {
+                    HandleUpgradePreset(initData.Presets.Upgrade);
+                }
+                
                 // 향후 다른 프리셋들도 여기서 처리...
                 // if (initData.Presets?.Unit != null) { ... }
-                // if (initData.Presets?.Upgrade != null) { ... }
                 // if (initData.Presets?.BuildOrder != null) { ... }
                 
             }
@@ -578,8 +589,11 @@ namespace StarcUp.Business.Communication
                         break;
                         
                     case "upgrade":
-                        // 향후 구현
-                        LoggerHelper.Warning(" 업그레이드 프리셋은 아직 구현되지 않았습니다");
+                        HandleUpgradePreset(new PresetItem 
+                        { 
+                            Enabled = true,  // 업데이트 시에는 활성화되어 있다고 가정
+                            Settings = updateData.Data.Settings
+                        });
                         break;
                         
                     case "buildorder":
@@ -754,6 +768,147 @@ namespace StarcUp.Business.Communication
             catch (Exception ex)
             {
                 LoggerHelper.Error($" 인구수 프리셋 처리 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 업그레이드 프리셋 처리
+        /// </summary>
+        private void HandleUpgradePreset(PresetItem upgradePreset)
+        {
+            try
+            {
+                LoggerHelper.Info($"🔧 업그레이드 프리셋 처리: enabled={upgradePreset.Enabled}");
+                
+                if (!upgradePreset.Enabled)
+                {
+                    LoggerHelper.Warning("⚡ 업그레이드 기능이 비활성화되어 있습니다");
+                    return;
+                }
+
+                // settings 필드에서 UpgradeSettings 객체 파싱
+                LoggerHelper.Info($"🛠️ 업그레이드 설정 데이터 확인: Settings={upgradePreset.Settings?.ToString() ?? "null"}");
+                
+                if (upgradePreset.Settings != null)
+                {
+                    UpgradeSettings upgradeSettings;
+                    
+                    if (upgradePreset.Settings is JsonElement element)
+                    {
+                        var jsonText = element.GetRawText();
+                        LoggerHelper.Info($"🛠️ 파싱할 JSON: {jsonText}");
+                        upgradeSettings = JsonSerializer.Deserialize<UpgradeSettings>(jsonText);
+                        LoggerHelper.Info($"🛠️ 파싱된 설정: Categories={upgradeSettings?.Categories?.Count ?? 0}개");
+                    }
+                    else
+                    {
+                        LoggerHelper.Error($"🛠️ 지원되지 않는 업그레이드 설정 타입: {upgradePreset.Settings.GetType()}");
+                        return;
+                    }
+                    
+                    // UpgradeManager에 설정 적용
+                    _upgradeManager.UpdateSettings(upgradeSettings);
+                    LoggerHelper.Info($"✅ 업그레이드 설정 적용 완료: {upgradeSettings.Categories.Count}개 카테고리");
+                    
+                    // 초기 데이터 전송
+                    SendUpgradeDataEvent();
+                }
+                else
+                {
+                    LoggerHelper.Warning("🛠️ 업그레이드 설정 데이터가 없습니다");
+                    
+                    // 기본 설정으로 초기화
+                    var defaultSettings = new UpgradeSettings
+                    {
+                        UpgradeStateTracking = true,
+                        UpgradeCompletionAlert = false,
+                        Categories = new List<UpgradeCategory>()
+                    };
+                    
+                    _upgradeManager.UpdateSettings(defaultSettings);
+                    LoggerHelper.Info("🛠️ 기본 업그레이드 설정으로 초기화됨");
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error($"🛠️ 업그레이드 프리셋 처리 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 업그레이드 상태 변경 이벤트 처리
+        /// </summary>
+        private void OnUpgradeStateChanged(object sender, UpgradeStateChangedEventArgs e)
+        {
+            try
+            {
+                var eventData = new
+                {
+                    upgradeType = e.UpgradeType?.ToString(),
+                    techType = e.TechType?.ToString(),
+                    oldLevel = e.OldLevel,
+                    newLevel = e.NewLevel,
+                    wasCompleted = e.WasCompleted,
+                    isCompleted = e.IsCompleted,
+                    playerIndex = e.PlayerIndex,
+                    timestamp = e.Timestamp
+                };
+
+                _pipeClient.SendEvent(NamedPipeProtocol.Events.UpgradeStateChanged, eventData);
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error($"🛠️ 업그레이드 상태 변경 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 업그레이드 완료 이벤트 처리
+        /// </summary>
+        private void OnUpgradeCompleted(object sender, UpgradeCompletedEventArgs e)
+        {
+            try
+            {
+                var eventData = new
+                {
+                    upgradeType = e.UpgradeType?.ToString(),
+                    techType = e.TechType?.ToString(),
+                    name = e.Name,
+                    level = e.Level,
+                    playerIndex = e.PlayerIndex,
+                    timestamp = e.Timestamp
+                };
+
+                _pipeClient.SendEvent(NamedPipeProtocol.Events.UpgradeCompleted, eventData);
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error($"🛠️ 업그레이드 완료 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 업그레이드 데이터 이벤트 전송
+        /// </summary>
+        private void SendUpgradeDataEvent()
+        {
+            try
+            {
+                var statistics = _upgradeManager.CurrentStatistics;
+                if (statistics == null)
+                {
+                    LoggerHelper.Warning("🛠️ 전송할 업그레이드 통계 데이터가 없습니다");
+                    return;
+                }
+
+                // JsonPropertyName이 설정된 모델을 직접 사용하여 정수 값으로 직렬화
+                var eventData = statistics;
+
+                _pipeClient.SendEvent(NamedPipeProtocol.Events.UpgradeDataUpdated, eventData);
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error($"🛠️ 업그레이드 데이터 이벤트 전송 실패: {ex.Message}");
             }
         }
 

@@ -799,7 +799,7 @@ export default function App() {
     const effectiveOriginalRace = originalRace ?? (currentPreset.selectedRace ?? RaceType.Protoss);
     if (!upgradeBackup && race === effectiveOriginalRace && currentPreset.upgradeSettings) {
       upgradeBackup = currentPreset.upgradeSettings;
-      currentUpgradeBackupMap.set(race, upgradeBackup);
+      currentUpgradeBackupMap.set(race, upgradeBackup!);
     }
     
     if (upgradeBackup) {

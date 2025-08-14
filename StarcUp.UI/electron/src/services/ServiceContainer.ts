@@ -398,7 +398,15 @@ export class ServiceContainer implements IServiceContainer {
         },
         upgrade: {
           enabled: preset.featureStates?.[3] || false,
-          settingsMask: 0 // 추후 구현
+          settingsMask: 0, // 업그레이드는 settings 객체 사용
+          settings: (() => {
+            const converted = this.convertUpgradeSettingsForCore(preset.upgradeSettings)
+            console.log('🔍 전송할 업그레이드 설정:', {
+              original: preset.upgradeSettings,
+              converted: converted
+            })
+            return converted
+          })()
         },
         buildOrder: {
           enabled: preset.featureStates?.[4] || false,
@@ -442,7 +450,46 @@ export class ServiceContainer implements IServiceContainer {
     return converted
   }
 
+  private convertUpgradeSettingsForCore(upgradeSettings: any): any {
+    if (!upgradeSettings) {
+      console.log('⚠️ 업그레이드 설정이 없음 - 기본값 사용')
+      // 기본 설정 반환
+      return {
+        upgradeStateTracking: true,
+        upgradeCompletionAlert: false,
+        categories: [
+          {
+            id: 'default-protoss',
+            name: '프로토스 기본',
+            upgrades: [0, 1, 2], // 예시 업그레이드 타입들
+            techs: [0, 1, 2]     // 예시 테크 타입들
+          }
+        ]
+      }
+    }
 
+    const converted = {
+      upgradeStateTracking: upgradeSettings.upgradeStateTracking ?? true,
+      upgradeCompletionAlert: upgradeSettings.upgradeCompletionAlert ?? false,
+      categories: upgradeSettings.categories?.map((category: any) => ({
+        id: category.id,
+        name: category.name,
+        upgrades: category.upgrades || [],
+        techs: category.techs || []
+      })) || []
+    }
+
+    console.log('🔄 업그레이드 설정 변환:', {
+      원본_tracking: upgradeSettings.upgradeStateTracking,
+      변환된_tracking: converted.upgradeStateTracking,
+      원본_alert: upgradeSettings.upgradeCompletionAlert,
+      변환된_alert: converted.upgradeCompletionAlert,
+      원본_categories: upgradeSettings.categories?.length || 0,
+      변환된_categories: converted.categories.length
+    })
+
+    return converted
+  }
 
   /**
    * 일꾼 설정을 비트마스크로 변환

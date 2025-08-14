@@ -8,6 +8,7 @@ using StarcUp.Business.Units.StaticData.Repositories;
 using StarcUp.Business.Game;
 using StarcUp.Business.GameManager.Extensions;
 using StarcUp.Business.Profile;
+using StarcUp.Business.Upgrades.Adapters;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Infrastructure.Communication;
 using StarcUp.Infrastructure.Windows;
@@ -38,7 +39,10 @@ namespace StarcUp.DependencyInjection
             container.RegisterSingleton<IWindowManager>(
                 c => new WindowManager(c.Resolve<IMessageLoopRunner>()));
 
-            // Offset Repository
+            // Offset Repository (기존 UnitOffsetRepository를 GameOffsetRepository로 대체)
+            container.RegisterSingleton<IGameOffsetRepository>(
+                c => new GameOffsetRepository("Data"));
+            // 하위 호환성을 위한 UnitOffsetRepository 등록
             container.RegisterSingleton(
                 c => new UnitOffsetRepository("Data"));
 
@@ -88,6 +92,15 @@ namespace StarcUp.DependencyInjection
                     c.Resolve<IMemoryService>(),
                     c.Resolve<IUnitCountService>()));
 
+            // Upgrade Management Services
+            container.RegisterSingleton<IUpgradeMemoryAdapter>(
+                c => new UpgradeMemoryAdapter(
+                    c.Resolve<IMemoryService>(),
+                    c.Resolve<IGameOffsetRepository>()));
+            container.RegisterSingleton<IUpgradeManager>(
+                c => new UpgradeManager(
+                    c.Resolve<IUpgradeMemoryAdapter>()));
+
             // Communication Services
             container.RegisterSingleton<INamedPipeClient>(
                 c => new NamedPipeClient());
@@ -98,7 +111,8 @@ namespace StarcUp.DependencyInjection
                     c.Resolve<IInGameDetector>(),
                     c.Resolve<IWindowManager>(),
                     c.Resolve<IWorkerManager>(),
-                    c.Resolve<IPopulationManager>()));
+                    c.Resolve<IPopulationManager>(),
+                    c.Resolve<IUpgradeManager>()));
 
             PlayerExtensions.SetUnitCountService(container.Resolve<IUnitCountService>());
             PlayerExtensions.SetUnitService(container.Resolve<IUnitService>());
@@ -110,7 +124,8 @@ namespace StarcUp.DependencyInjection
                     c.Resolve<IMemoryService>(),
                     c.Resolve<IUnitCountService>(),
                     c.Resolve<IWorkerManager>(),
-                    c.Resolve<IPopulationManager>()));
+                    c.Resolve<IPopulationManager>(),
+                    c.Resolve<IUpgradeManager>()));
 
             logger.Info("✅ 서비스 등록 완료:");
             logger.Info("   📖 MemoryReader - 통합된 메모리 읽기 서비스");
@@ -129,6 +144,9 @@ namespace StarcUp.DependencyInjection
             logger.Info("   📡 CommunicationService - UI 통신 관리 서비스");
             logger.Info("   👷 WorkerManager - 일꾼 관리 및 이벤트 서비스");
             logger.Info("   👥 PopulationManager - 인구수 관리 및 경고 서비스");
+            logger.Info("   🛠️ GameOffsetRepository - 게임 메모리 오프셋 통합 저장소");
+            logger.Info("   🔧 UpgradeMemoryAdapter - 업그레이드/테크 메모리 접근 어댑터");
+            logger.Info("   ⚡ UpgradeManager - 업그레이드/테크 추적 및 이벤트 서비스");
             logger.Info("   🎯 GameManager - 게임 관리 서비스 (자동 유닛 데이터 로딩)");
         }
     }

@@ -145,6 +145,11 @@ namespace StarcUp.Infrastructure.Communication
             
             // PopulationManager 관련 이벤트
             public const string SupplyAlert = "supply-alert";
+            
+            // UpgradeManager 관련 이벤트
+            public const string UpgradeDataUpdated = "upgrade-data-updated";
+            public const string UpgradeStateChanged = "upgrade-state-changed";
+            public const string UpgradeCompleted = "upgrade-completed";
         }
     }
 }

@@ -153,5 +153,10 @@ export const Events = {
   WorkerPresetChanged: 'worker-preset-changed',
   
   // PopulationManager 관련 이벤트
-  SupplyAlert: 'supply-alert'
+  SupplyAlert: 'supply-alert',
+  
+  // UpgradeManager 관련 이벤트
+  UpgradeDataUpdated: 'upgrade-data-updated',
+  UpgradeStateChanged: 'upgrade-state-changed',
+  UpgradeCompleted: 'upgrade-completed'
 } as const

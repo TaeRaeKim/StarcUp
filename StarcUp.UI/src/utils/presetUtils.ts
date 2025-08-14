@@ -34,6 +34,7 @@ export interface UnitPreset {
 export interface UpgradePreset {
   enabled: boolean;
   settingsMask: number;
+  settings?: any; // 업그레이드 상세 설정
 }
 
 export interface BuildOrderPreset {

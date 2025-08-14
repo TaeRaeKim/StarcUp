@@ -247,6 +247,22 @@ export class CoreCommunicationService implements ICoreCommunicationService {
       }
     })
 
+    // 업그레이드 관련 이벤트 핸들러
+    this.namedPipeService.onEvent(Events.UpgradeDataUpdated, (data: any) => {
+      console.log('🔧 업그레이드 데이터 업데이트:', data)
+      // 필요시 콜백 추가
+    })
+
+    this.namedPipeService.onEvent(Events.UpgradeStateChanged, (data: any) => {
+      console.log('⚡ 업그레이드 상태 변경:', data)
+      // 필요시 콜백 추가
+    })
+
+    this.namedPipeService.onEvent(Events.UpgradeCompleted, (data: any) => {
+      console.log('✅ 업그레이드 완료:', data)
+      // 필요시 콜백 추가
+    })
+
     console.log('✅ Core 이벤트 핸들러 설정 완료')
   }
 
