@@ -290,7 +290,7 @@ namespace StarcUp.Business.Profile
                 AlertMessage = alertMessage
             };
 
-            LoggerHelper.Warning($"{alertMessage}");
+            LoggerHelper.Info($"{alertMessage}");
             SupplyAlert?.Invoke(this, eventArgs);
         }
 
