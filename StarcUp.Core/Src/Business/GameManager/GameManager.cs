@@ -80,6 +80,11 @@ namespace StarcUp.Business.Game
 
             LoadLocalPlayerIndex();
             LoadGameData();
+            
+            var localPlayer = Players[LocalGameData.LocalPlayerIndex];
+
+            _unitService.UpdateUnits();
+            localPlayer.UpdateUnits();
 
             // WorkerManager 초기화
             _workerManager.Initialize(LocalGameData.LocalPlayerIndex);
@@ -90,7 +95,7 @@ namespace StarcUp.Business.Game
             LoggerHelper.Info("PopulationManager 초기화 완료");
 
             // UpgradeManager 초기화
-            _upgradeManager.Initialize(LocalGameData.LocalPlayerIndex);
+            _upgradeManager.Initialize(LocalGameData.LocalPlayerIndex, localPlayer.GetBuildings());
 
             LoggerHelper.Info("UpgradeManager 초기화 완료");
 
@@ -147,7 +152,6 @@ namespace StarcUp.Business.Game
                 UpdateUnitCountService();
                 LoadGameData();
                 UpdatePopulationData();
-                UpdateUpgradeData();
             }
             catch (Exception ex)
             {
@@ -167,8 +171,12 @@ namespace StarcUp.Business.Game
                 var workers = localPlayer.GetWorkers();
                 _workerManager.UpdateWorkerData(workers);
 
-                var gasBuildings = localPlayer.GetGasBuildings().ToList();
+                var gasBuildings = localPlayer.GetGasBuildings();
                 _workerManager.UpdateGasBuildings(gasBuildings);
+
+
+                var buildings = localPlayer.GetBuildings();
+                _upgradeManager.Update(buildings);
             }
             catch (Exception ex)
             {
@@ -207,18 +215,6 @@ namespace StarcUp.Business.Game
             catch (Exception ex)
             {
                 LoggerHelper.Error("PopulationManager 업데이트 중 오류 발생", ex);
-            }
-        }
-
-        private void UpdateUpgradeData()
-        {
-            try
-            {
-                _upgradeManager.Update();
-            }
-            catch (Exception ex)
-            {
-                LoggerHelper.Error("UpgradeManager 업데이트 중 오류 발생", ex);
             }
         }
 

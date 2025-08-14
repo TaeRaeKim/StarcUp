@@ -30,4 +30,14 @@ namespace StarcUp.Business.Upgrades.Models
         public byte PlayerIndex { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.Now;
     }
+
+    /// <summary>
+    /// 업그레이드 진행률 이벤트 인수
+    /// </summary>
+    public class UpgradeProgressEventArgs : EventArgs
+    {
+        public UpgradeTechStatistics Statistics { get; set; } = null!;
+        public byte PlayerIndex { get; set; }
+        public DateTime Timestamp { get; set; } = DateTime.Now;
+    }
 }

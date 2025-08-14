@@ -188,5 +188,22 @@ namespace StarcUp.Business.GameManager.Extensions
             }
         }
 
+        /// <summary>
+        /// 모든 건물들을 효율적으로 조회
+        /// </summary>
+        /// <param name="player">플레이어</param>
+        /// <returns>건물들의 IEnumerable</returns>
+        public static IEnumerable<Unit> GetBuildings(this Player player)
+        {
+            var units = player.GetPlayerUnits();
+            var unitCount = player.UnitCount;
+            
+            for (int i = 0; i < unitCount; i++)
+            {
+                if (units[i].IsBuilding)
+                    yield return units[i];
+            }
+        }
+
     }
 }

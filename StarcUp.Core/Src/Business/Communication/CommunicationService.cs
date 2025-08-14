@@ -100,8 +100,10 @@ namespace StarcUp.Business.Communication
                 _populationManager.SupplyAlert += OnSupplyAlert;
 
                 // UpgradeManager 이벤트 구독
-                _upgradeManager.StateChanged += OnUpgradeStateChanged;
+                // _upgradeManager.StateChanged += OnUpgradeStateChanged;  // 주석처리 - UpgradeCompleted만 사용
                 _upgradeManager.UpgradeCompleted += OnUpgradeCompleted;
+                _upgradeManager.ProgressChanged += OnUpgradeProgressChanged;
+                _upgradeManager.InitialStateDetected += OnUpgradeInitialStateDetected;
 
                 // 자동 재연결 시작 (3초 간격, 최대 10회 재시도)
                 _pipeClient.StartAutoReconnect(pipeName, 3000, 10);
@@ -174,6 +176,12 @@ namespace StarcUp.Business.Communication
 
                 // PopulationManager 이벤트 구독 해제
                 _populationManager.SupplyAlert -= OnSupplyAlert;
+
+                // UpgradeManager 이벤트 구독 해제
+                // _upgradeManager.StateChanged -= OnUpgradeStateChanged;  // 주석처리 - UpgradeCompleted만 사용
+                _upgradeManager.UpgradeCompleted -= OnUpgradeCompleted;
+                _upgradeManager.ProgressChanged -= OnUpgradeProgressChanged;
+                _upgradeManager.InitialStateDetected -= OnUpgradeInitialStateDetected;
 
                 // Debounce 타이머 정리
                 ClearDebounceTimer();
@@ -836,31 +844,31 @@ namespace StarcUp.Business.Communication
         }
 
         /// <summary>
-        /// 업그레이드 상태 변경 이벤트 처리
+        /// 업그레이드 상태 변경 이벤트 처리 (주석처리 - UpgradeCompleted만 사용)
         /// </summary>
-        private void OnUpgradeStateChanged(object sender, UpgradeStateChangedEventArgs e)
-        {
-            try
-            {
-                var eventData = new
-                {
-                    upgradeType = e.UpgradeType?.ToString(),
-                    techType = e.TechType?.ToString(),
-                    oldLevel = e.OldLevel,
-                    newLevel = e.NewLevel,
-                    wasCompleted = e.WasCompleted,
-                    isCompleted = e.IsCompleted,
-                    playerIndex = e.PlayerIndex,
-                    timestamp = e.Timestamp
-                };
-
-                _pipeClient.SendEvent(NamedPipeProtocol.Events.UpgradeStateChanged, eventData);
-            }
-            catch (Exception ex)
-            {
-                LoggerHelper.Error($"🛠️ 업그레이드 상태 변경 이벤트 전송 실패: {ex.Message}");
-            }
-        }
+        // private void OnUpgradeStateChanged(object sender, UpgradeStateChangedEventArgs e)
+        // {
+        //     try
+        //     {
+        //         var eventData = new
+        //         {
+        //             upgradeType = e.UpgradeType?.ToString(),
+        //             techType = e.TechType?.ToString(),
+        //             oldLevel = e.OldLevel,
+        //             newLevel = e.NewLevel,
+        //             wasCompleted = e.WasCompleted,
+        //             isCompleted = e.IsCompleted,
+        //             playerIndex = e.PlayerIndex,
+        //             timestamp = e.Timestamp
+        //         };
+        // 
+        //         _pipeClient.SendEvent(NamedPipeProtocol.Events.UpgradeStateChanged, eventData);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         LoggerHelper.Error($"🛠️ 업그레이드 상태 변경 이벤트 전송 실패: {ex.Message}");
+        //     }
+        // }
 
         /// <summary>
         /// 업그레이드 완료 이벤트 처리
@@ -871,8 +879,8 @@ namespace StarcUp.Business.Communication
             {
                 var eventData = new
                 {
-                    upgradeType = e.UpgradeType?.ToString(),
-                    techType = e.TechType?.ToString(),
+                    upgradeType = e.UpgradeType.HasValue ? (int)e.UpgradeType.Value : (int?)null,
+                    techType = e.TechType.HasValue ? (int)e.TechType.Value : (int?)null,
                     name = e.Name,
                     level = e.Level,
                     playerIndex = e.PlayerIndex,
@@ -884,6 +892,39 @@ namespace StarcUp.Business.Communication
             catch (Exception ex)
             {
                 LoggerHelper.Error($"🛠️ 업그레이드 완료 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 업그레이드 진행률 이벤트 핸들러
+        /// </summary>
+        private void OnUpgradeProgressChanged(object sender, UpgradeProgressEventArgs e)
+        {
+            try
+            {
+                // 전체 통계 데이터를 upgrade-data-updated 이벤트로 전송
+                _pipeClient.SendEvent(NamedPipeProtocol.Events.UpgradeDataUpdated, e.Statistics);
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error($"🛠️ 업그레이드 진행률 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 업그레이드 초기 상태 감지 이벤트 핸들러
+        /// </summary>
+        private void OnUpgradeInitialStateDetected(object sender, UpgradeProgressEventArgs e)
+        {
+            try
+            {
+                // 초기 완료된 상태를 upgrade-init 이벤트로 전송
+                _pipeClient.SendEvent(NamedPipeProtocol.Events.UpgradeInit, e.Statistics);
+                LoggerHelper.Info($"🛠️ 업그레이드 초기 상태 전송 - 플레이어: {e.PlayerIndex}");
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error($"🛠️ 업그레이드 초기 상태 이벤트 전송 실패: {ex.Message}");
             }
         }
 

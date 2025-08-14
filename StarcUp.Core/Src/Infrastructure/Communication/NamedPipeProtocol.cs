@@ -150,6 +150,7 @@ namespace StarcUp.Infrastructure.Communication
             public const string UpgradeDataUpdated = "upgrade-data-updated";
             public const string UpgradeStateChanged = "upgrade-state-changed";
             public const string UpgradeCompleted = "upgrade-completed";
+            public const string UpgradeInit = "upgrade-init";
         }
     }
 }

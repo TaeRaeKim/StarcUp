@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using StarcUp.Business.Upgrades.Models;
+using StarcUp.Business.Units.Runtime.Models;
 
 namespace StarcUp.Business.Profile
 {
@@ -11,6 +13,8 @@ namespace StarcUp.Business.Profile
         // 이벤트
         event EventHandler<UpgradeStateChangedEventArgs>? StateChanged;
         event EventHandler<UpgradeCompletedEventArgs>? UpgradeCompleted;
+        event EventHandler<UpgradeProgressEventArgs>? ProgressChanged;
+        event EventHandler<UpgradeProgressEventArgs>? InitialStateDetected;
         
         // 프로퍼티
         UpgradeTechStatistics? CurrentStatistics { get; }
@@ -18,12 +22,12 @@ namespace StarcUp.Business.Profile
         int LocalPlayerId { get; }
         
         // 초기화
-        void Initialize(int localPlayerId);
+        void Initialize(int localPlayerId, IEnumerable<Unit> buildings);
         
         // 설정 업데이트
         void UpdateSettings(UpgradeSettings settings);
         
         // 업데이트 (GameManager에서 24fps로 호출)
-        void Update();
+        void Update(IEnumerable<Unit> buildings);
     }
 }

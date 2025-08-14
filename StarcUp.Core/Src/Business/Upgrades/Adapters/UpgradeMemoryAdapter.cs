@@ -1,6 +1,10 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using StarcUp.Business.MemoryService;
+using StarcUp.Business.Units.Runtime.Models;
 using StarcUp.Business.Units.Types;
+using StarcUp.Business.Units.Types.Extensions;
 using StarcUp.Infrastructure.Memory;
 using StarcUp.Common.Logging;
 
@@ -119,11 +123,72 @@ namespace StarcUp.Business.Upgrades.Adapters
             }
         }
         
-        public (bool isProgressing, int remainingFrames, int totalFrames) GetProgressInfo(int unitTypeOrBuildingId)
+        public (bool isProgressing, int remainingFrames, int totalFrames) GetProgressInfo(int upgradeOrTechId, IEnumerable<Unit> buildings)
         {
-            // TODO: 실제 진행 중인 업그레이드/테크를 추적하는 로직 구현
-            // 현재는 더미 데이터 반환
-            return (false, 0, 0);
+            if (!_isInitialized)
+                return (false, 0, 0);
+            
+            try
+            {
+                // ActionIndex 76 (업그레이드 중)인 건물들을 찾음
+                var upgradingBuildings = buildings.Where(b => b.ActionIndex == 76);
+                
+                foreach (var building in upgradingBuildings)
+                {
+                    // CurrentUpgrade 값이 요청한 upgradeOrTechId와 일치하는지 확인
+                    if (building.CurrentUpgrade == upgradeOrTechId)
+                    {
+                        // 업그레이드/테크 타입 확인
+                        bool isUpgrade = Enum.IsDefined(typeof(UpgradeType), (byte)upgradeOrTechId);
+                        bool isTech = Enum.IsDefined(typeof(TechType), (byte)upgradeOrTechId);
+                        
+                        if (isUpgrade || isTech)
+                        {
+                            // Timer 값을 remainingFrames로 사용
+                            int totalFrames = GetTotalFrames(upgradeOrTechId, isUpgrade, building.CurrentUpgradeLevel);
+                            int remainingFrames = building.Timer;
+                            
+                            return (true, remainingFrames, totalFrames);
+                        }
+                    }
+                }
+                
+                return (false, 0, 0);
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error($"[UpgradeMemoryAdapter] GetProgressInfo 실패: {ex.Message}");
+                return (false, 0, 0);
+            }
+        }
+        
+        /// <summary>
+        /// 업그레이드/테크의 정확한 총 프레임 수 반환
+        /// </summary>
+        private int GetTotalFrames(int upgradeOrTechId, bool isUpgrade, byte currentLevel)
+        {
+            try
+            {
+                if (isUpgrade)
+                {
+                    var upgradeType = (UpgradeType)upgradeOrTechId;
+                    // 레벨별 업그레이드인 경우 currentLevel 사용, 아니면 기본 프레임 사용
+                    return upgradeType.IsLeveledUpgrade() 
+                        ? upgradeType.GetFramesForLevel(currentLevel > 0 ? currentLevel : 1)
+                        : upgradeType.GetBaseFrames();
+                }
+                else
+                {
+                    var techType = (TechType)upgradeOrTechId;
+                    return techType.GetFrames();
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Warning($"[UpgradeMemoryAdapter] GetTotalFrames 실패 - ID: {upgradeOrTechId}, {ex.Message}");
+                // 기본값 반환
+                return isUpgrade ? 2000 : 1500;
+            }
         }
         
         public byte[] ReadAllUpgrades(byte playerIndex)
@@ -136,10 +201,18 @@ namespace StarcUp.Business.Upgrades.Adapters
             
             try
             {
+                // 먼저 _threadStackBase에서 포인터 값을 읽음
+                nint basePointer = _memoryService.ReadPointer(_threadStackBase);
+                if (basePointer == 0)
+                {
+                    LoggerHelper.Warning($"[UpgradeMemoryAdapter] THREADSTACK0 포인터 읽기 실패");
+                    return new byte[TOTAL_UPGRADE_COUNT];
+                }
+                
                 byte[] upgrades = new byte[TOTAL_UPGRADE_COUNT];
                 
                 // Section 1: 0-43
-                nint section1Address = _threadStackBase + _offsetRepository.GetUpgradeOffset1() + (playerIndex * UPGRADE_COUNT_SECTION1);
+                nint section1Address = basePointer + _offsetRepository.GetUpgradeOffset1() + (playerIndex * UPGRADE_COUNT_SECTION1);
                 byte[] section1Buffer = new byte[UPGRADE_COUNT_SECTION1];
                 if (!_memoryService.ReadMemoryIntoBuffer(section1Address, section1Buffer, UPGRADE_COUNT_SECTION1))
                 {
@@ -151,7 +224,7 @@ namespace StarcUp.Business.Upgrades.Adapters
                 // 45, 46은 사용하지 않으므로 0으로 유지
                 
                 // Section 2: 47-54
-                nint section2Address = _threadStackBase + _offsetRepository.GetUpgradeOffset2() + (playerIndex * UPGRADE_COUNT_SECTION2);
+                nint section2Address = basePointer + _offsetRepository.GetUpgradeOffset2() + (playerIndex * UPGRADE_COUNT_SECTION2);
                 byte[] section2Buffer = new byte[UPGRADE_COUNT_SECTION2];
                 if (!_memoryService.ReadMemoryIntoBuffer(section2Address, section2Buffer, UPGRADE_COUNT_SECTION2))
                 {
@@ -179,10 +252,18 @@ namespace StarcUp.Business.Upgrades.Adapters
             
             try
             {
+                // 먼저 _threadStackBase에서 포인터 값을 읽음
+                nint basePointer = _memoryService.ReadPointer(_threadStackBase);
+                if (basePointer == 0)
+                {
+                    LoggerHelper.Warning($"[UpgradeMemoryAdapter] THREADSTACK0 포인터 읽기 실패");
+                    return new byte[TOTAL_TECH_COUNT];
+                }
+                
                 byte[] techs = new byte[TOTAL_TECH_COUNT];
                 
                 // Section 1: 0-23
-                nint section1Address = _threadStackBase + _offsetRepository.GetTechOffset1() + (playerIndex * TECH_COUNT_SECTION1);
+                nint section1Address = basePointer + _offsetRepository.GetTechOffset1() + (playerIndex * TECH_COUNT_SECTION1);
                 byte[] section1Buffer = new byte[TECH_COUNT_SECTION1];
                 if (!_memoryService.ReadMemoryIntoBuffer(section1Address, section1Buffer, TECH_COUNT_SECTION1))
                 {
@@ -192,7 +273,7 @@ namespace StarcUp.Business.Upgrades.Adapters
                 Array.Copy(section1Buffer, 0, techs, 0, TECH_COUNT_SECTION1);
                 
                 // Section 2: 24-43
-                nint section2Address = _threadStackBase + _offsetRepository.GetTechOffset2() + (playerIndex * TECH_COUNT_SECTION2);
+                nint section2Address = basePointer + _offsetRepository.GetTechOffset2() + (playerIndex * TECH_COUNT_SECTION2);
                 byte[] section2Buffer = new byte[TECH_COUNT_SECTION2];
                 if (!_memoryService.ReadMemoryIntoBuffer(section2Address, section2Buffer, TECH_COUNT_SECTION2))
                 {
@@ -215,19 +296,37 @@ namespace StarcUp.Business.Upgrades.Adapters
             if (upgradeIndex < 0 || upgradeIndex >= TOTAL_UPGRADE_COUNT)
                 return 0;
             
-            // 0-43 범위
-            if (upgradeIndex <= 43)
+            try
             {
-                return _threadStackBase + _offsetRepository.GetUpgradeOffset1() + (playerIndex * UPGRADE_COUNT_SECTION1) + upgradeIndex;
+                // 먼저 _threadStackBase에서 포인터 값을 읽음
+                nint basePointer = _memoryService.ReadPointer(_threadStackBase);
+                if (basePointer == 0)
+                {
+                    LoggerHelper.Warning($"[UpgradeMemoryAdapter] THREADSTACK0 포인터 읽기 실패");
+                    return 0;
+                }
+                
+                // 0-43 범위
+                if (upgradeIndex <= 43)
+                {
+                    nint finalAddress = basePointer + _offsetRepository.GetUpgradeOffset1() + (playerIndex * UPGRADE_COUNT_SECTION1) + upgradeIndex;
+                    return finalAddress;
+                }
+                // 47-54 범위
+                else if (upgradeIndex >= 47 && upgradeIndex <= 54)
+                {
+                    int adjustedIndex = upgradeIndex - 47; // 0-7로 조정
+                    nint finalAddress = basePointer + _offsetRepository.GetUpgradeOffset2() + (playerIndex * UPGRADE_COUNT_SECTION2) + adjustedIndex;
+                    return finalAddress;
+                }
+                
+                return 0;
             }
-            // 47-54 범위
-            else if (upgradeIndex >= 47 && upgradeIndex <= 54)
+            catch (Exception ex)
             {
-                int adjustedIndex = upgradeIndex - 47; // 0-7로 조정
-                return _threadStackBase + _offsetRepository.GetUpgradeOffset2() + (playerIndex * UPGRADE_COUNT_SECTION2) + adjustedIndex;
+                LoggerHelper.Error($"[UpgradeMemoryAdapter] 업그레이드 주소 계산 실패: {ex.Message}");
+                return 0;
             }
-            
-            return 0;
         }
         
         private nint CalculateTechAddress(int techIndex, byte playerIndex)
@@ -235,19 +334,37 @@ namespace StarcUp.Business.Upgrades.Adapters
             if (techIndex < 0 || techIndex >= TOTAL_TECH_COUNT)
                 return 0;
             
-            // 0-23 범위
-            if (techIndex <= 23)
+            try
             {
-                return _threadStackBase + _offsetRepository.GetTechOffset1() + (playerIndex * TECH_COUNT_SECTION1) + techIndex;
+                // 먼저 _threadStackBase에서 포인터 값을 읽음
+                nint basePointer = _memoryService.ReadPointer(_threadStackBase);
+                if (basePointer == 0)
+                {
+                    LoggerHelper.Warning($"[UpgradeMemoryAdapter] THREADSTACK0 포인터 읽기 실패");
+                    return 0;
+                }
+                
+                // 0-23 범위
+                if (techIndex <= 23)
+                {
+                    nint finalAddress = basePointer + _offsetRepository.GetTechOffset1() + (playerIndex * TECH_COUNT_SECTION1) + techIndex;
+                    return finalAddress;
+                }
+                // 24-43 범위
+                else if (techIndex <= 43)
+                {
+                    int adjustedIndex = techIndex - 24; // 0-19로 조정
+                    nint finalAddress = basePointer + _offsetRepository.GetTechOffset2() + (playerIndex * TECH_COUNT_SECTION2) + adjustedIndex;
+                    return finalAddress;
+                }
+                
+                return 0;
             }
-            // 24-43 범위
-            else if (techIndex <= 43)
+            catch (Exception ex)
             {
-                int adjustedIndex = techIndex - 24; // 0-19로 조정
-                return _threadStackBase + _offsetRepository.GetTechOffset2() + (playerIndex * TECH_COUNT_SECTION2) + adjustedIndex;
+                LoggerHelper.Error($"[UpgradeMemoryAdapter] 테크 주소 계산 실패: {ex.Message}");
+                return 0;
             }
-            
-            return 0;
         }
         
         public void Dispose()
