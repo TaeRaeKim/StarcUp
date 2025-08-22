@@ -103,6 +103,7 @@ namespace StarcUp.Business.Communication
                 // _upgradeManager.StateChanged += OnUpgradeStateChanged;  // 주석처리 - UpgradeCompleted만 사용
                 _upgradeManager.UpgradeCompleted += OnUpgradeCompleted;
                 _upgradeManager.UpgradeCancelled += OnUpgradeCancelled;
+                _upgradeManager.UpgradeDecreased += OnUpgradeDecreased;
                 _upgradeManager.ProgressChanged += OnUpgradeProgressChanged;
                 _upgradeManager.InitialStateDetected += OnUpgradeInitialStateDetected;
 
@@ -182,6 +183,7 @@ namespace StarcUp.Business.Communication
                 // _upgradeManager.StateChanged -= OnUpgradeStateChanged;  // 주석처리 - UpgradeCompleted만 사용
                 _upgradeManager.UpgradeCompleted -= OnUpgradeCompleted;
                 _upgradeManager.UpgradeCancelled -= OnUpgradeCancelled;
+                _upgradeManager.UpgradeDecreased -= OnUpgradeDecreased;
                 _upgradeManager.ProgressChanged -= OnUpgradeProgressChanged;
                 _upgradeManager.InitialStateDetected -= OnUpgradeInitialStateDetected;
 
@@ -965,6 +967,23 @@ namespace StarcUp.Business.Communication
             catch (Exception ex)
             {
                 LoggerHelper.Error($"🛠️ 업그레이드 초기 상태 이벤트 전송 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 업그레이드 감소 이벤트 핸들러
+        /// </summary>
+        private void OnUpgradeDecreased(object sender, UpgradeProgressEventArgs e)
+        {
+            try
+            {
+                // 감소된 업그레이드 데이터를 upgrade-decreased 이벤트로 전송
+                _pipeClient.SendEvent(NamedPipeProtocol.Events.UpgradeDecreased, e.Statistics);
+                LoggerHelper.Info($"🛠️ 업그레이드 감소 이벤트 전송: {e.Statistics.Categories.Count}개 카테고리");
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error($"🛠️ 업그레이드 감소 이벤트 전송 실패: {ex.Message}");
             }
         }
         

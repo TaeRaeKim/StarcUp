@@ -85,6 +85,8 @@ export interface ICoreCommunicationService {
   offUpgradeInit(): void
   onUpgradeDataUpdated(callback: (data: any) => void): void
   offUpgradeDataUpdated(): void
+  onUpgradeDecreased(callback: (data: any) => void): void
+  offUpgradeDecreased(): void
   onUpgradeCompleted(callback: (data: any) => void): void
   offUpgradeCompleted(): void
   onUpgradeCancelled(callback: (data: any) => void): void

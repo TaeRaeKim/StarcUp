@@ -23,6 +23,7 @@ export class CoreCommunicationService implements ICoreCommunicationService {
   // 업그레이드 이벤트 콜백들
   private upgradeInitCallback: ((data: any) => void) | null = null
   private upgradeDataUpdatedCallback: ((data: any) => void) | null = null
+  private upgradeDecreasedCallback: ((data: any) => void) | null = null
   private upgradeCompletedCallback: ((data: any) => void) | null = null
   private upgradeCancelledCallback: ((data: any) => void) | null = null
   
@@ -313,6 +314,18 @@ export class CoreCommunicationService implements ICoreCommunicationService {
       }
     })
 
+    this.namedPipeService.onEvent(Events.UpgradeDecreased, (data: any) => {
+      console.log('📉 [CoreCommunication] 업그레이드 감소:', {
+        timestamp: new Date().toISOString(),
+        categories: data.categories?.length || 0,
+        hasCallback: !!this.upgradeDecreasedCallback,
+        data: data
+      })
+      if (this.upgradeDecreasedCallback) {
+        this.upgradeDecreasedCallback(data)
+      }
+    })
+
     console.log('✅ Core 이벤트 핸들러 설정 완료')
   }
 
@@ -442,6 +455,14 @@ export class CoreCommunicationService implements ICoreCommunicationService {
 
   offUpgradeCancelled(): void {
     this.upgradeCancelledCallback = null
+  }
+
+  onUpgradeDecreased(callback: (data: any) => void): void {
+    this.upgradeDecreasedCallback = callback
+  }
+
+  offUpgradeDecreased(): void {
+    this.upgradeDecreasedCallback = null
   }
   
 }

@@ -14,6 +14,7 @@ namespace StarcUp.Business.Profile
         event EventHandler<UpgradeStateChangedEventArgs>? StateChanged;
         event EventHandler<UpgradeCompletedEventArgs>? UpgradeCompleted;
         event EventHandler<UpgradeCancelledEventArgs>? UpgradeCancelled;
+        event EventHandler<UpgradeProgressEventArgs>? UpgradeDecreased;
         event EventHandler<UpgradeProgressEventArgs>? ProgressChanged;
         event EventHandler<UpgradeProgressEventArgs>? InitialStateDetected;
         

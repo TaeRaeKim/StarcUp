@@ -160,5 +160,6 @@ export const Events = {
   UpgradeDataUpdated: 'upgrade-data-updated',
   UpgradeStateChanged: 'upgrade-state-changed',
   UpgradeCompleted: 'upgrade-completed',
-  UpgradeCancelled: 'upgrade-cancelled'
+  UpgradeCancelled: 'upgrade-cancelled',
+  UpgradeDecreased: 'upgrade-decreased'
 } as const

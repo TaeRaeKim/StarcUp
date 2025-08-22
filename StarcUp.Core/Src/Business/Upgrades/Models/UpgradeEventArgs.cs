@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using StarcUp.Business.Units.Types;
 
 namespace StarcUp.Business.Upgrades.Models
@@ -49,4 +50,5 @@ namespace StarcUp.Business.Upgrades.Models
         public string CategoryName { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; } = DateTime.Now;
     }
+
 }

@@ -227,6 +227,11 @@ export class ServiceContainer implements IServiceContainer {
       windowManager.sendToOverlayWindow('upgrade-data-updated', data)
     })
 
+    coreService.onUpgradeDecreased((data: any) => {
+      // Overlay 윈도우에 업그레이드 감소 이벤트 전송 (upgrade-data-updated와 동일한 처리)
+      windowManager.sendToOverlayWindow('upgrade-data-updated', data)
+    })
+
     coreService.onUpgradeCompleted((data: any) => {
       // Overlay 윈도우에 업그레이드 완료 이벤트 전송
       windowManager.sendToOverlayWindow('upgrade-completed', data)

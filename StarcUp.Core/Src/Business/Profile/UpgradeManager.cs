@@ -25,6 +25,7 @@ namespace StarcUp.Business.Profile
         public event EventHandler<UpgradeStateChangedEventArgs>? StateChanged;
         public event EventHandler<UpgradeCompletedEventArgs>? UpgradeCompleted;
         public event EventHandler<UpgradeCancelledEventArgs>? UpgradeCancelled;
+        public event EventHandler<UpgradeProgressEventArgs>? UpgradeDecreased;
         public event EventHandler<UpgradeProgressEventArgs>? ProgressChanged;
         public event EventHandler<UpgradeProgressEventArgs>? InitialStateDetected;
 
@@ -104,6 +105,7 @@ namespace StarcUp.Business.Profile
                     {
                         DetectAndRaiseEvents();
                         DetectProgressChanges();
+                        DetectDecreasedUpgrades();
                     }
                 }
             }
@@ -332,6 +334,79 @@ namespace StarcUp.Business.Profile
             catch (Exception ex)
             {
                 LoggerHelper.Error($" 진행률 감지 실패: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 업그레이드 감소를 감지하고 이벤트를 발생시킵니다
+        /// </summary>
+        private void DetectDecreasedUpgrades()
+        {
+            if (_previousStats == null || _currentStats == null || _currentSettings == null)
+                return;
+
+            // 상태 추적이 비활성화되어 있으면 이벤트 발생하지 않음
+            if (!_currentSettings.UpgradeStateTracking)
+                return;
+
+            try
+            {
+                // 감소된 항목만 포함하는 통계 생성
+                var decreasedStats = new UpgradeTechStatistics
+                {
+                    Categories = new List<UpgradeCategoryData>()
+                };
+
+                // 카테고리별로 감소사항 확인
+                foreach (var currentCategory in _currentStats.Categories)
+                {
+                    var previousCategory = _previousStats.Categories.FirstOrDefault(c => c.Id == currentCategory.Id);
+                    if (previousCategory == null) continue;
+
+                    var decreasedItems = new List<UpgradeItemData>();
+
+                    // 아이템별로 감소사항 확인
+                    foreach (var currentItem in currentCategory.Items)
+                    {
+                        var previousItem = previousCategory.Items.FirstOrDefault(i =>
+                            i.Item.Type == currentItem.Item.Type && i.Item.Value == currentItem.Item.Value);
+                        if (previousItem == null) continue;
+
+                        // 레벨이 감소한 경우
+                        if (currentItem.Level < previousItem.Level)
+                        {
+                            // 감소된 아이템을 이전 레벨 정보와 함께 추가
+                            var decreasedItem = currentItem.Clone();
+                            decreasedItem.Level = currentItem.Level; // 이전 레벨 정보 보존
+                            decreasedItems.Add(decreasedItem);
+                        }
+                    }
+
+                    if (decreasedItems.Any())
+                    {
+                        // 감소된 아이템이 있는 카테고리만 추가
+                        var decreasedCategory = new UpgradeCategoryData
+                        {
+                            Id = currentCategory.Id,
+                            Name = currentCategory.Name,
+                            Items = decreasedItems
+                        };
+                        decreasedStats.Categories.Add(decreasedCategory);
+                    }
+                }
+
+                // 감소된 항목이 있을 때만 이벤트 발생
+                if (decreasedStats.Categories.Any())
+                {
+                    UpgradeDecreased?.Invoke(this, new UpgradeProgressEventArgs
+                    {
+                        Statistics = decreasedStats
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggerHelper.Error($" 업그레이드 감소 감지 실패: {ex.Message}");
             }
         }
 
