@@ -101,13 +101,29 @@ export function PresetSettingsModal({
   detailChanges = {},
   onReset
 }: PresetSettingsModalProps) {
-  // 편집 데이터가 없으면 현재 프리셋으로 초기화
-  const editData = editingPresetData || {
+  // 내부 상태로 편집 데이터 관리 (외부 editingPresetData와 동기화)
+  const [localEditData, setLocalEditData] = useState(() => editingPresetData || {
     name: currentPreset.name,
     description: currentPreset.description,
     featureStates: [...currentPreset.featureStates],
     selectedRace: currentPreset.selectedRace ?? RaceType.Protoss
-  };
+  });
+
+  // currentPreset이 변경되면 로컬 편집 데이터 동기화 (Overlay에서 변경된 경우)
+  useEffect(() => {
+    if (editingPresetData) {
+      setLocalEditData(editingPresetData);
+    } else {
+      // Overlay에서 currentPreset.featureStates가 변경된 경우 반영
+      setLocalEditData(prev => ({
+        ...prev,
+        featureStates: [...currentPreset.featureStates]
+      }));
+    }
+  }, [currentPreset.featureStates, editingPresetData]);
+
+  const editData = localEditData;
+
   
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -133,6 +149,11 @@ export function PresetSettingsModal({
     const newFeatures = [...editData.featureStates];
     newFeatures[index] = !newFeatures[index];
     
+    // 로컬 상태 업데이트
+    const newEditData = { ...editData, featureStates: newFeatures };
+    setLocalEditData(newEditData);
+    
+    // 부모 컴포넌트에도 알림
     if (onEditingDataChange) {
       onEditingDataChange({ featureStates: newFeatures });
     }
@@ -278,7 +299,11 @@ export function PresetSettingsModal({
                   <input
                     type="text"
                     value={editData.name}
-                    onChange={(e) => onEditingDataChange?.({ name: e.target.value })}
+                    onChange={(e) => {
+                      const newName = e.target.value;
+                      setLocalEditData(prev => ({ ...prev, name: newName }));
+                      onEditingDataChange?.({ name: newName });
+                    }}
                     className="w-full p-3 rounded-sm border transition-all duration-300 focus:outline-none"
                     style={{
                       backgroundColor: 'var(--starcraft-bg-secondary)',
@@ -305,7 +330,11 @@ export function PresetSettingsModal({
                   </label>
                   <textarea
                     value={editData.description}
-                    onChange={(e) => onEditingDataChange?.({ description: e.target.value })}
+                    onChange={(e) => {
+                      const newDescription = e.target.value;
+                      setLocalEditData(prev => ({ ...prev, description: newDescription }));
+                      onEditingDataChange?.({ description: newDescription });
+                    }}
                     rows={2}
                     className="w-full p-3 rounded-sm border transition-all duration-300 focus:outline-none resize-none"
                     style={{
@@ -347,6 +376,7 @@ export function PresetSettingsModal({
                     <button
                       key={raceKey}
                       onClick={() => {
+                        setLocalEditData(prev => ({ ...prev, selectedRace: raceKey }));
                         onEditingDataChange?.({ selectedRace: raceKey });
                         // 종족 변경 시 즉시 부모 컴포넌트에 알림
                         if (onRaceChange) {

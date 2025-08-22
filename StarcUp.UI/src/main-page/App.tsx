@@ -355,6 +355,7 @@ export default function App() {
           case 'presets-loaded':
           case 'preset-switched':
           case 'settings-updated':
+          case 'feature-toggled':
             // 전체 상태를 다시 조회하여 동기화
             if (event.state) {
               // Pro 상태에 따라 프리셋 데이터 정리
@@ -381,6 +382,14 @@ export default function App() {
                 isLoading: event.state.isLoading || false,
                 selectedIndex: event.state.selectedPresetIndex || 0
               });
+              
+              // Overlay에서 변경된 경우 편집 데이터도 동기화 (저장 버튼 활성화 방지)
+              if (event.type === 'feature-toggled' && sanitizedCurrentPreset && editingPresetData) {
+                setEditingPresetData({
+                  ...editingPresetData,
+                  featureStates: sanitizedCurrentPreset.featureStates
+                });
+              }
               
               console.log('✅ 프리셋 상태 동기화 완료:', event.type, {
                 hasUpgradeSettings: !!event.state.currentPreset?.upgradeSettings,

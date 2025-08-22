@@ -385,15 +385,17 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.5)' }}>
+                  <span style={{ fontSize: '14px', color: '#ffffff' }}>
                     업그레이드 진행도
                   </span>
-                  <Construction className="w-4 h-4" style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
+                  {settings.showUpgradeProgress ? 
+                    <Eye className="w-4 h-4" style={{ color: '#00ff88' }} /> : 
+                    <EyeOff className="w-4 h-4" style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
+                  }
                 </div>
                 <Switch
                   checked={settings.showUpgradeProgress}
                   onCheckedChange={async (checked) => await handleSettingChange('showUpgradeProgress', checked)}
-                  disabled={true}
                 />
               </div>
             </div>
@@ -622,7 +624,7 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
             }}>
               <strong style={{ color: '#ffffff' }}>편집 모드:</strong> Shift + Tab 키를 눌러 오버레이 위치를 드래그로 조정할 수 있습니다.
               <br /><br />
-              <strong style={{ color: '#ffffff' }}>🚧 개발 중:</strong> 빌드 오더, 유닛 수, 업그레이드 진행도 기능은 현재 개발 중입니다.
+              <strong style={{ color: '#ffffff' }}>🚧 개발 중:</strong> 빌드 오더, 유닛 수 기능은 현재 개발 중입니다.
               <br /><br />
               <strong style={{ color: '#ffffff' }}>아이콘 효과:</strong>
               <br />• <strong>White:</strong> 선명한 흰색 효과 (그레이스케일 + 밝기 증가)
