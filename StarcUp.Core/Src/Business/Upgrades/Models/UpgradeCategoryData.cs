@@ -19,17 +19,8 @@ namespace StarcUp.Business.Upgrades.Models
         [JsonPropertyName("remainingFrames")]
         public int RemainingFrames { get; set; }
         
-        [JsonPropertyName("totalFrames")]
-        public int TotalFrames { get; set; }
-        
-        [JsonPropertyName("isProgressing")]
-        public bool IsProgressing { get; set; }
-        
         [JsonPropertyName("currentUpgradeLevel")]
         public int CurrentUpgradeLevel { get; set; }
-        
-        [JsonPropertyName("progress")]
-        public double Progress { get; set; }
         
         /// <summary>
         /// 복사본 생성
@@ -41,10 +32,7 @@ namespace StarcUp.Business.Upgrades.Models
                 Item = new UpgradeItem { Type = Item.Type, Value = Item.Value },
                 Level = Level,
                 RemainingFrames = RemainingFrames,
-                TotalFrames = TotalFrames,
-                IsProgressing = IsProgressing,
-                CurrentUpgradeLevel = CurrentUpgradeLevel,
-                Progress = Progress
+                CurrentUpgradeLevel = CurrentUpgradeLevel
             };
         }
     }

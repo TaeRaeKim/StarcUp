@@ -887,6 +887,8 @@ namespace StarcUp.Business.Communication
                         value = e.Item.Value
                     },
                     level = e.Level,
+                    categoryId = e.CategoryId,
+                    categoryName = e.CategoryName,
                     timestamp = e.Timestamp
                 };
 
@@ -921,11 +923,10 @@ namespace StarcUp.Business.Communication
                         },
                         level = e.LastUpgradeItemData.Level,
                         remainingFrames = e.LastUpgradeItemData.RemainingFrames,
-                        totalFrames = e.LastUpgradeItemData.TotalFrames,
-                        isProgressing = e.LastUpgradeItemData.IsProgressing,
-                        currentUpgradeLevel = e.LastUpgradeItemData.CurrentUpgradeLevel,
-                        progress = e.LastUpgradeItemData.Progress
+                        currentUpgradeLevel = e.LastUpgradeItemData.CurrentUpgradeLevel
                     },
+                    categoryId = e.CategoryId,
+                    categoryName = e.CategoryName,
                     timestamp = e.Timestamp
                 };
 

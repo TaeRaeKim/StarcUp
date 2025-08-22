@@ -24,6 +24,8 @@ namespace StarcUp.Business.Upgrades.Models
     {
         public UpgradeItem Item { get; set; } = new();
         public byte Level { get; set; }
+        public string CategoryId { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 
@@ -43,6 +45,8 @@ namespace StarcUp.Business.Upgrades.Models
     {
         public UpgradeItem Item { get; set; } = new();
         public UpgradeItemData LastUpgradeItemData { get; set; } = new();
+        public string CategoryId { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }

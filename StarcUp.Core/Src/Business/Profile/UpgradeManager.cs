@@ -141,18 +141,14 @@ namespace StarcUp.Business.Profile
                         try
                         {
                             var level = _upgradeMemoryAdapter.GetUpgradeLevel(upgradeType, (byte)LocalPlayerId);
-                            var (isProgressing, remainingFrames, totalFrames, currentUpgradeLevel) = _upgradeMemoryAdapter.GetProgressInfo((int)upgradeType, buildings, true);
+                            var (isProgressing, remainingFrames, _, currentUpgradeLevel) = _upgradeMemoryAdapter.GetProgressInfo((int)upgradeType, buildings, true);
 
-                            var progress = totalFrames > 0 ? (double)(totalFrames - remainingFrames) / totalFrames : (level > 0 ? 1.0 : 0.0);
                             categoryData.Items.Add(new UpgradeItemData
                             {
                                 Item = item,
                                 Level = level,
                                 RemainingFrames = remainingFrames,
-                                TotalFrames = totalFrames,
-                                IsProgressing = isProgressing,
-                                CurrentUpgradeLevel = currentUpgradeLevel,
-                                Progress = progress
+                                CurrentUpgradeLevel = currentUpgradeLevel
                             });
                         }
                         catch (Exception ex)
@@ -166,18 +162,14 @@ namespace StarcUp.Business.Profile
                         try
                         {
                             var isCompleted = _upgradeMemoryAdapter.IsTechCompleted(techType, (byte)LocalPlayerId);
-                            var (isProgressing, remainingFrames, totalFrames, currentUpgradeLevel) = _upgradeMemoryAdapter.GetProgressInfo((int)techType, buildings, false);
+                            var (isProgressing, remainingFrames, _, currentUpgradeLevel) = _upgradeMemoryAdapter.GetProgressInfo((int)techType, buildings, false);
 
-                            var progress = totalFrames > 0 ? (double)(totalFrames - remainingFrames) / totalFrames : (isCompleted ? 1.0 : 0.0);
                             categoryData.Items.Add(new UpgradeItemData
                             {
                                 Item = item,
                                 Level = isCompleted ? 1 : 0, // 테크는 완료 시 1, 미완료 시 0
                                 RemainingFrames = remainingFrames,
-                                TotalFrames = totalFrames,
-                                IsProgressing = isProgressing,
-                                CurrentUpgradeLevel = currentUpgradeLevel, // GetProgressInfo에서 반환된 값 사용
-                                Progress = progress
+                                CurrentUpgradeLevel = currentUpgradeLevel // GetProgressInfo에서 반환된 값 사용
                             });
                         }
                         catch (Exception ex)
@@ -228,19 +220,23 @@ namespace StarcUp.Business.Profile
                                     UpgradeCompleted?.Invoke(this, new UpgradeCompletedEventArgs
                                     {
                                         Item = currentItem.Item,
-                                        Level = (byte)currentItem.Level
+                                        Level = (byte)currentItem.Level,
+                                        CategoryId = currentCategory.Id,
+                                        CategoryName = currentCategory.Name
                                     });
                                 }
                             }
                             
                             // 업그레이드 취소 감지: 이전에 진행 중이었으나 현재 진행 중이지 않고, 완료된 레벨에 변화가 없는 경우
-                            if (previousItem.IsProgressing && !currentItem.IsProgressing && 
+                            if (previousItem.RemainingFrames > 0 && currentItem.RemainingFrames == 0 && 
                                 currentItem.Level == previousItem.Level)
                             {
                                 UpgradeCancelled?.Invoke(this, new UpgradeCancelledEventArgs
                                 {
                                     Item = currentItem.Item,
-                                    LastUpgradeItemData = previousItem.Clone()
+                                    LastUpgradeItemData = previousItem.Clone(),
+                                    CategoryId = currentCategory.Id,
+                                    CategoryName = currentCategory.Name
                                 });
                             }
                         }
@@ -255,19 +251,23 @@ namespace StarcUp.Business.Profile
                                     UpgradeCompleted?.Invoke(this, new UpgradeCompletedEventArgs
                                     {
                                         Item = currentItem.Item,
-                                        Level = 1
+                                        Level = 1,
+                                        CategoryId = currentCategory.Id,
+                                        CategoryName = currentCategory.Name
                                     });
                                 }
                             }
                             
                             // 테크 취소 감지: 이전에 진행 중이었으나 현재 진행 중이지 않고, 완료되지 않은 경우
-                            if (previousItem.IsProgressing && !currentItem.IsProgressing && 
+                            if (previousItem.RemainingFrames > 0 && currentItem.RemainingFrames == 0 && 
                                 currentItem.Level == 0 && previousItem.Level == 0)
                             {
                                 UpgradeCancelled?.Invoke(this, new UpgradeCancelledEventArgs
                                 {
                                     Item = currentItem.Item,
-                                    LastUpgradeItemData = previousItem.Clone()
+                                    LastUpgradeItemData = previousItem.Clone(),
+                                    CategoryId = currentCategory.Id,
+                                    CategoryName = currentCategory.Name
                                 });
                             }
                         }
@@ -294,30 +294,36 @@ namespace StarcUp.Business.Profile
 
             try
             {
-                // 현재 진행 중인 업그레이드/테크가 있는지 확인
-                bool hasProgressingItems = false;
+                // 진행 중인 항목만 포함하는 통계 생성
+                var filteredStats = new UpgradeTechStatistics
+                {
+                    Categories = new List<UpgradeCategoryData>()
+                };
 
                 foreach (var category in _currentStats.Categories)
                 {
-                    // 진행 중인 아이템 확인 (새로운 Items 구조)
-                    foreach (var item in category.Items)
+                    // 진행 중인 아이템만 필터링 (remainingFrames > 0)
+                    var progressingItems = category.Items.Where(item => item.RemainingFrames > 0).ToList();
+                    
+                    if (progressingItems.Any())
                     {
-                        if (item.IsProgressing)
+                        // 진행 중인 아이템이 있는 카테고리만 추가
+                        var filteredCategory = new UpgradeCategoryData
                         {
-                            hasProgressingItems = true;
-                            break;
-                        }
+                            Id = category.Id,
+                            Name = category.Name,
+                            Items = progressingItems.Select(item => item.Clone()).ToList()
+                        };
+                        filteredStats.Categories.Add(filteredCategory);
                     }
-
-                    if (hasProgressingItems) break;
                 }
 
                 // 진행 중인 항목이 있을 때만 이벤트 발생
-                if (hasProgressingItems)
+                if (filteredStats.Categories.Any())
                 {
                     ProgressChanged?.Invoke(this, new UpgradeProgressEventArgs
                     {
-                        Statistics = _currentStats
+                        Statistics = filteredStats
                     });
                 }
             }
