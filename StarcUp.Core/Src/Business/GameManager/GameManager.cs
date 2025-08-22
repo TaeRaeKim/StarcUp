@@ -86,13 +86,8 @@ namespace StarcUp.Business.Game
             _unitService.UpdateUnits();
             localPlayer.UpdateUnits();
 
-            // WorkerManager 초기화
             _workerManager.Initialize(LocalGameData.LocalPlayerIndex);
-
-            // PopulationManager 초기화
             _populationManager.Initialize(LocalGameData.LocalPlayerIndex, LocalGameData.LocalPlayerRace);
-
-            LoggerHelper.Info("PopulationManager 초기화 완료");
 
             // UpgradeManager 초기화
             _upgradeManager.Initialize(LocalGameData.LocalPlayerIndex);

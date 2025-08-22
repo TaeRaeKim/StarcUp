@@ -205,7 +205,7 @@ namespace StarcUp.Business.Profile
                     // 아이템 변경사항 확인 (새로운 Items 구조)
                     foreach (var currentItem in currentCategory.Items)
                     {
-                        var previousItem = previousCategory.Items.FirstOrDefault(i => 
+                        var previousItem = previousCategory.Items.FirstOrDefault(i =>
                             i.Item.Type == currentItem.Item.Type && i.Item.Value == currentItem.Item.Value);
                         if (previousItem == null) continue;
 
@@ -226,9 +226,9 @@ namespace StarcUp.Business.Profile
                                     });
                                 }
                             }
-                            
+
                             // 업그레이드 취소 감지: 이전에 진행 중이었으나 현재 진행 중이지 않고, 완료된 레벨에 변화가 없는 경우
-                            if (previousItem.RemainingFrames > 0 && currentItem.RemainingFrames == 0 && 
+                            if (previousItem.RemainingFrames > 0 && currentItem.RemainingFrames == 0 &&
                                 currentItem.Level == previousItem.Level)
                             {
                                 UpgradeCancelled?.Invoke(this, new UpgradeCancelledEventArgs
@@ -257,9 +257,9 @@ namespace StarcUp.Business.Profile
                                     });
                                 }
                             }
-                            
+
                             // 테크 취소 감지: 이전에 진행 중이었으나 현재 진행 중이지 않고, 완료되지 않은 경우
-                            if (previousItem.RemainingFrames > 0 && currentItem.RemainingFrames == 0 && 
+                            if (previousItem.RemainingFrames > 0 && currentItem.RemainingFrames == 0 &&
                                 currentItem.Level == 0 && previousItem.Level == 0)
                             {
                                 UpgradeCancelled?.Invoke(this, new UpgradeCancelledEventArgs
@@ -304,7 +304,7 @@ namespace StarcUp.Business.Profile
                 {
                     // 진행 중인 아이템만 필터링 (remainingFrames > 0)
                     var progressingItems = category.Items.Where(item => item.RemainingFrames > 0).ToList();
-                    
+
                     if (progressingItems.Any())
                     {
                         // 진행 중인 아이템이 있는 카테고리만 추가
@@ -347,34 +347,10 @@ namespace StarcUp.Business.Profile
                 if (!_currentSettings.UpgradeStateTracking)
                     return;
 
-                // 완료된 업그레이드/테크가 있는지 확인
-                bool hasCompletedItems = false;
-
-                foreach (var category in _currentStats.Categories)
+                InitialStateDetected?.Invoke(this, new UpgradeProgressEventArgs
                 {
-                    // 완료된 아이템 확인 (Level > 0인 항목)
-                    foreach (var item in category.Items)
-                    {
-                        if (item.Level > 0)
-                        {
-                            hasCompletedItems = true;
-                            break;
-                        }
-                    }
-
-                    if (hasCompletedItems) break;
-                }
-
-                // 완료된 항목이 있을 때만 초기 상태 이벤트 발생
-                if (hasCompletedItems)
-                {
-                    InitialStateDetected?.Invoke(this, new UpgradeProgressEventArgs
-                    {
-                        Statistics = _currentStats
-                    });
-
-                    LoggerHelper.Info($" 초기 완료 상태 감지 - 플레이어: {LocalPlayerId}");
-                }
+                    Statistics = _currentStats
+                });
             }
             catch (Exception ex)
             {
