@@ -819,9 +819,6 @@ namespace StarcUp.Business.Communication
                     // UpgradeManager에 설정 적용
                     _upgradeManager.UpdateSettings(upgradeSettings);
                     LoggerHelper.Info($"✅ 업그레이드 설정 적용 완료: {upgradeSettings.Categories.Count}개 카테고리");
-                    
-                    // 초기 데이터 전송
-                    SendUpgradeDataEvent();
                 }
                 else
                 {
@@ -970,46 +967,21 @@ namespace StarcUp.Business.Communication
                 LoggerHelper.Error($"🛠️ 업그레이드 초기 상태 이벤트 전송 실패: {ex.Message}");
             }
         }
-
-        /// <summary>
-        /// 업그레이드 데이터 이벤트 전송
-        /// </summary>
-        private void SendUpgradeDataEvent()
-        {
-            try
-            {
-                var statistics = _upgradeManager.CurrentStatistics;
-                if (statistics == null)
-                {
-                    LoggerHelper.Warning("🛠️ 전송할 업그레이드 통계 데이터가 없습니다");
-                    return;
-                }
-
-                // JsonPropertyName이 설정된 모델을 직접 사용하여 정수 값으로 직렬화
-                var eventData = statistics;
-
-                _pipeClient.SendEvent(NamedPipeProtocol.Events.UpgradeDataUpdated, eventData);
-            }
-            catch (Exception ex)
-            {
-                LoggerHelper.Error($"🛠️ 업그레이드 데이터 이벤트 전송 실패: {ex.Message}");
-            }
-        }
-
+        
         /// <summary>
         /// WorkerPresetEnum을 문자열 배열로 변환
         /// </summary>
         private string[] GetWorkerPresetFlags(WorkerPresetEnum preset)
         {
             var flags = new List<string>();
-            
+
             if ((preset & WorkerPresetEnum.Default) != 0) flags.Add("Default");
             if ((preset & WorkerPresetEnum.IncludeProduction) != 0) flags.Add("IncludeProduction");
             if ((preset & WorkerPresetEnum.Idle) != 0) flags.Add("Idle");
             if ((preset & WorkerPresetEnum.DetectProduction) != 0) flags.Add("DetectProduction");
             if ((preset & WorkerPresetEnum.DetectDeath) != 0) flags.Add("DetectDeath");
             if ((preset & WorkerPresetEnum.CheckGas) != 0) flags.Add("CheckGas");
-            
+
             return flags.ToArray();
         }
         
