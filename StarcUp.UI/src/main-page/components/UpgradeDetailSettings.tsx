@@ -124,8 +124,8 @@ export function UpgradeDetailSettings({
     },
     {
       id: 'completionAlert',
-      title: '업그레이드 완료 알림',
-      description: '업그레이드가 끝나면 반짝여서 완료됐다고 알려드려요',
+      title: '업그레이드 완료/취소 애니메이션',
+      description: '업그레이드가 완료 및 취소되면 좌측으로 느낌있게 사라져요',
       state: settings.upgradeCompletionAlert,
       setState: (value: boolean) => setSettings(prev => ({ ...prev, upgradeCompletionAlert: value })),
       icon: Bell
@@ -133,7 +133,7 @@ export function UpgradeDetailSettings({
     {
       id: 'stateTracking',
       title: '업그레이드 상태 추적',
-      description: '업그레이드 상태를 실시간으로 추적하고 관리해요',
+      description: '진행 중인 업그레이드 뿐 아니라 모든 상태를 추적해서 보여드려요',
       state: settings.upgradeStateTracking,
       setState: (value: boolean) => setSettings(prev => ({ ...prev, upgradeStateTracking: value })),
       icon: Zap
