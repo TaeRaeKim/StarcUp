@@ -1,3 +1,6 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
 /* CSS Variables - Prototype 정확한 스펙 */
 :root {
   /* Prototype 기본 색상 변수 */
@@ -7,6 +10,19 @@
   --warning: #FFB800;
   --success: #00D084;
   --brand-primary: #0099FF;
+  --brand-secondary: #FF6B35;
+  
+  /* Gray 색상 팔레트 */
+  --gray-900: #1A1A1A;
+  --gray-800: #2D2D2D;
+  --gray-700: #4A4A4A;
+  --gray-600: #6B6B6B;
+  --gray-500: #9B9B9B;
+  --gray-400: #C7C7C7;
+  --gray-300: #E3E3E3;
+  --gray-200: #F0F0F0;
+  --gray-100: #F8F8F8;
+  --gray-50: #FAFAFA;
   
   /* 색상 매핑 변수 */
   --color-error: var(--error);
@@ -15,10 +31,77 @@
   --color-warning: var(--warning);
   --color-success: var(--success);
   --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-gray-900: var(--gray-900);
+  --color-gray-800: var(--gray-800);
+  --color-gray-700: var(--gray-700);
+  --color-gray-600: var(--gray-600);
+  --color-gray-500: var(--gray-500);
+  --color-gray-400: var(--gray-400);
+  --color-gray-300: var(--gray-300);
+  --color-gray-200: var(--gray-200);
+  --color-gray-100: var(--gray-100);
+  --color-gray-50: var(--gray-50);
   
   /* 오버레이 관련 변수 */
   --color-overlay-bg: rgba(0, 0, 0, 0.85);
+  --color-overlay-border: rgba(255, 255, 255, 0.2);
   --overlay-border: rgba(255, 255, 255, 0.2);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  pointer-events: none;
+}
+
+.overlay-container {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+}
+
+.hello-world {
+  transition: all 0.1s ease-out;
+  white-space: nowrap;
+}
+
+.debug-info {
+  transition: opacity 0.3s ease;
+  pointer-events: auto;
+  cursor: default;
+}
+
+/* 스크롤바 숨김 */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* 텍스트 선택 방지 */
+* {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 /* 오버레이 컨테이너 기본 스타일 */
@@ -353,4 +436,30 @@
     filter: brightness(1);
     background: rgba(0, 0, 0, 0.85);
   }
+}
+
+/* 업그레이드 완료 애니메이션 (프로토타입 사양) */
+@keyframes fadeToLeft {
+  0% {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    opacity: 1;
+    transform: translateX(0);
+  }
+  30% {
+    opacity: 0.9;
+  }
+  70% {
+    clip-path: polygon(0 0, 30% 0, 30% 100%, 0 100%);
+    opacity: 0.6;
+    transform: translateX(-2px);
+  }
+  100% {
+    clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
+    opacity: 0.2;
+    transform: translateX(-8px);
+  }
+}
+
+.upgrade-completing {
+  animation: fadeToLeft 1.2s ease-in-out forwards;
 }

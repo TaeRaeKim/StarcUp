@@ -178,7 +178,8 @@ function UpgradeIcon({
       style={{
         width: `${size}px`,
         height: `${size}px`,
-        position: 'relative'
+        position: 'relative',
+        flexShrink: 0
       }}
     >
       <img
@@ -190,7 +191,8 @@ function UpgradeIcon({
           objectFit: 'contain',
           filter: getIconFilter(iconStyle, displayStatus),
           transition: 'filter 0.2s ease-out',
-          imageRendering: 'pixelated'
+          imageRendering: 'pixelated',
+          display: 'block'
         }}
       />
     </div>
@@ -232,36 +234,28 @@ function ActiveUpgradeRow({
         overflow: 'hidden'
       }}
     >
-      
+      {/* 좌측: 아이콘 */}
       <UpgradeIcon 
         iconPath={upgradeInfo.iconPath}
         name={upgradeInfo.name}
         iconStyle={iconStyle}
         displayStatus={displayState.displayStatus}
-        size={24}
+        size={32}
       />
       
-      {/* 업그레이드 정보 컨테이너 */}
+      {/* 우측: 업그레이드 정보 (두 라인) */}
       <div 
-        className="flex-1"
+        className="flex flex-col flex-1"
         style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          justifyContent: 'center',
-          minWidth: 0,
-          marginLeft: '6px'
+          marginLeft: '6px',
+          minWidth: 0
         }}
       >
-        {/* 업그레이드 이름과 목표 레벨 표시 - 수평 배치 */}
+        {/* 첫 번째 라인: 업그레이드 이름 + (+레벨 태그) */}
         <div 
-          className="flex items-center justify-between w-full mb-1"
-          style={{
-            marginBottom: '2px',
-            width: '100%'
-          }}
+          className="flex items-center justify-between"
+          style={{ width: '100%', marginBottom: '2px' }}
         >
-          {/* 업그레이드 이름 - 좌측 정렬 */}
           <span 
             style={{ 
               fontSize: '12px',
@@ -271,29 +265,29 @@ function ActiveUpgradeRow({
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               transition: 'color 0.2s ease-out',
-              flex: 1,
-              marginRight: '8px'
+              flex: 1
             }}
           >
             {upgradeInfo.name}
           </span>
           
-          {/* 목표 레벨 표시 - 우측 끝에 위치, 작고 반투명 */}
+          {/* +레벨 태그 */}
           {item.remainingFrames > 0 && item.currentUpgradeLevel > 0 && (
             <span 
               style={{
-                fontSize: '8px',      // 작은 크기
+                fontSize: '8px',
                 fontWeight: '600',    
                 color: targetLevelColor.text,
                 backgroundColor: targetLevelColor.background,
-                opacity: 0.75,       // 반투명 효과
+                opacity: 0.75,
                 padding: '1px 3px',  
                 borderRadius: '6px',  
                 minWidth: '16px',     
                 textAlign: 'center',
                 transition: 'all 0.2s ease-out',
                 boxShadow: `0 0 3px ${targetLevelColor.background}30`,
-                flexShrink: 0         
+                flexShrink: 0,
+                marginLeft: '8px'
               }}
             >
               +{targetLevel}
@@ -301,13 +295,13 @@ function ActiveUpgradeRow({
           )}
         </div>
         
-        {/* 진행 중 상태만 표시 */}
+        {/* 두 번째 라인: (잔여시간) + 프로그레스바 + (진행률) */}
         {item.remainingFrames > 0 && (
           <div 
-            className="flex items-center gap-2 w-full"
-            style={{ width: '100%' }}
+            className="flex items-center"
+            style={{ width: '100%', gap: '8px' }}
           >
-            {/* 남은 시간 */}
+            {/* 잔여시간 */}
             <span 
               style={{ 
                 fontSize: '11px',
@@ -319,7 +313,7 @@ function ActiveUpgradeRow({
               {timeRemaining}
             </span>
             
-            {/* 진행바 */}
+            {/* 프로그레스바 */}
             <div 
               style={{ 
                 flex: 1,
@@ -386,7 +380,7 @@ function InactiveUpgradeIcon({
         name={upgradeInfo.name}
         iconStyle={iconStyle}
         displayStatus={displayState.displayStatus}
-        size={24}
+        size={32}
       />
 
       {/* 완료 상태 태그 표시 */}
@@ -634,6 +628,7 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
             <div key={category.id} className="mb-1">
               {/* 카테고리 제목 */}
               <div 
+                className="text-xs mb-1"
                 style={{ 
                   fontSize: '12px',
                   fontWeight: '400',
@@ -646,8 +641,9 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
               
               {/* 통합된 업그레이드 컨테이너 */}
               <div 
+                className="rounded-md px-3 py-2 mb-1"
                 style={{ 
-                  backgroundColor: 'var(--color-overlay-bg)',
+                  backgroundColor: isEditMode ? 'var(--color-overlay-bg)' : `rgba(0, 0, 0, ${(opacity || 90) / 100})`,
                   borderRadius: '6px',
                   padding: '8px 12px',
                   marginBottom: '4px'
@@ -688,6 +684,7 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
                 {/* 비활성 업그레이드 영역 (가로 배치) */}
                 {sortedInactiveItems.length > 0 && (
                   <div 
+                    className="flex items-center"
                     style={{
                       display: 'flex',
                       alignItems: 'center',
