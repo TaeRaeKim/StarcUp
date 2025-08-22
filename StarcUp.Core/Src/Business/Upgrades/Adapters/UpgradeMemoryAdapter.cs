@@ -20,8 +20,8 @@ namespace StarcUp.Business.Upgrades.Adapters
         private bool _disposed;
         
         // 업그레이드 총 개수
-        private const int UPGRADE_COUNT_SECTION1 = 44;  // 0-43
-        private const int UPGRADE_COUNT_SECTION2 = 8;   // 47-54 (실제로는 0-7 인덱스로 저장)
+        private const int UPGRADE_COUNT_SECTION1 = 46;  // 0-45
+        private const int UPGRADE_COUNT_SECTION2 = 15;   // 47-54 (실제로는 0-7 인덱스로 저장)
         private const int TOTAL_UPGRADE_COUNT = 55;     // 0-54 (45,46은 사용 안함)
         
         // 테크 총 개수
