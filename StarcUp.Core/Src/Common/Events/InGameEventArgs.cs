@@ -1,21 +1,22 @@
 using System;
+using StarcUp.Core.Common.Events;
 
 namespace StarcUp.Common.Events
 {
     public class InGameEventArgs : EventArgs
     {
-        public bool IsInGame { get; }
+        public InGameState State { get; }
         public DateTime Timestamp { get; }
 
-        public InGameEventArgs(bool isInGame)
+        public InGameEventArgs(InGameState state)
         {
-            IsInGame = isInGame;
+            State = state;
             Timestamp = DateTime.Now;
         }
 
         public override string ToString()
         {
-            return $"InGameStateChanged: {IsInGame} at {Timestamp:HH:mm:ss.fff}";
+            return $"InGameStateChanged: {State} at {Timestamp:HH:mm:ss.fff}";
         }
     }
 }

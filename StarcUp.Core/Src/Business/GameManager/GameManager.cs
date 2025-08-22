@@ -11,6 +11,7 @@ using StarcUp.Business.MemoryService;
 using StarcUp.Business.GameManager.Extensions;
 using StarcUp.Business.Profile;
 using StarcUp.Common.Events;
+using StarcUp.Core.Common.Events;
 using Timer = System.Timers.Timer;
 using StarcUp.Business.Units.Types;
 using System.Security.Principal;
@@ -121,15 +122,31 @@ namespace StarcUp.Business.Game
 
         private void OnInGameStateChanged(object? sender, InGameEventArgs e)
         {
-            if (e.IsInGame && !_isGameActive)
+            switch (e.State)
             {
-                LoggerHelper.Info($"인게임 상태 감지됨 - {e.Timestamp}");
-                GameInit();
-            }
-            else if (!e.IsInGame && _isGameActive)
-            {
-                LoggerHelper.Info($"게임 종료 상태 감지됨 - {e.Timestamp}");
-                GameExit();
+                case InGameState.Started:
+                    if (!_isGameActive)
+                    {
+                        LoggerHelper.Info($"인게임 상태 감지됨 - {e.Timestamp}");
+                        GameInit();
+                    }
+                    break;
+
+                case InGameState.Restarted:
+                    LoggerHelper.Info($"게임 재시작 감지됨 - {e.Timestamp}");
+                    // 게임 재시작 시: 기존 게임 종료 후 다시 초기화
+                    GameExit();
+                    Thread.Sleep(100); // 짧은 대기 후 재초기화
+                    GameInit();
+                    break;
+
+                case InGameState.Stopped:
+                    if (_isGameActive)
+                    {
+                        LoggerHelper.Info($"게임 종료 상태 감지됨 - {e.Timestamp}");
+                        GameExit();
+                    }
+                    break;
             }
         }
 

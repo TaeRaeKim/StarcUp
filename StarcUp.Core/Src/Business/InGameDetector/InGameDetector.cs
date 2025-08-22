@@ -3,6 +3,7 @@ using StarcUp.Business.MemoryService;
 using StarcUp.Business.Units.Runtime.Repositories;
 using StarcUp.Common.Constants;
 using StarcUp.Common.Events;
+using StarcUp.Core.Common.Events;
 using StarcUp.Common.Logging;
 using System;
 
@@ -17,10 +18,13 @@ namespace StarcUp.Business.InGameDetector
 
         private nint _cachedInGameAddress; // 캐싱된 InGame 상태 주소
         private bool _isAddressCached; // 주소 캐싱 여부
+        private nint _lastInGamePointer; // 마지막으로 읽은 inGamePointer 값
+        private InGameState _currentState = InGameState.Stopped; // 현재 InGame 상태
 
         public event EventHandler<InGameEventArgs> InGameStateChanged;
 
-        public bool IsInGame { get; private set; }
+        public bool IsInGame => _currentState == InGameState.Started || _currentState == InGameState.Restarted;
+        public InGameState CurrentState => _currentState;
 
         public InGameDetector(IMemoryService memoryService, UnitOffsetRepository offsetRepository)
         {
@@ -71,7 +75,8 @@ namespace StarcUp.Business.InGameDetector
             _monitorTimer?.Dispose();
             _monitorTimer = null;
 
-            IsInGame = false;
+            _currentState = InGameState.Stopped;
+            _lastInGamePointer = 0;
 
             _isMonitoring = false;
             LoggerHelper.Info("InGame 상태 모니터링 중지됨");
@@ -87,14 +92,14 @@ namespace StarcUp.Business.InGameDetector
                     return;
                 }
 
-                bool newInGameState = ReadInGameState();
+                var newState = DetectGameState();
 
-                if (newInGameState != IsInGame)
+                if (newState != _currentState)
                 {
-                    IsInGame = newInGameState;
-                    LoggerHelper.Info($"InGame 상태 변경: {IsInGame}");
+                    _currentState = newState;
+                    LoggerHelper.Info($"InGame 상태 변경: {_currentState}");
 
-                    var eventArgs = new InGameEventArgs(IsInGame);
+                    var eventArgs = new InGameEventArgs(_currentState);
                     InGameStateChanged?.Invoke(this, eventArgs);
                 }
             }
@@ -104,30 +109,48 @@ namespace StarcUp.Business.InGameDetector
             }
         }
 
-        private bool ReadInGameState()
+        private InGameState DetectGameState()
         {
             try
             {
-                var finalAddress = GetIsAddress(); ;
+                var finalAddress = GetIsAddress();
 
                 nint inGamePointer = _memoryService.ReadPointer(finalAddress);
 
                 nint baseAddress = _memoryService.GetBasePointer();
                 
                 nint mapFileNameAddress = baseAddress + _offsetRepository.GetMapNameOffset();
-                string mapFileName =_memoryService.IsValidAddress(mapFileNameAddress)
+                string mapFileName = _memoryService.IsValidAddress(mapFileNameAddress)
                     ? _memoryService.ReadString(baseAddress + _offsetRepository.GetMapNameOffset(), 256)
                     : string.Empty;
 
                 bool isInGame = mapFileName.ToLower().EndsWith(".scx") || mapFileName.ToLower().EndsWith(".scm");
 
-                return (inGamePointer != 0) && isInGame;
+                // 게임이 실행 중이 아닌 경우
+                if (inGamePointer == 0 || !isInGame)
+                {
+                    _lastInGamePointer = 0;
+                    return InGameState.Stopped;
+                }
+
+                // 게임이 실행 중인 경우
+                if (_currentState == InGameState.Started && _lastInGamePointer != 0 && _lastInGamePointer != inGamePointer)
+                {
+                    // inGamePointer 값이 변경되면 게임이 재시작된 것으로 판단
+                    LoggerHelper.Info($"게임 재시작 감지: 이전 포인터 {_lastInGamePointer:X} -> 새 포인터 {inGamePointer:X}");
+                    _lastInGamePointer = inGamePointer;
+                    return InGameState.Restarted;
+                }
+
+                // 정상적인 게임 실행 상태
+                _lastInGamePointer = inGamePointer;
+                return InGameState.Started;
             }
             catch (Exception ex)
             {
-                LoggerHelper.Error("InGame 상태 읽기 실패", ex);
+                LoggerHelper.Error("게임 상태 감지 실패", ex);
                 _isAddressCached = false; // 오류 발생 시 캐시 무효화
-                return false;
+                return InGameState.Stopped;
             }
         }
 
@@ -165,7 +188,7 @@ namespace StarcUp.Business.InGameDetector
             LoggerHelper.Info("프로세스 연결 해제됨");
             _isAddressCached = false; // 캐시 무효화
             _cachedInGameAddress = 0;
-            var eventArgs = new InGameEventArgs(false);
+            var eventArgs = new InGameEventArgs(InGameState.Stopped);
             InGameStateChanged?.Invoke(this, eventArgs);
             StopMonitoring();
         }
@@ -175,6 +198,8 @@ namespace StarcUp.Business.InGameDetector
             StopMonitoring();
             _cachedInGameAddress = 0;
             _isAddressCached = false;
+            _lastInGamePointer = 0;
+            _currentState = InGameState.Stopped;
 
             if (_memoryService != null)
             {

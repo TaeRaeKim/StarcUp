@@ -256,76 +256,38 @@ export class CoreCommunicationService implements ICoreCommunicationService {
 
     // 업그레이드 관련 이벤트 핸들러
     this.namedPipeService.onEvent(Events.UpgradeInit, (data: any) => {
-      console.log('🚀 [CoreCommunication] 업그레이드 초기화:', {
-        timestamp: new Date().toISOString(),
-        categories: data.categories?.length || 0,
-        hasCallback: !!this.upgradeInitCallback,
-        data: data
-      })
       if (this.upgradeInitCallback) {
         this.upgradeInitCallback(data)
       }
     })
 
     this.namedPipeService.onEvent(Events.UpgradeDataUpdated, (data: any) => {
-      console.log('🔧 [CoreCommunication] 업그레이드 데이터 업데이트:', {
-        timestamp: new Date().toISOString(),
-        categories: data.categories?.length || 0,
-        hasCallback: !!this.upgradeDataUpdatedCallback,
-        data: data
-      })
       if (this.upgradeDataUpdatedCallback) {
         this.upgradeDataUpdatedCallback(data)
       }
     })
 
     this.namedPipeService.onEvent(Events.UpgradeStateChanged, (data: any) => {
-      console.log('⚡ [CoreCommunication] 업그레이드 상태 변경:', {
-        timestamp: new Date().toISOString(),
-        data: data
-      })
       // UpgradeStateChanged는 별도 콜백 없이 로그만 출력
     })
 
     this.namedPipeService.onEvent(Events.UpgradeCompleted, (data: any) => {
-      console.log('✅ [CoreCommunication] 업그레이드 완료:', {
-        timestamp: new Date().toISOString(),
-        item: data.item,
-        level: data.level,
-        categoryId: data.categoryId,
-        hasCallback: !!this.upgradeCompletedCallback,
-        data: data
-      })
       if (this.upgradeCompletedCallback) {
         this.upgradeCompletedCallback(data)
       }
     })
 
     this.namedPipeService.onEvent(Events.UpgradeCancelled, (data: any) => {
-      console.log('❌ [CoreCommunication] 업그레이드 취소:', {
-        timestamp: new Date().toISOString(),
-        item: data.item,
-        categoryId: data.categoryId,
-        hasCallback: !!this.upgradeCancelledCallback,
-        data: data
-      })
       if (this.upgradeCancelledCallback) {
         this.upgradeCancelledCallback(data)
       }
     })
 
     this.namedPipeService.onEvent(Events.UpgradeDecreased, (data: any) => {
-      console.log('📉 [CoreCommunication] 업그레이드 감소:', {
-        timestamp: new Date().toISOString(),
-        categories: data.categories?.length || 0,
-        hasCallback: !!this.upgradeDecreasedCallback,
-        data: data
-      })
       if (this.upgradeDecreasedCallback) {
         this.upgradeDecreasedCallback(data)
       }
     })
-
     console.log('✅ Core 이벤트 핸들러 설정 완료')
   }
 

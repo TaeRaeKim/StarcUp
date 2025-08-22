@@ -6,6 +6,7 @@ using System.Text.Json;
 using StarcUp.Infrastructure.Communication;
 using StarcUp.Infrastructure.Windows;
 using StarcUp.Common.Events;
+using StarcUp.Core.Common.Events;
 using StarcUp.Common.Logging;
 using StarcUp.Business.GameDetection;
 using StarcUp.Business.InGameDetector;
@@ -243,7 +244,8 @@ namespace StarcUp.Business.Communication
                     eventType = "in-game-status",
                     inGameInfo = new
                     {
-                        isInGame = e.IsInGame,
+                        state = e.State.ToString(),
+                        isInGame = e.State == InGameState.Started || e.State == InGameState.Restarted,
                         timestamp = e.Timestamp.ToString("HH:mm:ss.fff")
                     }
                 };
