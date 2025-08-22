@@ -2,9 +2,16 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { CenterPositionData } from '../../electron/src/services/types'
 import { WorkerStatus, type WorkerStatusRef } from './components/WorkerStatus'
 import { PopulationWarning } from './components/PopulationWarning'
+import { UpgradeProgress, type UpgradeProgressRef } from './components/UpgradeProgress'
 import { OverlaySettingsPanel, type OverlaySettings } from './components/OverlaySettings'
 import { type EffectType } from './hooks/useEffectSystem'
 import { RaceType } from '../types/game'
+import { 
+  UpgradeCategory, 
+  UpgradeProgressData, 
+  UpgradeCancelData, 
+  UpgradeCompleteData 
+} from './types/upgrade'
 import './styles/OverlayApp.css'
 
 /**
@@ -33,6 +40,10 @@ export function OverlayApp() {
   // PopulationManager 이벤트 상태
   const [showSupplyAlert, setShowSupplyAlert] = useState(false)
   
+  // UpgradeManager 이벤트 상태
+  const [upgradeCategories, setUpgradeCategories] = useState<UpgradeCategory[]>([])
+  const [lastUpgradeEvent, setLastUpgradeEvent] = useState<string | null>(null)
+  
   // 오버레이 컴포넌트들의 활성 상태를 관리하는 통합 함수
   const resetAllOverlayStates = useCallback(() => {
     console.log('🔄 [Overlay] 모든 오버레이 상태 초기화')
@@ -52,20 +63,31 @@ export function OverlayApp() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [workerPosition, setWorkerPosition] = useState({ x: 50, y: 50 })
   const [populationWarningPosition, setPopulationWarningPosition] = useState({ x: 100, y: 60 })
+  const [upgradeProgressPosition, setUpgradeProgressPosition] = useState({ x: 300, y: 50 })
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const workerStatusRef = useRef<WorkerStatusRef>(null)
+  const upgradeProgressRef = useRef<UpgradeProgressRef>(null)
   
-  // 프리셋 기능 상태 (presetAPI 연동)
-  const [presetFeatures, setPresetFeatures] = useState<boolean[]>([
-    true,   // 일꾼 기능 (Worker)
+  // 프리셋 기능 상태 (presetAPI 연동) - 초기값은 null로 설정하여 로딩 상태 구분
+  const [presetFeatures, setPresetFeatures] = useState<boolean[] | null>(null)
+  
+  // 프리셋의 선택된 종족
+  const [selectedRace, setSelectedRace] = useState<RaceType>(RaceType.Protoss)
+
+  // 프리셋의 업그레이드 설정
+  const [presetUpgradeSettings, setPresetUpgradeSettings] = useState<any>(null)
+
+  // 기본 프리셋 기능 상태 (로딩 실패 시 사용)
+  const getDefaultFeatureStates = (): boolean[] => [
+    true,   // 일꾼 기능 (Worker) - 기본적으로 활성화
     false,  // 인구수 기능 (Population)
     false,  // 유닛 기능 (Unit)
     false,  // 업그레이드 기능 (Upgrade)
     false   // 빌드오더 기능 (BuildOrder)
-  ])
-  
-  // 프리셋의 선택된 종족
-  const [selectedRace, setSelectedRace] = useState<RaceType>(RaceType.Protoss)
+  ]
+
+  // 안전한 프리셋 기능 상태 접근 (null 체크 포함)
+  const safePresetFeatures = presetFeatures || getDefaultFeatureStates()
 
   // 오버레이 설정 상태 (프리셋 기능 상태와 연동)
   const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>({
@@ -112,6 +134,17 @@ export function OverlayApp() {
       setPopulationWarningPosition({ x: centerX, y: centerY })
       console.log('🎯 PopulationWarning 위치 리셋:', { x: centerX, y: centerY })
     }
+
+    // UpgradeProgress 위치 리셋
+    const upgradeProgressElement = document.querySelector('.upgrade-progress') as HTMLElement
+    if (upgradeProgressElement) {
+      const upgradeRect = upgradeProgressElement.getBoundingClientRect()
+      const centerX = (containerRect.width - upgradeRect.width) / 2
+      const centerY = 200 // 중앙 아래쪽에 배치
+      
+      setUpgradeProgressPosition({ x: centerX, y: centerY })
+      console.log('🎯 UpgradeProgress 위치 리셋:', { x: centerX, y: centerY })
+    }
   }
 
   useEffect(() => {
@@ -157,20 +190,39 @@ export function OverlayApp() {
         console.log('🔍 [Overlay] getFeaturesOnly 결과:', result) // 전체 결과 로그
         
         if (result?.success && result.data) {
-          if (result.data.featureStates) {
+          if (result.data.featureStates && Array.isArray(result.data.featureStates)) {
             console.log('🎯 [Overlay] 초기 프리셋 기능 상태 로드:', result.data.featureStates)
+            console.log('🎯 [Overlay] 업그레이드 기능 상태:', result.data.featureStates[3] ? '활성화' : '비활성화')
             setPresetFeatures(result.data.featureStates)
+          } else {
+            console.warn('⚠️ [Overlay] featureStates가 없거나 배열이 아님, 기본값 사용')
+            setPresetFeatures(getDefaultFeatureStates())
           }
+          
           if (result.data.selectedRace !== undefined) {
             console.log('🎯 [Overlay] 초기 프리셋 종족 로드:', result.data.selectedRace, 
               '(', result.data.selectedRace === 0 ? 'Zerg' : result.data.selectedRace === 1 ? 'Terran' : 'Protoss', ')')
             setSelectedRace(result.data.selectedRace)
           }
+
+          if (result.data.upgradeSettings) {
+            console.log('🎯 [Overlay] 초기 프리셋 업그레이드 설정 로드:', result.data.upgradeSettings)
+            setPresetUpgradeSettings(result.data.upgradeSettings)
+          } else {
+            console.log('ℹ️ [Overlay] 업그레이드 설정이 없음')
+            setPresetUpgradeSettings(null)
+          }
         } else {
-          console.error('❌ [Overlay] 프리셋 데이터 로드 실패:', result?.error)
+          console.error('❌ [Overlay] 프리셋 데이터 로드 실패:', result?.error || 'API 호출 실패')
+          console.log('🔄 [Overlay] 기본 프리셋 기능 상태 사용')
+          setPresetFeatures(getDefaultFeatureStates())
+          setPresetUpgradeSettings(null)
         }
       } catch (error) {
         console.error('❌ [Overlay] 프리셋 데이터 초기화 실패:', error)
+        console.log('🔄 [Overlay] 오류로 인해 기본 프리셋 기능 상태 사용')
+        setPresetFeatures(getDefaultFeatureStates())
+        setPresetUpgradeSettings(null)
       }
     }
 
@@ -186,14 +238,26 @@ export function OverlayApp() {
 
     // Overlay 전용 최적화 이벤트 (빠른 응답)
     const unsubscribeFeaturesChanged = window.presetAPI.onFeaturesChanged((data) => {
-      console.log('🔄 [Overlay] 프리셋 기능 상태 변경 수신 (최적화):', data.featureStates, '| 종족:', data.selectedRace, '| 시간:', data.timestamp)
-      setPresetFeatures(data.featureStates)
+      console.log('🔄 [Overlay] 프리셋 기능 상태 변경 수신 (최적화):', data.featureStates, '| 종족:', data.selectedRace, '| 업그레이드설정:', data.upgradeSettings ? '포함' : '없음', '| 시간:', data.timestamp)
+      
+      if (data.featureStates && Array.isArray(data.featureStates)) {
+        console.log('🔄 [Overlay] 업그레이드 기능 상태 업데이트:', data.featureStates[3] ? '활성화' : '비활성화')
+        setPresetFeatures(data.featureStates)
+      } else {
+        console.warn('⚠️ [Overlay] 실시간 동기화: featureStates가 없거나 배열이 아님')
+      }
       
       // 종족 정보가 있는 경우 업데이트
       if (data.selectedRace !== undefined) {
         console.log('🔄 [Overlay] 종족 변경 (features-changed):', data.selectedRace,
           '(', data.selectedRace === 0 ? 'Zerg' : data.selectedRace === 1 ? 'Terran' : 'Protoss', ')')
         setSelectedRace(data.selectedRace)
+      }
+
+      // 업그레이드 설정 업데이트
+      if (data.upgradeSettings !== undefined) {
+        console.log('🔄 [Overlay] 업그레이드 설정 변경:', data.upgradeSettings)
+        setPresetUpgradeSettings(data.upgradeSettings)
       }
     })
 
@@ -203,8 +267,9 @@ export function OverlayApp() {
       
       if (event.type === 'feature-toggled' || event.type === 'settings-updated' || event.type === 'preset-switched') {
         // Main 페이지에서 변경된 경우 현재 프리셋의 기능 상태 동기화
-        if (event.preset?.featureStates) {
+        if (event.preset?.featureStates && Array.isArray(event.preset.featureStates)) {
           console.log('🔄 [Overlay] Main 페이지 변경사항으로 기능 상태 업데이트:', event.preset.featureStates)
+          console.log('🔄 [Overlay] Main 페이지: 업그레이드 기능 상태:', event.preset.featureStates[3] ? '활성화' : '비활성화')
           setPresetFeatures(event.preset.featureStates)
         }
         // 종족 정보도 업데이트
@@ -223,23 +288,24 @@ export function OverlayApp() {
 
   // 프리셋 기능 상태에 따른 overlaySettings 자동 업데이트
   useEffect(() => {
+    const features = safePresetFeatures
     console.log('🔄 [Overlay] overlaySettings 업데이트:', {
-      showWorkerStatus: presetFeatures[0] || false,
-      showPopulationWarning: presetFeatures[1] || false,
-      showUnitCount: presetFeatures[2] || false,
-      showUpgradeProgress: presetFeatures[3] || false,
-      showBuildOrder: presetFeatures[4] || false,
+      showWorkerStatus: features[0] || false,
+      showPopulationWarning: features[1] || false,
+      showUnitCount: features[2] || false,
+      showUpgradeProgress: features[3] || false,
+      showBuildOrder: features[4] || false,
     })
     
     setOverlaySettings(prev => ({
       ...prev,
-      showWorkerStatus: presetFeatures[0] || false,
-      showPopulationWarning: presetFeatures[1] || false,
-      showUnitCount: presetFeatures[2] || false,
-      showUpgradeProgress: presetFeatures[3] || false,
-      showBuildOrder: presetFeatures[4] || false,
+      showWorkerStatus: features[0] || false,
+      showPopulationWarning: features[1] || false,
+      showUnitCount: features[2] || false,
+      showUpgradeProgress: features[3] || false,
+      showBuildOrder: features[4] || false,
     }))
-  }, [presetFeatures])
+  }, [presetFeatures, safePresetFeatures])
 
   // WorkerManager 이벤트 구독
   useEffect(() => {
@@ -283,11 +349,214 @@ export function OverlayApp() {
         }, 3000)
       })
 
+      // 업그레이드 이벤트 리스너들 (Core에서 직접 전달되는 이벤트들)
+      const removeUpgradeInitListener = electronAPI.onUpgradeInit && electronAPI.onUpgradeInit((data: any) => {
+        console.log('🚀 [Overlay] 업그레이드 초기화:', {
+          timestamp: new Date().toISOString(),
+          categories: data.categories?.length || 0,
+          categoryDetails: data.categories?.map((cat: any) => ({
+            id: cat.id,
+            name: cat.name,
+            itemCount: cat.items?.length || 0,
+            items: cat.items?.map((item: any) => ({
+              type: item.item?.type,
+              value: item.item?.value,
+              level: item.level,
+              remainingFrames: item.remainingFrames,
+              currentUpgradeLevel: item.currentUpgradeLevel
+            }))
+          })),
+          rawData: data
+        })
+        if (data.categories) {
+          setUpgradeCategories(data.categories)
+        }
+        setLastUpgradeEvent('upgrade-init')
+      })
+
+      const removeUpgradeDataUpdatedListener = electronAPI.onUpgradeDataUpdated && electronAPI.onUpgradeDataUpdated((data: any) => {
+        console.log('🔧 [Overlay] 업그레이드 데이터 업데이트:', {
+          timestamp: new Date().toISOString(),
+          categories: data.categories?.length || 0,
+          categoryDetails: data.categories?.map((cat: any) => ({
+            id: cat.id,
+            name: cat.name,
+            itemCount: cat.items?.length || 0,
+            items: cat.items?.map((item: any) => ({
+              type: item.item?.type,
+              value: item.item?.value,
+              level: item.level,
+              remainingFrames: item.remainingFrames,
+              currentUpgradeLevel: item.currentUpgradeLevel
+            }))
+          })),
+          rawData: data
+        })
+        
+        // 개별 아이템 단위로 업데이트 (카테고리 전체 덮어쓰기 방지)
+        if (data.categories) {
+          setUpgradeCategories(prevCategories => {
+            const updatedCategories = [...prevCategories];
+            
+            // 각 업데이트된 카테고리에 대해 처리
+            data.categories.forEach((updatedCategory: any) => {
+              const categoryIndex = updatedCategories.findIndex(cat => cat.id === updatedCategory.id);
+              
+              if (categoryIndex !== -1) {
+                // 기존 카테고리가 있으면 개별 아이템만 업데이트
+                const existingCategory = updatedCategories[categoryIndex];
+                const updatedItems = [...existingCategory.items];
+                
+                // 업데이트된 아이템들만 처리 (기존 아이템은 그대로 유지)
+                updatedCategory.items.forEach((updatedItem: any) => {
+                  const itemIndex = updatedItems.findIndex((item: any) => 
+                    item.item.type === updatedItem.item.type && item.item.value === updatedItem.item.value
+                  );
+                  
+                  if (itemIndex !== -1) {
+                    // 기존 아이템의 데이터만 업데이트 (부분 업데이트)
+                    updatedItems[itemIndex] = {
+                      ...updatedItems[itemIndex],
+                      ...updatedItem
+                    };
+                  }
+                  // 새 아이템은 추가하지 않음 (데이터 업데이트 이벤트에서는 기존 아이템만 수정)
+                });
+                
+                updatedCategories[categoryIndex] = {
+                  ...existingCategory,
+                  items: updatedItems
+                };
+              }
+              // 새 카테고리도 추가하지 않음 (데이터 업데이트 이벤트에서는 기존 카테고리만 수정)
+            });
+            
+            return updatedCategories;
+          });
+        }
+        setLastUpgradeEvent('data-updated')
+      })
+
+      const removeUpgradeCancelListener = electronAPI.onUpgradeCancelled && electronAPI.onUpgradeCancelled((data: any) => {
+        console.log('❌ [Overlay] 업그레이드 취소:', {
+          timestamp: new Date().toISOString(),
+          item: data.item,
+          categoryId: data.categoryId,
+          categoryName: data.categoryName,
+          rawData: data
+        })
+        setLastUpgradeEvent('upgrade-cancelled')
+        
+        // 취소된 업그레이드 아이템의 상태를 개별 업데이트 (진행중 -> 비활성)
+        if (data.item && data.categoryId !== undefined) {
+          setUpgradeCategories(prevCategories => {
+            const updatedCategories = [...prevCategories];
+            const categoryIndex = updatedCategories.findIndex(cat => cat.id === data.categoryId);
+            
+            if (categoryIndex !== -1) {
+              const category = updatedCategories[categoryIndex];
+              const updatedItems = [...category.items];
+              const itemIndex = updatedItems.findIndex((item: any) => 
+                item.item.type === data.item.type && item.item.value === data.item.value
+              );
+              
+              if (itemIndex !== -1) {
+                // 개별 아이템만 업데이트: 진행 상태 해제 (level은 기존 완료 레벨 유지)
+                updatedItems[itemIndex] = {
+                  ...updatedItems[itemIndex],
+                  remainingFrames: 0,
+                  currentUpgradeLevel: 0 // 진행 중인 업그레이드 해제
+                  // level은 그대로 유지 (이미 완료된 레벨은 변경하지 않음)
+                };
+                
+                updatedCategories[categoryIndex] = {
+                  ...category,
+                  items: updatedItems
+                };
+              }
+            }
+            
+            return updatedCategories;
+          });
+        }
+        
+        // 효과 트리거
+        if (upgradeProgressRef.current) {
+          upgradeProgressRef.current.triggerEffect('UpgradeCanceled')
+        }
+      })
+
+      const removeUpgradeCompleteListener = electronAPI.onUpgradeCompleted && electronAPI.onUpgradeCompleted((data: any) => {
+        console.log('✅ [Overlay] 업그레이드 완료:', {
+          timestamp: new Date().toISOString(),
+          item: data.item,
+          level: data.level,
+          categoryId: data.categoryId,
+          categoryName: data.categoryName,
+          rawData: data
+        })
+        setLastUpgradeEvent('upgrade-completed')
+        
+        // 완료된 업그레이드 아이템의 상태를 개별 업데이트 (즉시 완료 또는 진행중 -> 완료)
+        if (data.item && data.categoryId !== undefined) {
+          setUpgradeCategories(prevCategories => {
+            const updatedCategories = [...prevCategories];
+            const categoryIndex = updatedCategories.findIndex(cat => cat.id === data.categoryId);
+            
+            if (categoryIndex !== -1) {
+              const category = updatedCategories[categoryIndex];
+              const updatedItems = [...category.items];
+              const itemIndex = updatedItems.findIndex((item: any) => 
+                item.item.type === data.item.type && item.item.value === data.item.value
+              );
+              
+              if (itemIndex !== -1) {
+                const currentItem = updatedItems[itemIndex];
+                
+                // 개별 아이템만 업데이트: 진행 상태 해제, 완료 레벨 반영
+                // 진행 중이지 않았더라도 즉시 완료되는 경우를 처리
+                updatedItems[itemIndex] = {
+                  ...currentItem,
+                  remainingFrames: 0,
+                  currentUpgradeLevel: 0, // 진행 중인 업그레이드 해제
+                  level: data.level !== undefined ? data.level : currentItem.level // 완료된 레벨로 업데이트
+                };
+                
+                console.log('📝 [Overlay] 업그레이드 완료 상태 업데이트:', {
+                  itemType: data.item.type,
+                  itemValue: data.item.value,
+                  wasInProgress: currentItem.remainingFrames > 0,
+                  previousLevel: currentItem.level,
+                  newLevel: data.level !== undefined ? data.level : currentItem.level,
+                  isInstantComplete: currentItem.remainingFrames === 0
+                })
+                
+                updatedCategories[categoryIndex] = {
+                  ...category,
+                  items: updatedItems
+                };
+              }
+            }
+            
+            return updatedCategories;
+          });
+        }
+        
+        // 효과 트리거
+        if (upgradeProgressRef.current) {
+          upgradeProgressRef.current.triggerEffect('UpgradeCompleted')
+        }
+      })
+
       return () => {
         if (removeWorkerStatusListener) removeWorkerStatusListener()
         if (removeGasAlertListener) removeGasAlertListener()
         if (removePresetChangedListener) removePresetChangedListener()
         if (removeSupplyAlertListener) removeSupplyAlertListener()
+        if (removeUpgradeInitListener) removeUpgradeInitListener()
+        if (removeUpgradeDataUpdatedListener) removeUpgradeDataUpdatedListener()
+        if (removeUpgradeCancelListener) removeUpgradeCancelListener()
+        if (removeUpgradeCompleteListener) removeUpgradeCompleteListener()
       }
     }
   }, [])
@@ -391,12 +660,25 @@ export function OverlayApp() {
           setPopulationWarningPosition({ x: newWarningX, y: newWarningY })
         }
       }
+
+      // UpgradeProgress 위치 조정
+      const upgradeProgressElement = document.querySelector('.upgrade-progress') as HTMLElement
+      if (upgradeProgressElement) {
+        const upgradeRect = upgradeProgressElement.getBoundingClientRect()
+        const newUpgradeX = Math.max(0, Math.min(overlayWidth - upgradeRect.width, upgradeProgressPosition.x))
+        const newUpgradeY = Math.max(0, Math.min(overlayHeight - upgradeRect.height, upgradeProgressPosition.y))
+        
+        if (newUpgradeX !== upgradeProgressPosition.x || newUpgradeY !== upgradeProgressPosition.y) {
+          console.log('🔧 [위치 조정] UpgradeProgress:', { from: upgradeProgressPosition, to: { x: newUpgradeX, y: newUpgradeY } })
+          setUpgradeProgressPosition({ x: newUpgradeX, y: newUpgradeY })
+        }
+      }
     }
 
     // centerPosition이 변경될 때마다 위치 조정 실행
     setTimeout(adjustItemPositions, 100) // DOM 업데이트 후 실행하기 위해 지연
     
-  }, [centerPosition, workerPosition, populationWarningPosition])
+  }, [centerPosition, workerPosition, populationWarningPosition, upgradeProgressPosition])
 
   // 윈도우 크기에 따른 body 크기 동적 조정
   useEffect(() => {
@@ -600,6 +882,27 @@ export function OverlayApp() {
             isEditMode={isEditMode}
             onPositionChange={setPopulationWarningPosition}
             isPreview={isEditMode}
+          />
+        ) : null
+      })()}
+
+      {/* 업그레이드 진행 상태 - UpgradeProgress 컴포넌트 사용 */}
+      {(() => {        
+        // WorkerStatus와 동일한 패턴: InGame 상태 또는 편집 모드일 때 항상 표시
+        const shouldShow = ((gameStatus === 'playing') || isEditMode) && overlaySettings.showUpgradeProgress
+                
+        return shouldShow ? (
+          <UpgradeProgress
+            ref={upgradeProgressRef}
+            categories={upgradeCategories}
+            position={upgradeProgressPosition}
+            isEditMode={isEditMode}
+            onPositionChange={setUpgradeProgressPosition}
+            unitIconStyle={overlaySettings.upgradeIconStyle}
+            opacity={overlaySettings.opacity}
+            isPreview={isEditMode && upgradeCategories.length === 0}
+            isInGame={gameStatus === 'playing'}
+            presetUpgradeSettings={presetUpgradeSettings}
           />
         ) : null
       })()}
