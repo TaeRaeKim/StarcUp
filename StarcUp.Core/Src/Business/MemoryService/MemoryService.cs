@@ -739,7 +739,7 @@ namespace StarcUp.Business.MemoryService
             }
         }
 
-        private void InitializeBasePointer()
+        public void InitializeBasePointer()
         {
             try
             {
@@ -758,15 +758,6 @@ namespace StarcUp.Business.MemoryService
                 // ThreadStack - baseOffset 위치에서 포인터 읽기
                 nint baseAddress = threadStackAddress - baseOffset;
                 _cachedThreadStackBasePointer = ReadPointer(baseAddress);
-                
-                if (_cachedThreadStackBasePointer == 0)
-                {
-                    LoggerHelper.Warning("InitializeBasePointer: 베이스 포인터를 읽을 수 없습니다.");
-                }
-                else
-                {
-                    LoggerHelper.Info($"베이스 포인터 캐싱 완료: 0x{_cachedThreadStackBasePointer:X}");
-                }
             }
             catch (Exception ex)
             {

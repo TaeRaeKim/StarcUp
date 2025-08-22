@@ -39,7 +39,7 @@ namespace StarcUp.Business.MemoryService
 
         bool ReadMemoryIntoBuffer(nint address, byte[] buffer, int size);
         bool ReadStructureArrayIntoBuffer<T>(nint address, T[] buffer, int count) where T : unmanaged;
-
+        void InitializeBasePointer();
         nint GetPebAddress();
         List<TebInfo> GetTebAddresses();
         /// <summary>

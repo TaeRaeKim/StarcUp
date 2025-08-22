@@ -113,10 +113,13 @@ namespace StarcUp.Business.InGameDetector
         {
             try
             {
+                if(_currentState == InGameState.Stopped)
+                {
+                    _memoryService.InitializeBasePointer();
+                }
                 var finalAddress = GetIsAddress();
 
                 nint inGamePointer = _memoryService.ReadPointer(finalAddress);
-
                 nint baseAddress = _memoryService.GetBasePointer();
                 
                 nint mapFileNameAddress = baseAddress + _offsetRepository.GetMapNameOffset();
