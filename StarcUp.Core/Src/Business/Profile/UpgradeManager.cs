@@ -194,10 +194,6 @@ namespace StarcUp.Business.Profile
             if (_previousStats == null || _currentStats == null || _currentSettings == null)
                 return;
 
-            // 상태 추적이 비활성화되어 있으면 이벤트 발생하지 않음
-            if (!_currentSettings.UpgradeStateTracking)
-                return;
-
             try
             {
                 // 카테고리별로 변경사항 확인
@@ -292,10 +288,6 @@ namespace StarcUp.Business.Profile
             if (_currentStats == null || _currentSettings == null)
                 return;
 
-            // 상태 추적이 비활성화되어 있으면 진행률 이벤트도 발생시키지 않음
-            if (!_currentSettings.UpgradeStateTracking)
-                return;
-
             try
             {
                 // 진행 중인 항목만 포함하는 통계 생성
@@ -343,10 +335,6 @@ namespace StarcUp.Business.Profile
         private void DetectDecreasedUpgrades()
         {
             if (_previousStats == null || _currentStats == null || _currentSettings == null)
-                return;
-
-            // 상태 추적이 비활성화되어 있으면 이벤트 발생하지 않음
-            if (!_currentSettings.UpgradeStateTracking)
                 return;
 
             try
@@ -420,10 +408,6 @@ namespace StarcUp.Business.Profile
 
             try
             {
-                // 상태 추적이 비활성화되어 있으면 전송하지 않음
-                if (!_currentSettings.UpgradeStateTracking)
-                    return;
-
                 InitialStateDetected?.Invoke(this, new UpgradeProgressEventArgs
                 {
                     Statistics = _currentStats
