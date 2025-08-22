@@ -77,6 +77,40 @@ export function OverlayApp() {
   // 프리셋의 업그레이드 설정
   const [presetUpgradeSettings, setPresetUpgradeSettings] = useState<any>(null)
 
+  // 개발자도구에서 사용할 수 있는 디버깅 함수들을 전역에 노출
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).overlayDebug = {
+        // 현재 프리셋 상태 조회
+        getCurrentPresetData: () => ({
+          presetFeatures,
+          selectedRace,
+          presetUpgradeSettings,
+          overlaySettings,
+          upgradeCategories: upgradeCategories.length
+        }),
+        
+        // 업그레이드 설정 상세 정보
+        getUpgradeSettings: () => {
+          console.log('📊 [Overlay Debug] 현재 업그레이드 설정:', presetUpgradeSettings)
+          return presetUpgradeSettings
+        },
+        
+        // 업그레이드 카테고리 정보
+        getUpgradeCategories: () => {
+          console.log('📊 [Overlay Debug] 현재 업그레이드 카테고리:', upgradeCategories)
+          return upgradeCategories
+        },
+        
+        // 프리셋 기능 상태
+        getFeatureStates: () => {
+          console.log('📊 [Overlay Debug] 현재 기능 상태:', presetFeatures)
+          return presetFeatures
+        }
+      }
+    }
+  }, [presetFeatures, selectedRace, presetUpgradeSettings, upgradeCategories])
+
   // 기본 프리셋 기능 상태 (로딩 실패 시 사용)
   const getDefaultFeatureStates = (): boolean[] => [
     true,   // 일꾼 기능 (Worker) - 기본적으로 활성화

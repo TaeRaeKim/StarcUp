@@ -222,8 +222,8 @@ contextBridge.exposeInMainWorld('presetAPI', {
   },
   
   // Overlay 전용 기능 상태 변경 이벤트 리스너 (성능 최적화)
-  onFeaturesChanged: (callback: (data: { featureStates: boolean[], selectedRace: number, timestamp: Date }) => void) => {
-    const listener = (_event: any, data: { featureStates: boolean[], selectedRace: number, timestamp: Date }) => callback(data)
+  onFeaturesChanged: (callback: (data: { featureStates: boolean[], selectedRace: number, upgradeSettings: any, timestamp: Date }) => void) => {
+    const listener = (_event: any, data: { featureStates: boolean[], selectedRace: number, upgradeSettings: any, timestamp: Date }) => callback(data)
     ipcRenderer.on('preset:features-changed', listener)
     
     // 리스너 정리 함수 반환

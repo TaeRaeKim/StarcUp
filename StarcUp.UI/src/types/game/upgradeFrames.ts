@@ -76,6 +76,7 @@ export const upgradeFrames: Record<UpgradeType, UpgradeInfo> = {
   [UpgradeType.Upgrade_60]: { frames: [0], maxLevel: 0 },
   [UpgradeType.None]: { frames: [0], maxLevel: 0 },
   [UpgradeType.Unknown]: { frames: [0], maxLevel: 0 },
+  [UpgradeType.MAX]: { frames: [0], maxLevel: 0 },
 };
 
 // 업그레이드 정보 가져오기 헬퍼 함수

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandl
 import { useEffectSystem, type EffectType } from '../hooks/useEffectSystem';
 import { getUpgradeIconPath, getTechIconPath, getUpgradeName, getTechName } from '../../utils/upgradeImageUtils';
 import { UpgradeType, TechType, getUpgradeFrameInfo, getUpgradeFramesForLevel, getTechFrameInfo } from '../../types/game';
-import { UpgradeItemType } from '../../types/preset/PresetSettings';
+import { UpgradeItemType, UpgradeSettings } from '../../types/preset/PresetSettings';
 import { CheckCircle } from 'lucide-react';
 import { 
   UpgradeItemData, 
@@ -22,7 +22,7 @@ interface UpgradeProgressProps {
   opacity?: number;
   isPreview?: boolean;
   isInGame?: boolean; // 인게임 상태 여부
-  presetUpgradeSettings?: any; // 프리셋 업그레이드 설정
+  presetUpgradeSettings?: UpgradeSettings; // 프리셋 업그레이드 설정
 }
 
 export interface UpgradeProgressRef {
@@ -203,12 +203,18 @@ function ActiveUpgradeRow({
   item,
   upgradeInfo,
   iconStyle,
-  isCompleting = false 
+  isCompleting = false,
+  showRemainingTime = true,
+  showProgressPercentage = true,
+  showProgressBar = true
 }: { 
   item: UpgradeItemData;
   upgradeInfo: any;
   iconStyle?: 'default' | 'white' | 'yellow';
   isCompleting?: boolean;
+  showRemainingTime?: boolean;
+  showProgressPercentage?: boolean;
+  showProgressBar?: boolean;
 }) {
   const displayState = getUpgradeDisplayState(item, upgradeInfo.maxLevel);
   const styles = getStatusStyles(displayState.displayStatus);
@@ -295,57 +301,63 @@ function ActiveUpgradeRow({
         </div>
         
         {/* 두 번째 라인: (잔여시간) + 프로그레스바 + (진행률) */}
-        {item.remainingFrames > 0 && (
+        {item.remainingFrames > 0 && (showRemainingTime || showProgressBar || showProgressPercentage) && (
           <div 
             className="flex items-center"
             style={{ width: '100%', gap: '8px' }}
           >
             {/* 잔여시간 */}
-            <span 
-              style={{ 
-                fontSize: '11px',
-                fontWeight: '600',
-                color: styles.timeColor,
-                minWidth: '32px'
-              }}
-            >
-              {timeRemaining}
-            </span>
+            {showRemainingTime && (
+              <span 
+                style={{ 
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  color: styles.timeColor,
+                  minWidth: '32px'
+                }}
+              >
+                {timeRemaining}
+              </span>
+            )}
             
             {/* 프로그레스바 */}
-            <div 
-              style={{ 
-                flex: 1,
-                height: '3px',
-                backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                borderRadius: '2px',
-                overflow: 'hidden',
-                minWidth: '40px'
-              }}
-            >
+            {showProgressBar && (
               <div 
                 style={{ 
-                  width: `${progress}%`,
-                  height: '100%',
-                  backgroundColor: styles.progressColor,
+                  flex: 1,
+                  height: '3px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
                   borderRadius: '2px',
-                  transition: 'width 0.3s ease-out, background-color 0.3s ease-out'
+                  overflow: 'hidden',
+                  minWidth: '40px'
                 }}
-              />
-            </div>
+              >
+                <div 
+                  style={{ 
+                    width: `${progress}%`,
+                    height: '100%',
+                    backgroundColor: styles.progressColor,
+                    borderRadius: '2px',
+                    transition: 'width 0.3s ease-out, background-color 0.3s ease-out'
+                  }}
+                />
+              </div>
+            )}
             
             {/* 진행률 */}
-            <span 
-              style={{ 
-                fontSize: '10px',
-                fontWeight: '400',
-                color: styles.timeColor,
-                minWidth: '28px',
-                textAlign: 'right'
-              }}
-            >
-              {progress}%
-            </span>
+            {showProgressPercentage && (
+              <span 
+                style={{ 
+                  fontSize: '10px',
+                  fontWeight: '400',
+                  color: styles.timeColor,
+                  minWidth: '28px',
+                  textAlign: 'right'
+                }}
+              >
+                {progress}%
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -630,6 +642,12 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
             return b.level - a.level;
           });
 
+          // upgradeStateTracking이 false이고 진행 중인 업그레이드가 없으면 카테고리 숨김
+          const shouldHideCategory = (presetUpgradeSettings?.upgradeStateTracking === false) && activeItems.length === 0;
+          if (shouldHideCategory) {
+            return null;
+          }
+
           return (
             <div key={category.id} className="mb-1">
               {/* 카테고리 제목 */}
@@ -670,6 +688,9 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
                           upgradeInfo={upgradeInfo}
                           iconStyle={unitIconStyle}
                           isCompleting={isCompleting}
+                          showRemainingTime={presetUpgradeSettings?.showRemainingTime ?? true}
+                          showProgressPercentage={presetUpgradeSettings?.showProgressPercentage ?? true}
+                          showProgressBar={presetUpgradeSettings?.showProgressBar ?? true}
                         />
                       );
                     })}
@@ -677,7 +698,7 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
                 )}
 
                 {/* 구분선 (진행 중인 업그레이드와 비활성 업그레이드가 모두 있을 때) */}
-                {activeItems.length > 0 && sortedInactiveItems.length > 0 && (
+                {activeItems.length > 0 && sortedInactiveItems.length > 0 && (presetUpgradeSettings?.upgradeStateTracking ?? true) && (
                   <div 
                     style={{
                       height: '1px',
@@ -688,7 +709,7 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
                 )}
 
                 {/* 비활성 업그레이드 영역 (가로 배치) */}
-                {sortedInactiveItems.length > 0 && (
+                {sortedInactiveItems.length > 0 && (presetUpgradeSettings?.upgradeStateTracking ?? true) && (
                   <div 
                     className="flex items-center"
                     style={{

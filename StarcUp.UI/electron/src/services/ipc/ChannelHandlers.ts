@@ -497,7 +497,7 @@ export class ChannelHandlers {
       })
       
       // Overlay 전용: 성능 최적화를 위해 기능 상태, 종족 정보, 업그레이드 설정 전송
-      if (event.type === 'preset-switched' || event.type === 'feature-toggled') {
+      if (event.type === 'preset-switched' || event.type === 'feature-toggled' || event.type === 'settings-updated') {
         this.windowManager.sendToOverlayWindow('preset:features-changed', {
           featureStates: event.preset?.featureStates || [false, false, false, false, false],
           selectedRace: event.preset?.selectedRace ?? RaceType.Zerg, // undefined인 경우에만 기본값 사용, 0도 유효한 값
