@@ -446,6 +446,23 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
   // 이전 상태를 추적하여 완료 감지 - useRef로 변경
   const previousItemsRef = useRef<Map<string, UpgradeItemData>>(new Map());
 
+  // 애니메이션 트리거 함수
+  const triggerUpgradeAnimation = useCallback((key: string) => {
+    setCompletingUpgrades(prev => {
+      const newSet = new Set(prev);
+      newSet.add(key);
+      return newSet;
+    });
+    
+    setTimeout(() => {
+      setCompletingUpgrades(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(key);
+        return newSet;
+      });
+    }, 1200);
+  }, []);
+
   // 효과 시스템 연결
   const { triggerEffect } = useEffectSystem();
   
@@ -570,30 +587,30 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
             currentItem.remainingFrames === 0 && 
             currentItem.currentUpgradeLevel > 0) {
           
-          console.log('🎉 Upgrade completion detected:', key);
+          // upgradeCompletionAlert가 true일 때만 완료 애니메이션 실행
+          if (presetUpgradeSettings?.upgradeCompletionAlert) {
+            triggerUpgradeAnimation(key);
+          }
+        }
+        
+        // 진행 중이던 업그레이드가 취소된 순간
+        else if (previousItem && 
+                 previousItem.remainingFrames > 0 && 
+                 previousItem.currentUpgradeLevel > 0 &&
+                 currentItem.remainingFrames === 0 && 
+                 currentItem.currentUpgradeLevel === 0) {
           
-          // 완료 애니메이션 시작
-          setCompletingUpgrades(prev => {
-            const newSet = new Set(prev);
-            newSet.add(key);
-            return newSet;
-          });
-          
-          // 애니메이션 완료 후 정리
-          setTimeout(() => {
-            setCompletingUpgrades(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(key);
-              return newSet;
-            });
-          }, 1200);
+          // upgradeCompletionAlert가 true일 때만 취소 애니메이션 실행
+          if (presetUpgradeSettings?.upgradeCompletionAlert) {
+            triggerUpgradeAnimation(key + '_cancelled');
+          }
         }
       });
     }
     
     // 이전 상태 업데이트 - useRef 사용
     previousItemsRef.current = currentItems;
-  }, [displayCategories, isInGame]);
+  }, [displayCategories, isInGame, presetUpgradeSettings?.upgradeCompletionAlert, triggerUpgradeAnimation]);
 
   // displayCategories가 없으면 렌더링하지 않음
   if (!displayCategories || displayCategories.length === 0) {
@@ -627,8 +644,10 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
           // 활성 업그레이드와 비활성 업그레이드 분리
           const activeItems = category.items.filter((item: any) => {
             const key = `${item.item.type}_${item.item.value}`;
+            const cancelledKey = key + '_cancelled';
             return (item.remainingFrames > 0 && item.currentUpgradeLevel > 0) || 
-                   completingUpgrades.has(key);
+                   completingUpgrades.has(key) || 
+                   completingUpgrades.has(cancelledKey);
           });
           
           const inactiveItems = category.items.filter((item: any) => 
@@ -678,7 +697,8 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
                   <div style={{ marginBottom: sortedInactiveItems.length > 0 ? '8px' : '0' }}>
                     {activeItems.map((item: any, index: number) => {
                       const key = `${item.item.type}_${item.item.value}`;
-                      const isCompleting = completingUpgrades.has(key);
+                      const cancelledKey = key + '_cancelled';
+                      const isCompleting = completingUpgrades.has(key) || completingUpgrades.has(cancelledKey);
                       const upgradeInfo = getUpgradeInfo(item.item.type, item.item.value, item.currentUpgradeLevel || 1);
                       
                       return (
