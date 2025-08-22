@@ -39,6 +39,12 @@ declare global {
       onUpdateCenterPosition: (callback: (data: CenterPositionData) => void) => () => void
       onToggleEditMode: (callback: (data: { isEditMode: boolean }) => void) => () => void
       
+      // 업그레이드 이벤트 리스너들
+      onUpgradeInit: (callback: (data: any) => void) => () => void
+      onUpgradeDataUpdated: (callback: (data: any) => void) => () => void
+      onUpgradeCompleted: (callback: (data: any) => void) => () => void
+      onUpgradeCancelled: (callback: (data: any) => void) => () => void
+      
       // 프리셋 관리 API (preload.ts 구현과 완전 일치)
       savePreset: (userId: string, preset: any) => Promise<any>
       loadPreset: (userId: string, presetId: string) => Promise<any>
@@ -74,7 +80,7 @@ declare global {
       getAll: () => Promise<{ success: boolean; data?: any[]; error?: string }>
       
       // Overlay 전용 성능 최적화 메서드
-      getFeaturesOnly: () => Promise<{ success: boolean; data?: { featureStates: boolean[]; selectedRace: number }; error?: string }>
+      getFeaturesOnly: () => Promise<{ success: boolean; data?: { featureStates: boolean[]; selectedRace: number; upgradeSettings?: any }; error?: string }>
       
       // 프리셋 관리
       switch: (presetId: string) => Promise<{ success: boolean; error?: string }>
@@ -105,6 +111,7 @@ declare global {
       onFeaturesChanged: (callback: (data: { 
         featureStates: boolean[]
         selectedRace: number
+        upgradeSettings?: any
         timestamp: Date 
       }) => void) => () => void
     }

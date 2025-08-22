@@ -1,0 +1,724 @@
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
+import { useEffectSystem, type EffectType } from '../hooks/useEffectSystem';
+import { getUpgradeIconPath, getTechIconPath, getUpgradeName, getTechName } from '../../utils/upgradeImageUtils';
+import { UpgradeType, TechType } from '../../types/game';
+import { UpgradeItemType } from '../../types/preset/PresetSettings';
+import { CheckCircle } from 'lucide-react';
+import { 
+  UpgradeItemData, 
+  UpgradeCategory, 
+  UpgradeDisplayStatus,
+  framesToTimeString,
+  calculateProgress 
+} from '../types/upgrade';
+
+interface UpgradeProgressProps {
+  categories: UpgradeCategory[];
+  position: { x: number; y: number };
+  isEditMode: boolean;
+  onPositionChange?: (position: { x: number; y: number }) => void;
+  unitIconStyle?: 'default' | 'white' | 'yellow';
+  opacity?: number;
+  isPreview?: boolean;
+  isInGame?: boolean; // 인게임 상태 여부
+  presetUpgradeSettings?: any; // 프리셋 업그레이드 설정
+}
+
+export interface UpgradeProgressRef {
+  triggerEffect: (effectType: EffectType) => void;
+}
+
+// 레벨별 색상 시스템
+const LEVEL_COLORS = {
+  1: {
+    background: '#FFB800', // Warning 색상 (노란색)
+    text: '#1A1A1A'        // 대비를 위한 어두운 텍스트
+  },
+  2: {
+    background: '#FF6B35', // Brand Secondary 색상 (오렌지)
+    text: '#FFFFFF'        // 흰색 텍스트
+  },
+  3: {
+    background: '#00D084', // Success 색상 (초록)
+    text: '#FFFFFF'        // 흰색 텍스트
+  },
+  check: {
+    background: '#00D084', // Success 색상 (초록) - 완료용
+    text: '#FFFFFF'        // 흰색 텍스트
+  }
+};
+
+// 업그레이드 상태 계산 함수
+const getUpgradeDisplayState = (item: UpgradeItemData) => {
+  // 진행 중인 경우
+  if (item.remainingFrames > 0 && item.currentUpgradeLevel > 0) {
+    return {
+      displayStatus: 'progress' as const,
+      showTag: false,
+      isActive: true
+    };
+  }
+  
+  // 완료된 경우 (level > 0)
+  if (item.level > 0) {
+    return {
+      displayStatus: 'completed' as const,
+      showTag: true,
+      tagType: 'check' as const,
+      tagValue: null,
+      tagColor: LEVEL_COLORS.check,
+      isActive: true
+    };
+  }
+  
+  // 비활성 상태
+  return {
+    displayStatus: 'inactive' as const,
+    showTag: false,
+    isActive: false
+  };
+};
+
+// 개선된 필터 스타일 생성 함수  
+const getIconFilter = (iconStyle: 'default' | 'white' | 'yellow', displayStatus: string): string => {
+  let baseFilter = '';
+  
+  switch (iconStyle) {
+    case 'white':
+      baseFilter = 'grayscale(1) brightness(1.4) contrast(1.3) saturate(0.8)';
+      break;
+    case 'yellow':
+      baseFilter = 'sepia(1) hue-rotate(20deg) saturate(3) brightness(1.3)';
+      break;
+    case 'default':
+    default:
+      baseFilter = 'brightness(1.1)';
+      break;
+  }
+
+  // 상태별 추가 필터
+  if (displayStatus === 'inactive') {
+    baseFilter += ' grayscale(0.7) opacity(0.6)';
+  } else if (displayStatus === 'completed') {
+    baseFilter += ' saturate(1.3) brightness(1.2)';
+  }
+  // 진행 중인 업그레이드는 반투명 처리하지 않음
+
+  return baseFilter;
+};
+
+// 상태별 스타일 정의
+const getStatusStyles = (displayStatus: string) => {
+  switch (displayStatus) {
+    case 'progress':
+      return {
+        containerOpacity: 1,
+        nameColor: 'var(--color-text-primary)',
+        timeColor: 'var(--color-text-secondary)',
+        progressColor: 'var(--color-brand-primary)',
+        statusIndicator: 'var(--color-brand-primary)'
+      };
+    case 'completed':
+      return {
+        containerOpacity: 0.9,
+        nameColor: 'var(--color-success)',
+        timeColor: 'var(--color-success)',
+        progressColor: 'var(--color-success)',
+        statusIndicator: 'var(--color-success)'
+      };
+    case 'inactive':
+    default:
+      return {
+        containerOpacity: 0.6,
+        nameColor: 'var(--color-gray-400)',
+        timeColor: 'var(--color-gray-500)',
+        progressColor: 'var(--color-gray-400)',
+        statusIndicator: 'var(--color-gray-500)'
+      };
+  }
+};
+
+// 업그레이드 정보 가져오기
+const getUpgradeInfo = (type: UpgradeItemType, value: UpgradeType | TechType) => {
+  if (type === UpgradeItemType.Upgrade) {
+    return {
+      name: getUpgradeName(value as UpgradeType),
+      iconPath: getUpgradeIconPath(value as UpgradeType),
+      maxLevel: 3, // 대부분의 업그레이드는 3레벨
+      // 프레임 수는 실제 게임 데이터로 교체해야 할 수 있음
+      totalFrames: 4104 // 기본값
+    };
+  } else {
+    return {
+      name: getTechName(value as TechType),
+      iconPath: getTechIconPath(value as TechType),
+      maxLevel: 1, // 테크는 보통 1레벨
+      totalFrames: 3600 // 기본값
+    };
+  }
+};
+
+// 개별 업그레이드 아이콘 컴포넌트
+function UpgradeIcon({ 
+  iconPath, 
+  name,
+  iconStyle = 'default',
+  displayStatus = 'inactive',
+  size = 24
+}: { 
+  iconPath: string;
+  name: string;
+  iconStyle?: 'default' | 'white' | 'yellow';
+  displayStatus?: string;
+  size?: number;
+}) {
+  return (
+    <div 
+      className="flex items-center justify-center"
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        position: 'relative'
+      }}
+    >
+      <img
+        src={iconPath}
+        alt={`${name} icon`}
+        style={{
+          width: `${size}px`,
+          height: `${size}px`,
+          objectFit: 'contain',
+          filter: getIconFilter(iconStyle, displayStatus),
+          transition: 'filter 0.2s ease-out',
+          imageRendering: 'pixelated'
+        }}
+      />
+    </div>
+  );
+}
+
+// 진행 중인 업그레이드 행 컴포넌트 (세로 레이아웃)
+function ActiveUpgradeRow({ 
+  item,
+  upgradeInfo,
+  iconStyle,
+  isCompleting = false 
+}: { 
+  item: UpgradeItemData;
+  upgradeInfo: any;
+  iconStyle?: 'default' | 'white' | 'yellow';
+  isCompleting?: boolean;
+}) {
+  const displayState = getUpgradeDisplayState(item);
+  const styles = getStatusStyles(displayState.displayStatus);
+  
+  // 진행 중인 업그레이드의 목표 레벨은 currentUpgradeLevel
+  const targetLevel = item.currentUpgradeLevel;
+  const targetLevelColor = targetLevel <= 3 ? LEVEL_COLORS[targetLevel as 1|2|3] : LEVEL_COLORS.check;
+  
+  // 진행률과 시간 계산
+  const progress = calculateProgress(item.remainingFrames, upgradeInfo.totalFrames);
+  const timeRemaining = framesToTimeString(item.remainingFrames);
+  
+  return (
+    <div 
+      className={`flex items-center mb-2 last:mb-0 ${isCompleting ? 'upgrade-completing' : ''}`}
+      style={{ 
+        position: 'relative',
+        opacity: isCompleting ? 1 : styles.containerOpacity,
+        transition: isCompleting ? 'none' : 'opacity 0.2s ease-out',
+        background: isCompleting ? 'rgba(0, 153, 255, 0.05)' : 'transparent',
+        borderRadius: '4px',
+        overflow: 'hidden'
+      }}
+    >
+      
+      <UpgradeIcon 
+        iconPath={upgradeInfo.iconPath}
+        name={upgradeInfo.name}
+        iconStyle={iconStyle}
+        displayStatus={displayState.displayStatus}
+        size={24}
+      />
+      
+      {/* 업그레이드 정보 컨테이너 */}
+      <div 
+        className="flex-1"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          minWidth: 0,
+          marginLeft: '6px'
+        }}
+      >
+        {/* 업그레이드 이름과 목표 레벨 표시 - 수평 배치 */}
+        <div 
+          className="flex items-center justify-between w-full mb-1"
+          style={{
+            marginBottom: '2px',
+            width: '100%'
+          }}
+        >
+          {/* 업그레이드 이름 - 좌측 정렬 */}
+          <span 
+            style={{ 
+              fontSize: '12px',
+              fontWeight: '600',
+              color: styles.nameColor,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              transition: 'color 0.2s ease-out',
+              flex: 1,
+              marginRight: '8px'
+            }}
+          >
+            {upgradeInfo.name}
+          </span>
+          
+          {/* 목표 레벨 표시 - 우측 끝에 위치, 작고 반투명 */}
+          {item.remainingFrames > 0 && item.currentUpgradeLevel > 0 && (
+            <span 
+              style={{
+                fontSize: '8px',      // 작은 크기
+                fontWeight: '600',    
+                color: targetLevelColor.text,
+                backgroundColor: targetLevelColor.background,
+                opacity: 0.75,       // 반투명 효과
+                padding: '1px 3px',  
+                borderRadius: '6px',  
+                minWidth: '16px',     
+                textAlign: 'center',
+                transition: 'all 0.2s ease-out',
+                boxShadow: `0 0 3px ${targetLevelColor.background}30`,
+                flexShrink: 0         
+              }}
+            >
+              +{targetLevel}
+            </span>
+          )}
+        </div>
+        
+        {/* 진행 중 상태만 표시 */}
+        {item.remainingFrames > 0 && (
+          <div 
+            className="flex items-center gap-2 w-full"
+            style={{ width: '100%' }}
+          >
+            {/* 남은 시간 */}
+            <span 
+              style={{ 
+                fontSize: '11px',
+                fontWeight: '600',
+                color: styles.timeColor,
+                minWidth: '32px'
+              }}
+            >
+              {timeRemaining}
+            </span>
+            
+            {/* 진행바 */}
+            <div 
+              style={{ 
+                flex: 1,
+                height: '3px',
+                backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                borderRadius: '2px',
+                overflow: 'hidden',
+                minWidth: '40px'
+              }}
+            >
+              <div 
+                style={{ 
+                  width: `${progress}%`,
+                  height: '100%',
+                  backgroundColor: styles.progressColor,
+                  borderRadius: '2px',
+                  transition: 'width 0.3s ease-out, background-color 0.3s ease-out'
+                }}
+              />
+            </div>
+            
+            {/* 진행률 */}
+            <span 
+              style={{ 
+                fontSize: '10px',
+                fontWeight: '400',
+                color: styles.timeColor,
+                minWidth: '28px',
+                textAlign: 'right'
+              }}
+            >
+              {progress}%
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// 비활성 업그레이드 아이콘 컴포넌트 (가로 레이아웃용)
+function InactiveUpgradeIcon({ 
+  item,
+  upgradeInfo,
+  iconStyle 
+}: { 
+  item: UpgradeItemData;
+  upgradeInfo: any;
+  iconStyle?: 'default' | 'white' | 'yellow';
+}) {
+  const displayState = getUpgradeDisplayState(item);
+  
+  return (
+    <div 
+      className="flex items-center justify-center"
+      style={{
+        marginRight: '8px',
+        position: 'relative'
+      }}
+      title={`${upgradeInfo.name} (Lv.${item.level}/${upgradeInfo.maxLevel})`}
+    >
+      <UpgradeIcon 
+        iconPath={upgradeInfo.iconPath}
+        name={upgradeInfo.name}
+        iconStyle={iconStyle}
+        displayStatus={displayState.displayStatus}
+        size={24}
+      />
+
+      {/* 완료 상태 태그 표시 */}
+      {displayState.showTag && displayState.tagColor && (
+        <div
+          className="absolute -bottom-1 -right-1"
+          style={{
+            minWidth: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            backgroundColor: displayState.tagColor.background,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '8px',
+            fontWeight: '700',
+            color: displayState.tagColor.text,
+            border: '1px solid var(--color-overlay-bg)',
+            boxShadow: `0 0 4px ${displayState.tagColor.background}40`
+          }}
+        >
+          <CheckCircle
+            style={{
+              width: '8px',
+              height: '8px',
+              color: displayState.tagColor.text
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
+  ({ categories, position, isEditMode, onPositionChange, unitIconStyle = 'default', opacity = 1, isPreview = false, isInGame = false, presetUpgradeSettings }, ref) => {
+    
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const upgradeProgressRef = useRef<HTMLDivElement>(null);
+  
+  // 완료 애니메이션을 추적하기 위한 상태
+  const [completingUpgrades, setCompletingUpgrades] = useState<Set<string>>(new Set());
+  
+  // 이전 상태를 추적하여 완료 감지 - useRef로 변경
+  const previousItemsRef = useRef<Map<string, UpgradeItemData>>(new Map());
+
+  // 효과 시스템 연결
+  const { triggerEffect } = useEffectSystem();
+  
+  // ref를 통해 외부에서 효과 트리거 가능하도록 설정
+  useImperativeHandle(ref, () => ({
+    triggerEffect: (effectType: EffectType) => {
+      triggerEffect(upgradeProgressRef.current, effectType);
+    }
+  }), [triggerEffect]);
+
+  // displayCategories를 useMemo로 최적화
+  const displayCategories = React.useMemo(() => {
+    // 실제 업그레이드 데이터가 있으면 그대로 사용
+    if (categories.length > 0) {
+      return categories;
+    }
+
+    // 편집 모드에서 실제 업그레이드가 없을 때 프리셋 데이터 사용
+    if (presetUpgradeSettings?.categories) {
+      // 프리셋 데이터를 UpgradeItemData 형태로 변환
+      return presetUpgradeSettings.categories.map((category: any) => ({
+        id: category.id,
+        name: category.name,
+        items: category.items.map((item: any) => ({
+          item: {
+            type: item.type, // UpgradeItemType (0: Upgrade, 1: Tech)
+            value: item.value // UpgradeType 또는 TechType 값
+          },
+          level: 0, // 편집 모드/대기 상태에서는 레벨 0
+          remainingFrames: 0, // 진행 중이 아님
+          currentUpgradeLevel: 0 // 현재 업그레이드 레벨 0
+        }))
+      }));
+    }
+
+    // 프리셋 데이터도 없으면 빈 배열 반환
+    return [];
+  }, [categories, presetUpgradeSettings]);
+
+  // 드래그 시작
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!isEditMode) return;
+    
+    e.preventDefault();
+    setIsDragging(true);
+    
+    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement;
+    if (overlayContainer) {
+      const containerRect = overlayContainer.getBoundingClientRect();
+      setDragOffset({
+        x: e.clientX - containerRect.left - position.x,
+        y: e.clientY - containerRect.top - position.y
+      });
+    }
+  };
+
+  // 드래그 중
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging || !isEditMode) return;
+    
+    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement;
+    if (!overlayContainer || !onPositionChange) return;
+    
+    const containerRect = overlayContainer.getBoundingClientRect();
+    const newPosition = {
+      x: e.clientX - containerRect.left - dragOffset.x,
+      y: e.clientY - containerRect.top - dragOffset.y
+    };
+    
+    // 경계 제한
+    const upgradeElement = upgradeProgressRef.current;
+    const componentWidth = upgradeElement ? upgradeElement.offsetWidth : 200;
+    const componentHeight = upgradeElement ? upgradeElement.offsetHeight : 100;
+    
+    const clampedX = Math.max(0, Math.min(containerRect.width - componentWidth, newPosition.x));
+    const clampedY = Math.max(0, Math.min(containerRect.height - componentHeight, newPosition.y));
+    
+    onPositionChange({ x: clampedX, y: clampedY });
+  }, [isDragging, isEditMode, dragOffset, onPositionChange]);
+
+  // 드래그 종료
+  const handleMouseUp = useCallback(() => {
+    if (!isDragging) return;
+    setIsDragging(false);
+  }, [isDragging]);
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  // 업그레이드 완료 감지 및 애니메이션 트리거
+  useEffect(() => {
+    if (!isInGame) return; // 인게임 상태일 때만 동작
+
+    const currentItems = new Map<string, UpgradeItemData>();
+    
+    // 현재 상태 수집
+    displayCategories.forEach((category: any) => {
+      category.items.forEach((item: any) => {
+        const key = `${item.item.type}_${item.item.value}`;
+        currentItems.set(key, item);
+      });
+    });
+    
+    // 업그레이드 완료 감지
+    const previousItems = previousItemsRef.current;
+    if (previousItems.size > 0) {
+      currentItems.forEach((currentItem: any, key: string) => {
+        const previousItem = previousItems.get(key);
+        
+        // 진행 중이던 업그레이드가 완료된 순간
+        if (previousItem && 
+            previousItem.remainingFrames > 0 && 
+            currentItem.remainingFrames === 0 && 
+            currentItem.currentUpgradeLevel > 0) {
+          
+          console.log('🎉 Upgrade completion detected:', key);
+          
+          // 완료 애니메이션 시작
+          setCompletingUpgrades(prev => {
+            const newSet = new Set(prev);
+            newSet.add(key);
+            return newSet;
+          });
+          
+          // 애니메이션 완료 후 정리
+          setTimeout(() => {
+            setCompletingUpgrades(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(key);
+              return newSet;
+            });
+          }, 1200);
+        }
+      });
+    }
+    
+    // 이전 상태 업데이트 - useRef 사용
+    previousItemsRef.current = currentItems;
+  }, [displayCategories, isInGame]);
+
+  // displayCategories가 없으면 렌더링하지 않음
+  if (!displayCategories || displayCategories.length === 0) {
+    return null;
+  }
+
+  return (
+    <div 
+      ref={upgradeProgressRef}
+      className="upgrade-progress-container"
+      onMouseDown={handleMouseDown}
+      style={{
+        position: 'absolute',
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        opacity: opacity,
+        backgroundColor: 'transparent',
+        borderRadius: '8px',
+        padding: '4px',
+        minWidth: '200px',
+        maxWidth: '300px',
+        cursor: isEditMode ? 'move' : 'default',
+        userSelect: 'none',
+        zIndex: isEditMode ? 1002 : 1000,
+        transition: isDragging ? 'none' : 'all 0.2s ease',
+        pointerEvents: 'auto'
+      }}
+    >
+      <div className="space-y-1">
+        {displayCategories.map((category: any) => {
+          // 활성 업그레이드와 비활성 업그레이드 분리
+          const activeItems = category.items.filter((item: any) => {
+            const key = `${item.item.type}_${item.item.value}`;
+            return (item.remainingFrames > 0 && item.currentUpgradeLevel > 0) || 
+                   completingUpgrades.has(key);
+          });
+          
+          const inactiveItems = category.items.filter((item: any) => 
+            !(item.remainingFrames > 0 && item.currentUpgradeLevel > 0)
+          );
+
+          // 비활성 업그레이드 정렬 (완료 > 비활성)
+          const sortedInactiveItems = [...inactiveItems].sort((a: any, b: any) => {
+            if (a.level > 0 && b.level === 0) return -1;
+            if (a.level === 0 && b.level > 0) return 1;
+            return b.level - a.level;
+          });
+
+          return (
+            <div key={category.id} className="mb-1">
+              {/* 카테고리 제목 */}
+              <div 
+                style={{ 
+                  fontSize: '12px',
+                  fontWeight: '400',
+                  color: 'var(--color-gray-400)',
+                  marginBottom: '4px'
+                }}
+              >
+                {category.name}
+              </div>
+              
+              {/* 통합된 업그레이드 컨테이너 */}
+              <div 
+                style={{ 
+                  backgroundColor: 'var(--color-overlay-bg)',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  marginBottom: '4px'
+                }}
+              >
+                {/* 진행 중인 업그레이드 영역 */}
+                {activeItems.length > 0 && (
+                  <div style={{ marginBottom: sortedInactiveItems.length > 0 ? '8px' : '0' }}>
+                    {activeItems.map((item: any, index: number) => {
+                      const key = `${item.item.type}_${item.item.value}`;
+                      const isCompleting = completingUpgrades.has(key);
+                      const upgradeInfo = getUpgradeInfo(item.item.type, item.item.value);
+                      
+                      return (
+                        <ActiveUpgradeRow
+                          key={`${item.item.type}-${item.item.value}-${index}`}
+                          item={item}
+                          upgradeInfo={upgradeInfo}
+                          iconStyle={unitIconStyle}
+                          isCompleting={isCompleting}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* 구분선 (진행 중인 업그레이드와 비활성 업그레이드가 모두 있을 때) */}
+                {activeItems.length > 0 && sortedInactiveItems.length > 0 && (
+                  <div 
+                    style={{
+                      height: '1px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      margin: '6px 0 8px 0'
+                    }}
+                  />
+                )}
+
+                {/* 비활성 업그레이드 영역 (가로 배치) */}
+                {sortedInactiveItems.length > 0 && (
+                  <div 
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '4px',
+                      opacity: activeItems.length > 0 ? 0.8 : 1
+                    }}
+                  >
+                    {sortedInactiveItems.map((item: any, index: number) => {
+                      const upgradeInfo = getUpgradeInfo(item.item.type, item.item.value);
+                      
+                      return (
+                        <InactiveUpgradeIcon
+                          key={`${item.item.type}-${item.item.value}-${index}`}
+                          item={item}
+                          upgradeInfo={upgradeInfo}
+                          iconStyle={unitIconStyle}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
+UpgradeProgress.displayName = 'UpgradeProgress';
+
+export { UpgradeProgress };

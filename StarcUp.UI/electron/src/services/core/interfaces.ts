@@ -79,4 +79,14 @@ export interface ICoreCommunicationService {
   // PopulationManager 이벤트 콜백
   onSupplyAlert(callback: () => void): void
   offSupplyAlert(): void
+
+  // 업그레이드 이벤트 콜백
+  onUpgradeInit(callback: (data: any) => void): void
+  offUpgradeInit(): void
+  onUpgradeDataUpdated(callback: (data: any) => void): void
+  offUpgradeDataUpdated(): void
+  onUpgradeCompleted(callback: (data: any) => void): void
+  offUpgradeCompleted(): void
+  onUpgradeCancelled(callback: (data: any) => void): void
+  offUpgradeCancelled(): void
 }

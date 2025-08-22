@@ -452,17 +452,18 @@ export class ChannelHandlers {
       }
     })
 
-    // Overlay 전용 성능 최적화 핸들러 (기능 상태 + 종족 정보)
+    // Overlay 전용 성능 최적화 핸들러 (기능 상태 + 종족 정보 + 업그레이드 설정)
     this.ipcService.registerHandler('preset:get-features-only', async () => {
       try {
         const currentPreset = this.presetStateManager.getCurrentPreset()
         
-        // Overlay가 필요로 하는 기본 기능 On/Off 상태와 종족 정보 반환 (성능 최적화)
+        // Overlay가 필요로 하는 기본 기능 On/Off 상태, 종족 정보, 업그레이드 설정 반환 (성능 최적화)
         return {
           success: true,
           data: {
             featureStates: currentPreset?.featureStates || [false, false, false, false, false],
-            selectedRace: currentPreset?.selectedRace ?? RaceType.Zerg // undefined인 경우에만 기본값 사용, 0도 유효한 값
+            selectedRace: currentPreset?.selectedRace ?? RaceType.Zerg, // undefined인 경우에만 기본값 사용, 0도 유효한 값
+            upgradeSettings: currentPreset?.upgradeSettings || null // 업그레이드 설정 추가
           }
         }
       } catch (error) {
@@ -495,18 +496,20 @@ export class ChannelHandlers {
         timestamp: event.timestamp
       })
       
-      // Overlay 전용: 성능 최적화를 위해 기능 상태와 종족 정보 전송
+      // Overlay 전용: 성능 최적화를 위해 기능 상태, 종족 정보, 업그레이드 설정 전송
       if (event.type === 'preset-switched' || event.type === 'feature-toggled') {
         this.windowManager.sendToOverlayWindow('preset:features-changed', {
           featureStates: event.preset?.featureStates || [false, false, false, false, false],
           selectedRace: event.preset?.selectedRace ?? RaceType.Zerg, // undefined인 경우에만 기본값 사용, 0도 유효한 값
+          upgradeSettings: event.preset?.upgradeSettings || null, // 업그레이드 설정 추가
           timestamp: event.timestamp
         })
         
         console.log('📡 Overlay에 기능 상태 변경 알림:', {
           type: event.type,
           featureStates: event.preset?.featureStates || [false, false, false, false, false],
-          selectedRace: event.preset?.selectedRace ?? RaceType.Zerg
+          selectedRace: event.preset?.selectedRace ?? RaceType.Zerg,
+          upgradeSettings: event.preset?.upgradeSettings ? '포함' : '없음'
         })
       }
       

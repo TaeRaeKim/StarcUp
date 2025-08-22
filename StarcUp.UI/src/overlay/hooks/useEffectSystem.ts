@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react'
 
-export type EffectType = 'ProductionCompleted' | 'WorkerDied'
+export type EffectType = 'ProductionCompleted' | 'WorkerDied' | 'UpgradeCompleted' | 'UpgradeCanceled'
 
 interface EffectConfig {
   duration: number  // 애니메이션 지속 시간 (ms)
@@ -15,6 +15,14 @@ const EFFECT_CONFIGS: Record<EffectType, EffectConfig> = {
   WorkerDied: {
     duration: 600,
     className: 'death-effect'
+  },
+  UpgradeCompleted: {
+    duration: 1200,
+    className: 'upgrade-completed-effect'
+  },
+  UpgradeCanceled: {
+    duration: 600,
+    className: 'upgrade-canceled-effect'
   }
 }
 

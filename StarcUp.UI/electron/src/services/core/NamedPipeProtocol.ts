@@ -156,6 +156,7 @@ export const Events = {
   SupplyAlert: 'supply-alert',
   
   // UpgradeManager 관련 이벤트
+  UpgradeInit: 'upgrade-init',
   UpgradeDataUpdated: 'upgrade-data-updated',
   UpgradeStateChanged: 'upgrade-state-changed',
   UpgradeCompleted: 'upgrade-completed',

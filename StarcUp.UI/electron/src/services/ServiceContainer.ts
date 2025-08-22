@@ -215,6 +215,27 @@ export class ServiceContainer implements IServiceContainer {
       // Overlay 윈도우에 이벤트 전송
       windowManager.sendToOverlayWindow('supply-alert', {})
     })
+
+    // 업그레이드 이벤트를 Overlay에 전달
+    coreService.onUpgradeInit((data: any) => {
+      // Overlay 윈도우에 업그레이드 초기화 이벤트 전송
+      windowManager.sendToOverlayWindow('upgrade-init', data)
+    })
+
+    coreService.onUpgradeDataUpdated((data: any) => {
+      // Overlay 윈도우에 업그레이드 데이터 업데이트 이벤트 전송
+      windowManager.sendToOverlayWindow('upgrade-data-updated', data)
+    })
+
+    coreService.onUpgradeCompleted((data: any) => {
+      // Overlay 윈도우에 업그레이드 완료 이벤트 전송
+      windowManager.sendToOverlayWindow('upgrade-completed', data)
+    })
+
+    coreService.onUpgradeCancelled((data: any) => {
+      // Overlay 윈도우에 업그레이드 취소 이벤트 전송
+      windowManager.sendToOverlayWindow('upgrade-cancelled', data)
+    })
     
     console.log('🔗 게임 이벤트 핸들러 설정 완료')
   }

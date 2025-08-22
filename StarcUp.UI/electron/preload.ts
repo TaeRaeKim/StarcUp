@@ -91,6 +91,39 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.off('toggle-edit-mode', listener)
   },
 
+  // 업그레이드 이벤트 리스너들
+  onUpgradeInit: (callback: (data: any) => void) => {
+    const listener = (_event: any, data: any) => callback(data)
+    ipcRenderer.on('upgrade-init', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('upgrade-init', listener)
+  },
+
+  onUpgradeDataUpdated: (callback: (data: any) => void) => {
+    const listener = (_event: any, data: any) => callback(data)
+    ipcRenderer.on('upgrade-data-updated', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('upgrade-data-updated', listener)
+  },
+
+  onUpgradeCompleted: (callback: (data: any) => void) => {
+    const listener = (_event: any, data: any) => callback(data)
+    ipcRenderer.on('upgrade-completed', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('upgrade-completed', listener)
+  },
+
+  onUpgradeCancelled: (callback: (data: any) => void) => {
+    const listener = (_event: any, data: any) => callback(data)
+    ipcRenderer.on('upgrade-cancelled', listener)
+    
+    // 리스너 정리 함수 반환
+    return () => ipcRenderer.off('upgrade-cancelled', listener)
+  },
+
   // 프리셋 관리 API
   savePreset: (userId: string, preset: any) => 
     ipcRenderer.invoke('data:save-preset', { userId, preset }),
