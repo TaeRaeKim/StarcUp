@@ -11,6 +11,7 @@ import {
   framesToTimeString,
   calculateProgress 
 } from '../types/upgrade';
+import { getIconFilterWithStatus, type DisplayStatusType } from '../../utils/iconUtils';
 
 interface UpgradeProgressProps {
   categories: UpgradeCategory[];
@@ -79,33 +80,6 @@ const getUpgradeDisplayState = (item: UpgradeItemData) => {
   };
 };
 
-// 개선된 필터 스타일 생성 함수  
-const getIconFilter = (iconStyle: 'default' | 'white' | 'yellow', displayStatus: string): string => {
-  let baseFilter = '';
-  
-  switch (iconStyle) {
-    case 'white':
-      baseFilter = 'grayscale(1) brightness(1.4) contrast(1.3) saturate(0.8)';
-      break;
-    case 'yellow':
-      baseFilter = 'sepia(1) hue-rotate(20deg) saturate(3) brightness(1.3)';
-      break;
-    case 'default':
-    default:
-      baseFilter = 'brightness(1.1)';
-      break;
-  }
-
-  // 상태별 추가 필터
-  if (displayStatus === 'inactive') {
-    baseFilter += ' grayscale(0.7) opacity(0.6)';
-  } else if (displayStatus === 'completed') {
-    baseFilter += ' saturate(1.3) brightness(1.2)';
-  }
-  // 진행 중인 업그레이드는 반투명 처리하지 않음
-
-  return baseFilter;
-};
 
 // 상태별 스타일 정의
 const getStatusStyles = (displayStatus: string) => {
@@ -189,10 +163,11 @@ function UpgradeIcon({
           width: `${size}px`,
           height: `${size}px`,
           objectFit: 'contain',
-          filter: getIconFilter(iconStyle, displayStatus),
+          filter: getIconFilterWithStatus(iconStyle, displayStatus as DisplayStatusType),
           transition: 'filter 0.2s ease-out',
           imageRendering: 'pixelated',
-          display: 'block'
+          display: 'block',
+          backgroundColor: 'black'          
         }}
       />
     </div>
