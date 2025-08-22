@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
 import { useEffectSystem, type EffectType } from '../hooks/useEffectSystem';
 import { getUpgradeIconPath, getTechIconPath, getUpgradeName, getTechName } from '../../utils/upgradeImageUtils';
-import { UpgradeType, TechType } from '../../types/game';
+import { UpgradeType, TechType, getUpgradeFrameInfo, getUpgradeFramesForLevel, getTechFrameInfo } from '../../types/game';
 import { UpgradeItemType } from '../../types/preset/PresetSettings';
 import { CheckCircle } from 'lucide-react';
 import { 
@@ -50,7 +50,7 @@ const LEVEL_COLORS = {
 };
 
 // 업그레이드 상태 계산 함수
-const getUpgradeDisplayState = (item: UpgradeItemData) => {
+const getUpgradeDisplayState = (item: UpgradeItemData, maxLevel: number) => {
   // 진행 중인 경우
   if (item.remainingFrames > 0 && item.currentUpgradeLevel > 0) {
     return {
@@ -60,8 +60,8 @@ const getUpgradeDisplayState = (item: UpgradeItemData) => {
     };
   }
   
-  // 완료된 경우 (level > 0)
-  if (item.level > 0) {
+  // 완료된 경우 (현재 레벨이 최대 레벨과 같음)
+  if (item.level > 0 && item.level >= maxLevel) {
     return {
       displayStatus: 'completed' as const,
       showTag: true,
@@ -72,7 +72,21 @@ const getUpgradeDisplayState = (item: UpgradeItemData) => {
     };
   }
   
-  // 비활성 상태
+  // 부분 완료된 경우 (현재 레벨 > 0이지만 최대 레벨보다 작음)
+  if (item.level > 0 && item.level < maxLevel) {
+    const currentLevel = item.level;
+    const currentLevelColor = currentLevel <= 3 ? LEVEL_COLORS[currentLevel as 1|2|3] : LEVEL_COLORS.check;
+    return {
+      displayStatus: 'partial' as const,
+      showTag: true,
+      tagType: 'level' as const,
+      tagValue: currentLevel,
+      tagColor: currentLevelColor,
+      isActive: true
+    };
+  }
+  
+  // 비활성 상태 (level = 0)
   return {
     displayStatus: 'inactive' as const,
     showTag: false,
@@ -100,6 +114,14 @@ const getStatusStyles = (displayStatus: string) => {
         progressColor: 'var(--color-success)',
         statusIndicator: 'var(--color-success)'
       };
+    case 'partial':
+      return {
+        containerOpacity: 0.8,
+        nameColor: 'var(--color-text-primary)',
+        timeColor: 'var(--color-text-secondary)',
+        progressColor: 'var(--color-warning)',
+        statusIndicator: 'var(--color-warning)'
+      };
     case 'inactive':
     default:
       return {
@@ -113,21 +135,23 @@ const getStatusStyles = (displayStatus: string) => {
 };
 
 // 업그레이드 정보 가져오기
-const getUpgradeInfo = (type: UpgradeItemType, value: UpgradeType | TechType) => {
+const getUpgradeInfo = (type: UpgradeItemType, value: UpgradeType | TechType, currentLevel: number = 1) => {
   if (type === UpgradeItemType.Upgrade) {
+    const frameInfo = getUpgradeFrameInfo(value as UpgradeType);
+    const totalFrames = getUpgradeFramesForLevel(value as UpgradeType, currentLevel);
     return {
       name: getUpgradeName(value as UpgradeType),
       iconPath: getUpgradeIconPath(value as UpgradeType),
-      maxLevel: 3, // 대부분의 업그레이드는 3레벨
-      // 프레임 수는 실제 게임 데이터로 교체해야 할 수 있음
-      totalFrames: 4104 // 기본값
+      maxLevel: frameInfo.maxLevel,
+      totalFrames: totalFrames
     };
   } else {
+    const frameInfo = getTechFrameInfo(value as TechType);
     return {
       name: getTechName(value as TechType),
       iconPath: getTechIconPath(value as TechType),
-      maxLevel: 1, // 테크는 보통 1레벨
-      totalFrames: 3600 // 기본값
+      maxLevel: frameInfo.maxLevel,
+      totalFrames: frameInfo.frames
     };
   }
 };
@@ -186,7 +210,7 @@ function ActiveUpgradeRow({
   iconStyle?: 'default' | 'white' | 'yellow';
   isCompleting?: boolean;
 }) {
-  const displayState = getUpgradeDisplayState(item);
+  const displayState = getUpgradeDisplayState(item, upgradeInfo.maxLevel);
   const styles = getStatusStyles(displayState.displayStatus);
   
   // 진행 중인 업그레이드의 목표 레벨은 currentUpgradeLevel
@@ -339,7 +363,7 @@ function InactiveUpgradeIcon({
   upgradeInfo: any;
   iconStyle?: 'default' | 'white' | 'yellow';
 }) {
-  const displayState = getUpgradeDisplayState(item);
+  const displayState = getUpgradeDisplayState(item, upgradeInfo.maxLevel);
   
   return (
     <div 
@@ -358,7 +382,7 @@ function InactiveUpgradeIcon({
         size={32}
       />
 
-      {/* 완료 상태 태그 표시 */}
+      {/* 상태별 태그 표시 */}
       {displayState.showTag && displayState.tagColor && (
         <div
           className="absolute -bottom-1 -right-1"
@@ -377,13 +401,20 @@ function InactiveUpgradeIcon({
             boxShadow: `0 0 4px ${displayState.tagColor.background}40`
           }}
         >
-          <CheckCircle
-            style={{
-              width: '8px',
-              height: '8px',
-              color: displayState.tagColor.text
-            }}
-          />
+          {/* 완료된 경우 체크 아이콘, 부분 완료의 경우 다음 레벨 숫자 */}
+          {displayState.tagType === 'check' ? (
+            <CheckCircle
+              style={{
+                width: '8px',
+                height: '8px',
+                color: displayState.tagColor.text
+              }}
+            />
+          ) : displayState.tagType === 'level' && displayState.tagValue ? (
+            <span style={{ fontSize: '8px', fontWeight: '700' }}>
+              +{displayState.tagValue}
+            </span>
+          ) : null}
         </div>
       )}
     </div>
@@ -630,7 +661,7 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
                     {activeItems.map((item: any, index: number) => {
                       const key = `${item.item.type}_${item.item.value}`;
                       const isCompleting = completingUpgrades.has(key);
-                      const upgradeInfo = getUpgradeInfo(item.item.type, item.item.value);
+                      const upgradeInfo = getUpgradeInfo(item.item.type, item.item.value, item.currentUpgradeLevel || 1);
                       
                       return (
                         <ActiveUpgradeRow
@@ -669,7 +700,7 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
                     }}
                   >
                     {sortedInactiveItems.map((item: any, index: number) => {
-                      const upgradeInfo = getUpgradeInfo(item.item.type, item.item.value);
+                      const upgradeInfo = getUpgradeInfo(item.item.type, item.item.value, item.currentUpgradeLevel || 1);
                       
                       return (
                         <InactiveUpgradeIcon

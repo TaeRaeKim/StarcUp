@@ -29,7 +29,7 @@ namespace StarcUp.Business.Units.Types
         Plague = 1500,
         Consume = 1500,
         Ensnare = 1200,
-        Parasite = 0,                   // 즉시 사용 기술
+        Parasite = 1200,
         Lurker_Aspect = 1800,
 
         // Protoss Technologies
