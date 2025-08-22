@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Zap, Plus, X, Clock, BarChart, Target, Info, Search, Shield, Home, Building2, Bell } from 'lucide-react';
+import { ArrowLeft, Zap, Plus, X, Clock, BarChart, Target, Info, Search, Shield, Settings2, Home, Building2, Bell } from 'lucide-react';
 import { RaceType, RACE_NAMES, UpgradeType, TechType } from '../../types/game';
 import { UpgradeSettings, UpgradeCategory, UpgradeItem, UpgradeItemType } from '../../types/preset';
 import { getBuildingsByRace, getUpgradeItemsByBuilding } from '../data/buildingUpgrades';
-import { 
+import {
   getBuildingIconPath,
   createUIUpgradeItem,
-  createUITechItem 
+  createUITechItem
 } from '../../utils/upgradeImageUtils';
 import { UIUpgradeItem } from '../../types/preset';
 import { getIconStyle } from '../../utils/iconUtils';
@@ -36,7 +36,7 @@ const RACES = {
   },
   [RaceType.Terran]: {
     name: RACE_NAMES[RaceType.Terran],
-    color: '#0099FF', 
+    color: '#0099FF',
     icon: Home,
     description: '다재다능한 인간 문명'
   },
@@ -50,9 +50,9 @@ const RACES = {
 
 type RaceKey = RaceType;
 
-export function UpgradeDetailSettings({ 
-  isOpen, 
-  onClose, 
+export function UpgradeDetailSettings({
+  isOpen,
+  onClose,
   initialRace,
   currentPreset,
   onSaveUpgradeSettings,
@@ -61,7 +61,7 @@ export function UpgradeDetailSettings({
 }: UpgradeDetailSettingsProps) {
   // 종족 상태 관리
   const [selectedRace, setSelectedRace] = useState<RaceKey>(initialRace ?? RaceType.Protoss);
-  
+
   // 기본 설정값
   const getDefaultUpgradeSettings = (): UpgradeSettings => ({
     categories: [{
@@ -92,7 +92,7 @@ export function UpgradeDetailSettings({
   const [editingCategoryId, setEditingCategoryId] = useState<string>('');
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // 변경사항 감지 상태
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -168,7 +168,7 @@ export function UpgradeDetailSettings({
     if (newName.trim()) {
       setSettings(prev => ({
         ...prev,
-        categories: prev.categories.map(cat => 
+        categories: prev.categories.map(cat =>
           cat.id === categoryId ? { ...cat, name: newName.trim() } : cat
         )
       }));
@@ -201,10 +201,10 @@ export function UpgradeDetailSettings({
         categories: prev.categories.map(cat => {
           if (cat.id === selectedCategoryId) {
             // 이미 존재하는지 확인
-            const exists = cat.items.some(existingItem => 
+            const exists = cat.items.some(existingItem =>
               existingItem.type === uiItem.item.type && existingItem.value === uiItem.item.value
             );
-            
+
             if (!exists) {
               return {
                 ...cat,
@@ -215,7 +215,7 @@ export function UpgradeDetailSettings({
           return cat;
         })
       }));
-      
+
       setShowUpgradeSelector(false);
       setSelectedCategoryId('');
       setSelectedBuildingId('');
@@ -230,7 +230,7 @@ export function UpgradeDetailSettings({
         if (cat.id === categoryId) {
           return {
             ...cat,
-            items: cat.items.filter(existingItem => 
+            items: cat.items.filter(existingItem =>
               !(existingItem.type === uiItem.item.type && existingItem.value === uiItem.item.value)
             )
           };
@@ -243,10 +243,10 @@ export function UpgradeDetailSettings({
   // 현재 선택된 건물의 업그레이드/테크 가져오기
   const getAvailableUpgradeItems = (): UIUpgradeItem[] => {
     if (!selectedBuildingId) return [];
-    
+
     const upgradeItems = getUpgradeItemsByBuilding(selectedRace, selectedBuildingId);
     const uiItems: UIUpgradeItem[] = [];
-    
+
     // UpgradeItem을 UIUpgradeItem으로 변환
     upgradeItems.forEach(item => {
       if (item.type === UpgradeItemType.Upgrade) {
@@ -255,7 +255,7 @@ export function UpgradeDetailSettings({
         uiItems.push(createUITechItem(item.value as TechType, selectedBuildingId));
       }
     });
-    
+
     // 검색 필터링
     return uiItems.filter(item =>
       item.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -265,7 +265,7 @@ export function UpgradeDetailSettings({
   // 카테고리의 모든 아이템 가져오기
   const getCategoryItems = (category: UpgradeCategory): UIUpgradeItem[] => {
     const items: UIUpgradeItem[] = [];
-    
+
     category.items.forEach(item => {
       if (item.type === UpgradeItemType.Upgrade) {
         items.push(createUIUpgradeItem(item.value as UpgradeType, ''));
@@ -273,7 +273,7 @@ export function UpgradeDetailSettings({
         items.push(createUITechItem(item.value as TechType, ''));
       }
     });
-    
+
     return items;
   };
 
@@ -294,11 +294,11 @@ export function UpgradeDetailSettings({
   // 변경사항 감지 - 원본 프리셋 설정과 현재 설정 비교 (PopulationDetailSettings, WorkerDetailSettings와 동일한 패턴)
   useEffect(() => {
     const originalSettings = currentPreset?.upgradeSettings || getDefaultUpgradeSettings();
-    
+
     // JSON 직렬화를 통한 깊은 비교
     const currentSettingsStr = JSON.stringify(settings);
     const originalSettingsStr = JSON.stringify(originalSettings);
-    
+
     const hasAnyChanges = currentSettingsStr !== originalSettingsStr;
     setHasChanges(hasAnyChanges);
   }, [settings, currentPreset?.upgradeSettings]);
@@ -331,9 +331,9 @@ export function UpgradeDetailSettings({
       {/* 전체 화면 컨테이너 */}
       <div className="flex flex-col h-full">
         {/* 헤더 */}
-        <div 
+        <div
           className="flex items-center justify-between p-4 border-b draggable-titlebar"
-          style={{ 
+          style={{
             backgroundColor: 'var(--starcraft-bg-secondary)',
             borderBottomColor: 'var(--starcraft-border)'
           }}
@@ -346,22 +346,22 @@ export function UpgradeDetailSettings({
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            
-            <Zap 
-              className="w-6 h-6" 
+
+            <Zap
+              className="w-6 h-6"
               style={{ color: 'var(--starcraft-green)' }}
             />
             <div>
-              <h1 
+              <h1
                 className="text-xl font-semibold tracking-wide"
-                style={{ 
+                style={{
                   color: 'var(--starcraft-green)',
                   textShadow: '0 0 8px rgba(0, 255, 0, 0.5)'
                 }}
               >
                 업그레이드 설정
               </h1>
-              <p 
+              <p
                 className="text-sm opacity-70"
                 style={{ color: 'var(--starcraft-green)' }}
               >
@@ -369,9 +369,9 @@ export function UpgradeDetailSettings({
               </p>
             </div>
           </div>
-          
+
           {/* 종족 표시 */}
-          <div 
+          <div
             className="px-4 py-2 rounded-full border-2 flex items-center gap-2"
             style={{
               color: RACES[selectedRace].color,
@@ -388,11 +388,11 @@ export function UpgradeDetailSettings({
         {/* 컨텐츠 - 스크롤 가능 */}
         <div className="flex-1 overflow-y-auto starcraft-scrollbar p-6 space-y-8">
           {/* 종족 안내 정보 */}
-          <div 
+          <div
             className="p-3 rounded-lg border"
             style={{
-              backgroundColor: 'var(--starcraft-bg-active)',
-              borderColor: RACES[selectedRace].color,
+              backgroundColor: 'var(--starcraft-inactive-bg)',
+              borderColor: 'var(--starcraft-red )',
               color: RACES[selectedRace].color
             }}
           >
@@ -408,14 +408,14 @@ export function UpgradeDetailSettings({
           {/* 카테고리 관리 */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 
+              <h2
                 className="text-lg font-medium tracking-wide flex items-center gap-2"
-                style={{ color: 'var(--starcraft-green)' }}
+                style={{ color: 'var(--starcraft-info)' }}
               >
                 <Zap className="w-5 h-5" />
                 업그레이드 카테고리
               </h2>
-              
+
               <button
                 onClick={() => setShowAddCategory(true)}
                 className="flex items-center gap-2 px-4 py-2 rounded-sm border transition-all duration-300 hover:bg-green-500/20"
@@ -433,7 +433,7 @@ export function UpgradeDetailSettings({
             {showAddCategory && (
               <div className="p-4 rounded-lg border"
                 style={{
-                  backgroundColor: 'var(--starcraft-bg-active)',
+                  backgroundColor: 'var(--starcraft-bg-secondary)',
                   borderColor: 'var(--starcraft-green)'
                 }}
               >
@@ -469,8 +469,8 @@ export function UpgradeDetailSettings({
                     }}
                     className="px-4 py-2 rounded-sm border transition-all duration-300 hover:bg-red-500/20"
                     style={{
-                      color: 'var(--starcraft-red)',
-                      borderColor: 'var(--starcraft-red)'
+                      color: 'var(--starcup-red)',
+                      borderColor: 'var(--starcup-red)'
                     }}
                   >
                     취소
@@ -483,13 +483,13 @@ export function UpgradeDetailSettings({
             <div className="space-y-6">
               {settings.categories.map((category) => {
                 const categoryItems = getCategoryItems(category);
-                
+
                 return (
-                  <div key={category.id} 
+                  <div key={category.id}
                     className="p-4 rounded-lg border"
                     style={{
                       backgroundColor: 'var(--starcraft-bg-secondary)',
-                      borderColor: 'var(--starcraft-border)'
+                      borderColor: 'var(--starcraft-red )',
                     }}
                   >
                     {/* 카테고리 헤더 */}
@@ -512,7 +512,7 @@ export function UpgradeDetailSettings({
                           />
                         </div>
                       ) : (
-                        <h3 
+                        <h3
                           className="font-medium tracking-wide cursor-pointer hover:opacity-80 transition-opacity"
                           style={{ color: 'var(--starcraft-green)' }}
                           onDoubleClick={() => handleCategoryDoubleClick(category)}
@@ -521,7 +521,7 @@ export function UpgradeDetailSettings({
                           {category.name}
                         </h3>
                       )}
-                      
+
                       <button
                         onClick={() => handleDeleteCategory(category.id)}
                         className="p-2 rounded-sm transition-all duration-300 hover:bg-red-500/20"
@@ -534,7 +534,7 @@ export function UpgradeDetailSettings({
                     {/* 업그레이드 그리드 */}
                     <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-3">
                       {categoryItems.map((item) => (
-                        <div key={`${item.item.type}_${item.item.value}`} 
+                        <div key={`${item.item.type}_${item.item.value}`}
                           className="relative group flex flex-col items-center justify-center rounded-lg border-2 cursor-pointer transition-all duration-300 hover:border-opacity-60 p-2 min-h-[80px]"
                           style={{
                             backgroundColor: 'var(--starcraft-bg-active)',
@@ -543,8 +543,8 @@ export function UpgradeDetailSettings({
                         >
                           <div className="flex flex-col items-center justify-center flex-1">
                             <div style={getIconStyle('yellow', undefined, { width: '32px', height: '32px', marginBottom: '4px' })}>
-                              <img 
-                                src={item.iconPath} 
+                              <img
+                                src={item.iconPath}
                                 alt={item.name}
                                 className="w-full h-full object-contain"
                                 onError={(e) => {
@@ -553,12 +553,12 @@ export function UpgradeDetailSettings({
                                 }}
                               />
                             </div>
-                            <span className="text-xs text-center leading-tight font-medium" 
+                            <span className="text-xs text-center leading-tight font-medium"
                               style={{ color: RACES[selectedRace].color }}>
                               {item.name}
                             </span>
                           </div>
-                          
+
                           {/* 호버 시 삭제 버튼 */}
                           <button
                             onClick={() => handleRemoveUpgradeFromCategory(category.id, item)}
@@ -573,7 +573,7 @@ export function UpgradeDetailSettings({
                           </button>
                         </div>
                       ))}
-                      
+
                       {/* + 버튼 */}
                       <button
                         onClick={() => handleAddUpgradeToCategory(category.id)}
@@ -601,38 +601,38 @@ export function UpgradeDetailSettings({
 
           {/* 진행률 표기 설정들 */}
           <div className="space-y-4">
-            <h2 
+            <h2
               className="text-lg font-medium tracking-wide flex items-center gap-2"
-              style={{ color: 'var(--starcraft-green)' }}
+              style={{ color: 'var(--starcraft-info)' }}
             >
               <BarChart className="w-5 h-5" />
               진행률 표기 설정
             </h2>
-            
+
             <div className="space-y-4">
               {progressDisplaySettings.map((item) => {
                 const IconComponent = item.icon;
                 return (
-                  <div key={item.id} 
+                  <div key={item.id}
                     className="p-4 rounded-lg border transition-all duration-300 hover:border-opacity-80"
                     style={{
-                      backgroundColor: item.state 
-                        ? 'var(--starcraft-bg-active)' 
+                      backgroundColor: item.state
+                        ? 'var(--starcraft-inactive-bg)'
                         : 'var(--starcraft-bg-secondary)',
-                      borderColor: item.state 
-                        ? 'var(--starcraft-green)' 
-                        : 'var(--starcraft-inactive-border)'
+                      borderColor: item.state
+                        ? 'var(--starcraft-red-bright)'
+                        : 'var(--starcraft-red)'
                     }}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 flex-1">
                         <div className="p-2 rounded-lg mt-1"
-                          style={{ 
-                            backgroundColor: item.state 
-                              ? 'var(--starcraft-bg-active)' 
+                          style={{
+                            backgroundColor: item.state
+                              ? 'var(--starcraft-bg-active)'
                               : 'var(--starcraft-bg)',
-                            color: item.state 
-                              ? 'var(--starcraft-green)' 
+                            color: item.state
+                              ? 'var(--starcraft-green)'
                               : 'var(--starcraft-inactive-text)'
                           }}
                         >
@@ -640,47 +640,45 @@ export function UpgradeDetailSettings({
                         </div>
                         <div className="flex-1">
                           <h3 className="font-medium mb-2 tracking-wide"
-                            style={{ 
-                              color: item.state 
-                                ? 'var(--starcraft-green)' 
-                                : 'var(--starcraft-inactive-text)' 
+                            style={{
+                              color: item.state
+                                ? 'var(--starcraft-green)'
+                                : 'var(--starcraft-inactive-text)'
                             }}
                           >
                             {item.title}
                           </h3>
                           <p className="text-sm opacity-80 leading-relaxed"
-                            style={{ 
-                              color: item.state 
-                                ? 'var(--starcraft-green)' 
-                                : 'var(--starcraft-inactive-text)' 
+                            style={{
+                              color: item.state
+                                ? 'var(--starcraft-green)'
+                                : 'var(--starcraft-inactive-text)'
                             }}
                           >
                             {item.description}
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center">
                         <button
                           onClick={() => item.setState(!item.state)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                            item.state 
-                              ? 'focus:ring-green-500' 
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 ${item.state
+                              ? 'focus:ring-green-500'
                               : 'focus:ring-gray-500'
-                          }`}
+                            }`}
                           style={{
-                            backgroundColor: item.state 
-                              ? 'var(--starcraft-green)' 
+                            backgroundColor: item.state
+                              ? 'var(--starcraft-green)'
                               : 'var(--starcraft-inactive-bg)'
                           }}
                         >
                           <span
-                            className={`inline-block h-4 w-4 transform rounded-full transition-transform duration-300 ${
-                              item.state ? 'translate-x-6' : 'translate-x-1'
-                            }`}
+                            className={`inline-block h-4 w-4 transform rounded-full transition-transform duration-300 ${item.state ? 'translate-x-6' : 'translate-x-1'
+                              }`}
                             style={{
-                              backgroundColor: item.state 
-                                ? 'var(--starcraft-bg)' 
+                              backgroundColor: item.state
+                                ? 'var(--starcraft-bg)'
                                 : 'var(--starcraft-inactive-secondary)'
                             }}
                           />
@@ -715,9 +713,9 @@ export function UpgradeDetailSettings({
         </div>
 
         {/* 하단 버튼 */}
-        <div 
+        <div
           className="flex items-center justify-end p-4 border-t gap-3"
-          style={{ 
+          style={{
             backgroundColor: 'var(--starcraft-bg-secondary)',
             borderTopColor: 'var(--starcraft-border)'
           }}
@@ -726,27 +724,27 @@ export function UpgradeDetailSettings({
             onClick={onClose}
             className="px-6 py-2 rounded-sm border transition-all duration-300 hover:bg-red-500/20"
             style={{
-              color: 'var(--starcraft-red)',
-              borderColor: 'var(--starcraft-red)'
+              color: 'var(--starcup-red)',
+              borderColor: 'var(--starcup-red)'
             }}
           >
             취소
           </button>
-          
+
           <button
             onClick={handleSave}
             disabled={!hasChanges}
-            className={`flex items-center gap-2 px-6 py-2 rounded-sm border transition-all duration-300 ${
-              hasChanges 
-                ? 'hover:bg-green-500/20' 
+            className={`flex items-center gap-2 px-6 py-2 rounded-sm border transition-all duration-300 ${hasChanges
+                ? 'hover:bg-green-500/20'
                 : 'opacity-50 cursor-not-allowed'
-            }`}
+              }`}
             style={{
               color: hasChanges ? 'var(--starcraft-green)' : 'var(--starcraft-inactive-text)',
               borderColor: hasChanges ? 'var(--starcraft-green)' : 'var(--starcraft-inactive-border)',
               backgroundColor: hasChanges ? 'var(--starcraft-bg-active)' : 'transparent'
             }}
           >
+            <Settings2 className="w-4 h-4" />
             확인
           </button>
         </div>
@@ -755,13 +753,13 @@ export function UpgradeDetailSettings({
       {/* 건물 선택 모달 */}
       {showBuildingSelector && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
-          <div 
+          <div
             className="absolute inset-0 backdrop-blur-sm"
             style={{ backgroundColor: 'rgba(0, 0, 0, 0.9)' }}
             onClick={() => setShowBuildingSelector(false)}
           />
-          
-          <div 
+
+          <div
             className="relative w-full max-w-4xl max-h-[80vh] overflow-hidden rounded-lg border-2 shadow-2xl"
             style={{
               backgroundColor: 'var(--starcraft-bg)',
@@ -770,24 +768,24 @@ export function UpgradeDetailSettings({
             }}
           >
             {/* 헤더 */}
-            <div 
+            <div
               className="flex items-center justify-between p-4 border-b"
-              style={{ 
+              style={{
                 backgroundColor: 'var(--starcraft-bg-secondary)',
                 borderBottomColor: 'var(--starcraft-border)'
               }}
             >
               <div className="flex items-center gap-3">
-                <h2 
+                <h2
                   className="text-lg font-semibold tracking-wide"
-                  style={{ 
+                  style={{
                     color: 'var(--starcraft-green)',
                     textShadow: '0 0 8px rgba(0, 255, 0, 0.5)'
                   }}
                 >
                   건물 선택
                 </h2>
-                <div 
+                <div
                   className="px-3 py-1 rounded-full border flex items-center gap-2"
                   style={{
                     color: RACES[selectedRace].color,
@@ -799,7 +797,7 @@ export function UpgradeDetailSettings({
                   <span className="text-xs font-medium">{RACES[selectedRace].name}</span>
                 </div>
               </div>
-              
+
               <button
                 onClick={() => setShowBuildingSelector(false)}
                 className="p-2 rounded-sm transition-all duration-300 hover:bg-red-500/20"
@@ -825,8 +823,8 @@ export function UpgradeDetailSettings({
                   >
                     <div className="flex flex-col items-center justify-center flex-1">
                       <div style={getIconStyle('yellow', undefined, { width: '64px', height: '64px', marginBottom: '12px' })}>
-                        <img 
-                          src={getBuildingIconPath(building.iconPath)} 
+                        <img
+                          src={getBuildingIconPath(building.iconPath)}
                           alt={building.name}
                           className="w-full h-full object-contain"
                           onError={(e) => {
@@ -853,13 +851,13 @@ export function UpgradeDetailSettings({
       {/* 업그레이드 선택 모달 */}
       {showUpgradeSelector && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
-          <div 
+          <div
             className="absolute inset-0 backdrop-blur-sm"
             style={{ backgroundColor: 'rgba(0, 0, 0, 0.9)' }}
             onClick={() => setShowUpgradeSelector(false)}
           />
-          
-          <div 
+
+          <div
             className="relative w-full max-w-4xl max-h-[80vh] overflow-hidden rounded-lg border-2 shadow-2xl"
             style={{
               backgroundColor: 'var(--starcraft-bg)',
@@ -868,24 +866,24 @@ export function UpgradeDetailSettings({
             }}
           >
             {/* 헤더 */}
-            <div 
+            <div
               className="flex items-center justify-between p-4 border-b"
-              style={{ 
+              style={{
                 backgroundColor: 'var(--starcraft-bg-secondary)',
                 borderBottomColor: 'var(--starcraft-border)'
               }}
             >
               <div className="flex items-center gap-3">
-                <h2 
+                <h2
                   className="text-lg font-semibold tracking-wide"
-                  style={{ 
+                  style={{
                     color: 'var(--starcraft-green)',
                     textShadow: '0 0 8px rgba(0, 255, 0, 0.5)'
                   }}
                 >
                   업그레이드 선택
                 </h2>
-                <div 
+                <div
                   className="px-3 py-1 rounded-full border flex items-center gap-2"
                   style={{
                     color: RACES[selectedRace].color,
@@ -897,7 +895,7 @@ export function UpgradeDetailSettings({
                   <span className="text-xs font-medium">{RACES[selectedRace].name}</span>
                 </div>
               </div>
-              
+
               <button
                 onClick={() => setShowUpgradeSelector(false)}
                 className="p-2 rounded-sm transition-all duration-300 hover:bg-red-500/20"
@@ -910,7 +908,7 @@ export function UpgradeDetailSettings({
             {/* 검색바 */}
             <div className="p-4 border-b" style={{ borderBottomColor: 'var(--starcraft-border)' }}>
               <div className="relative">
-                <Search 
+                <Search
                   className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
                   style={{ color: 'var(--starcraft-green)' }}
                 />
@@ -945,8 +943,8 @@ export function UpgradeDetailSettings({
                   >
                     <div className="flex flex-col items-center justify-center flex-1">
                       <div style={getIconStyle('yellow', undefined, { width: '40px', height: '40px', marginBottom: '8px' })}>
-                        <img 
-                          src={item.iconPath} 
+                        <img
+                          src={item.iconPath}
                           alt={item.name}
                           className="w-full h-full object-contain"
                           onError={(e) => {
@@ -962,7 +960,7 @@ export function UpgradeDetailSettings({
                   </button>
                 ))}
               </div>
-              
+
               {getAvailableUpgradeItems().length === 0 && (
                 <div className="text-center py-8">
                   <p className="text-sm opacity-60" style={{ color: 'var(--starcraft-green)' }}>

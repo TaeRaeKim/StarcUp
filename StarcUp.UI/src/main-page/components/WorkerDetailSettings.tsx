@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Users, Wrench, AlertTriangle, Skull, Fuel, Info, Zap, Clock } from 'lucide-react';
+import { ArrowLeft, Users, Wrench, AlertTriangle, Skull, Fuel, Info, Zap, Clock, Settings2 } from 'lucide-react';
 import {
   calculateWorkerSettingsMask,
   debugWorkerSettings,
@@ -585,6 +585,7 @@ export function WorkerDetailSettings({
               backgroundColor: hasChanges ? 'var(--starcraft-bg-active)' : 'transparent'
             }}
           >
+            <Settings2 className="w-4 h-4" />
             확인
           </button>
         </div>

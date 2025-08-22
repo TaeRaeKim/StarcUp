@@ -1150,26 +1150,24 @@ export function PopulationDetailSettings({
 
         </div>
 
-        {/* 푸터 버튼들 */}
+        {/* 하단 버튼 */}
         <div 
-          className="flex items-center justify-between p-4 border-t"
+          className="flex items-center justify-end p-4 border-t gap-3"
           style={{ 
             backgroundColor: 'var(--starcraft-bg-secondary)',
             borderTopColor: 'var(--starcraft-border)'
           }}
         >
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="px-6 py-2 rounded-sm border transition-all duration-300 hover:bg-red-500/20"
-              style={{
-                color: 'var(--starcup-red)',
-                borderColor: 'var(--starcup-red)'
-              }}
-            >
-              취소
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="px-6 py-2 rounded-sm border transition-all duration-300 hover:bg-red-500/20"
+            style={{
+              color: 'var(--starcup-red)',
+              borderColor: 'var(--starcup-red)'
+            }}
+          >
+            취소
+          </button>
           
           <button
             onClick={handleConfirm}
