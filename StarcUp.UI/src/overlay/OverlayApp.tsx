@@ -368,6 +368,8 @@ export function OverlayApp() {
           })),
           rawData: data
         })
+        
+        // 현재 데이터로 새롭게 초기화 (기존 데이터와 병합하지 않음)
         if (data.categories) {
           setUpgradeCategories(data.categories)
         }

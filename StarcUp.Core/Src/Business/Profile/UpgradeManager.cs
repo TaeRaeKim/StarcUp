@@ -49,7 +49,7 @@ namespace StarcUp.Business.Profile
                     LoggerHelper.Error(" 메모리 어댑터 초기화 실패");
                     return;
                 }
-
+                _previousStats = null;
                 UpdateStatistics(Enumerable.Empty<Unit>());
                 SendInitialState();
 
@@ -72,6 +72,8 @@ namespace StarcUp.Business.Profile
                     if (_currentSettings != null)
                     {
                         LoggerHelper.Info($" 설정 업데이트 완료 - 카테고리: {_currentSettings.Categories.Count}개");
+                        _previousStats = null;
+                        UpdateStatistics(Enumerable.Empty<Unit>());
                         SendInitialState();
                     }
                 }
