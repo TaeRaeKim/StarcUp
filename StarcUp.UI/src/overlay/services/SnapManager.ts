@@ -610,7 +610,7 @@ class SnapManager {
         }
       }
     }
-    return null
+    return undefined
   }
 
   /**
