@@ -393,6 +393,53 @@ class SnapManager {
   }
 
   /**
+   * 화면 크기 변경 시 위치를 경계 내로 조정
+   */
+  adjustPositionForScreenSize(
+    id: string,
+    currentPosition: Position,
+    elementSize: Size,
+    containerSize: Size
+  ): Position {
+    let newX = currentPosition.x
+    let newY = currentPosition.y
+    let adjusted = false
+
+    // 우측 경계 초과 시 조정
+    if (currentPosition.x + elementSize.width > containerSize.width) {
+      newX = containerSize.width - elementSize.width - this.config.edgeMargin
+      adjusted = true
+    }
+
+    // 하단 경계 초과 시 조정
+    if (currentPosition.y + elementSize.height > containerSize.height) {
+      newY = containerSize.height - elementSize.height - this.config.edgeMargin
+      adjusted = true
+    }
+
+    // 좌측 경계 미만 시 조정
+    if (currentPosition.x < 0) {
+      newX = this.config.edgeMargin
+      adjusted = true
+    }
+
+    // 상단 경계 미만 시 조정
+    if (currentPosition.y < 0) {
+      newY = this.config.edgeMargin
+      adjusted = true
+    }
+
+    const finalPosition = { x: Math.max(0, newX), y: Math.max(0, newY) }
+    
+    if (adjusted) {
+      console.log(`📐 [SnapManager] ${this.getDisplayName(id)} 화면 크기 조정:`, 
+                 `${currentPosition.x}, ${currentPosition.y} → ${finalPosition.x}, ${finalPosition.y}`)
+    }
+
+    return finalPosition
+  }
+
+  /**
    * 모든 오버레이 초기화
    */
   clear(): void {

@@ -663,6 +663,49 @@ export function OverlayApp() {
     }
   }, [isEditMode, isSettingsOpen])
 
+  // 화면 크기 변경 시 컴포넌트 위치 조정 (전체화면 ↔ 창모드 대응)
+  useEffect(() => {
+    if (!centerPosition) return
+
+    const adjustPositionIfOutOfBounds = (
+      currentPosition: { x: number; y: number },
+      elementSelector: string,
+      setPosition: (pos: { x: number; y: number }) => void,
+      overlayId: string
+    ) => {
+      const containerWidth = centerPosition.gameAreaBounds.width
+      const containerHeight = centerPosition.gameAreaBounds.height
+      
+      // 요소의 크기 추정 (실제 DOM 요소가 없을 경우 기본값 사용)
+      const element = document.querySelector(elementSelector) as HTMLElement
+      const elementWidth = element ? element.offsetWidth : 100
+      const elementHeight = element ? element.offsetHeight : 50
+      
+      // SnapManager를 사용하여 위치 조정
+      const adjustedPosition = snapManager.adjustPositionForScreenSize(
+        overlayId,
+        currentPosition,
+        { width: elementWidth, height: elementHeight },
+        { width: containerWidth, height: containerHeight }
+      )
+      
+      // 위치가 변경되었으면 적용
+      if (adjustedPosition.x !== currentPosition.x || adjustedPosition.y !== currentPosition.y) {
+        setPosition(adjustedPosition)
+        return true
+      }
+      
+      return false
+    }
+
+    // 각 컴포넌트 위치 조정
+    setTimeout(() => {
+      adjustPositionIfOutOfBounds(workerPosition, '.worker-status', setWorkerPosition, 'workerStatus')
+      adjustPositionIfOutOfBounds(populationWarningPosition, '.population-warning', setPopulationWarningPosition, 'populationWarning')
+      adjustPositionIfOutOfBounds(upgradeProgressPosition, '.upgrade-progress-container', setUpgradeProgressPosition, 'upgradeProgress')
+    }, 100) // DOM 업데이트 후 실행
+
+  }, [centerPosition, workerPosition, populationWarningPosition, upgradeProgressPosition])
 
   // 윈도우 크기에 따른 body 크기 동적 조정
   useEffect(() => {

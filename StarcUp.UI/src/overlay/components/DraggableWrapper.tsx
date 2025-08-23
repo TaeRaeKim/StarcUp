@@ -109,6 +109,7 @@ export function DraggableWrapper({
     e.preventDefault()
     e.stopPropagation()
     
+    console.log(`🚀 [DraggableWrapper] ${id} 드래그 시작 - 현재 위치:`, position)
     setIsDragging(true)
     
     const rect = elementRef.current?.getBoundingClientRect()
@@ -141,8 +142,17 @@ export function DraggableWrapper({
     let newY = relativeMouseY - dragOffset.y
     
     // 경계 제한
+    const originalX = newX
+    const originalY = newY
     newX = Math.max(0, Math.min(containerRect.width - elementSize.width, newX))
     newY = Math.max(0, Math.min(containerRect.height - elementSize.height, newY))
+    
+    // 경계 제한이 적용되었는지 로그 출력
+    if (originalX !== newX || originalY !== newY) {
+      console.log(`🚧 [DraggableWrapper] ${id} 경계 제한 적용:`, 
+                 `원본 (${originalX.toFixed(1)}, ${originalY.toFixed(1)}) → 제한 (${newX.toFixed(1)}, ${newY.toFixed(1)})`,
+                 `컨테이너 크기: ${containerRect.width}x${containerRect.height}, 요소 크기: ${elementSize.width}x${elementSize.height}`)
+    }
     
     const newPosition = { x: newX, y: newY }
     
@@ -156,13 +166,16 @@ export function DraggableWrapper({
       )
       
       if (snapResult.snapped) {
+        console.log(`🎯 [DraggableWrapper] ${id} 스냅 위치:`, snapResult.position)
         setSnapPosition(snapResult.position)
         onPositionChange(snapResult.position)
       } else {
+        console.log(`📍 [DraggableWrapper] ${id} 일반 위치:`, newPosition)
         setSnapPosition(null)
         onPositionChange(newPosition)
       }
     } else {
+      console.log(`📍 [DraggableWrapper] ${id} 스냅 비활성 위치:`, newPosition)
       onPositionChange(newPosition)
     }
   }, [id, dragOffset, elementSize, snapEnabled, onPositionChange])
@@ -186,6 +199,7 @@ export function DraggableWrapper({
   const handleMouseUp = useCallback(() => {
     if (!isDragging) return
     
+    console.log(`🛑 [DraggableWrapper] ${id} 드래그 종료 - 최종 위치:`, position)
     setIsDragging(false)
     setSnapPosition(null)
     
