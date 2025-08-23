@@ -83,3 +83,38 @@ export interface UIBuildingInfo {
   iconPath: string;
   items: UpgradeItem[];
 }
+
+// === 런타임 데이터 및 이벤트 타입들 ===
+
+/**
+ * WorkerManager에서 전송되는 일꾼 상태 데이터 (런타임)
+ */
+export interface WorkerStatusData {
+  totalWorkers: number
+  idleWorkers: number
+  productionWorkers: number
+  calculatedTotal: number
+  eventType?: string // EffectType을 string으로 처리
+}
+
+/**
+ * WorkerPreset 변경 이벤트 데이터
+ */
+export interface WorkerPresetData {
+  success: boolean
+  currentPreset?: {
+    mask: number
+  }
+}
+
+/**
+ * 업그레이드 관련 이벤트 데이터
+ * 런타임 업그레이드 카테고리를 참조하기 위해 별도 import 필요
+ */
+export interface UpgradeEventData {
+  categories?: any[] // 런타임 UpgradeCategory 타입은 overlay에서 정의
+  item?: UpgradeItem
+  level?: number
+  categoryId?: number
+  categoryName?: string
+}

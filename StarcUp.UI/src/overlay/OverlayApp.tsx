@@ -10,10 +10,15 @@ import { snapManager } from './services/SnapManager'
 import { type EffectType } from './hooks/useEffectSystem'
 import { RaceType } from '../types/game'
 import {
-  UpgradeCategory
+  UpgradeCategory,
+  UpgradeItemData
 } from './types/upgrade'
+import { WorkerStatusData, WorkerPresetData, UpgradeEventData } from '../types/preset'
 import './styles/OverlayApp.css'
 import { WorkerPresetFlags } from '@/utils/presetUtils'
+
+// 환경 변수로 개발 모드 확인
+const isDevelopment = process.env.NODE_ENV === 'development'
 
 /**
  * OverlayApp - 스타크래프트 게임 위에 표시되는 오버레이 컴포넌트들의 메인 컨테이너
@@ -26,16 +31,10 @@ import { WorkerPresetFlags } from '@/utils/presetUtils'
 
 export function OverlayApp() {
   const [centerPosition, setCenterPosition] = useState<CenterPositionData | null>(null)
-  const [isVisible, setIsVisible] = useState(true)
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
-  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null)
-  const [updateCount, setUpdateCount] = useState(0)
-  const [frameRate, setFrameRate] = useState(0)
-  const [lastEventType, setLastEventType] = useState<'immediate' | 'debounced' | null>(null)
 
   // WorkerManager 이벤트 상태
-  const [workerStatus, setWorkerStatus] = useState<any>(null)
-  const [lastWorkerEvent, setLastWorkerEvent] = useState<string | null>(null)
+  const [workerStatus, setWorkerStatus] = useState<WorkerStatusData | null>(null)
   const [gameStatus, setGameStatus] = useState<string>('waiting') // 'waiting', 'playing', 'game-ended'
   const [showIdleWorkers, setShowIdleWorkers] = useState(true) // Idle 플래그에 따른 표시 여부
 
@@ -44,7 +43,6 @@ export function OverlayApp() {
 
   // UpgradeManager 이벤트 상태
   const [upgradeCategories, setUpgradeCategories] = useState<UpgradeCategory[]>([])
-  const [lastUpgradeEvent, setLastUpgradeEvent] = useState<string | null>(null)
 
   // 오버레이 컴포넌트들의 활성 상태를 관리하는 통합 함수
   const resetAllOverlayStates = useCallback(() => {
@@ -109,47 +107,6 @@ export function OverlayApp() {
     teamColor: '#0099FF'
   })
 
-  // 기본 위치로 리셋하는 함수 (오버레이 컨테이너 기준)
-  const resetToCenter = () => {
-    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement
-
-    if (!overlayContainer) {
-      console.warn('⚠️ 오버레이 컨테이너를 찾을 수 없습니다')
-      return
-    }
-
-    const containerRect = overlayContainer.getBoundingClientRect()
-
-    // WorkerStatus 위치 리셋
-    const workerStatusElement = document.querySelector('.worker-status') as HTMLElement
-    if (workerStatusElement) {
-      const workerRect = workerStatusElement.getBoundingClientRect()
-      const centerX = (containerRect.width - workerRect.width) / 2
-      const centerY = (containerRect.height - workerRect.height) / 2
-
-      setWorkerPosition({ x: centerX, y: centerY })
-    }
-
-    // PopulationWarning 위치 리셋
-    const populationWarningElement = document.querySelector('.population-warning') as HTMLElement
-    if (populationWarningElement) {
-      const warningRect = populationWarningElement.getBoundingClientRect()
-      const centerX = (containerRect.width - warningRect.width) / 2
-      const centerY = 60 // 상단에서 60px 떨어진 위치
-
-      setPopulationWarningPosition({ x: centerX, y: centerY })
-    }
-
-    // UpgradeProgress 위치 리셋
-    const upgradeProgressElement = document.querySelector('.upgrade-progress') as HTMLElement
-    if (upgradeProgressElement) {
-      const upgradeRect = upgradeProgressElement.getBoundingClientRect()
-      const centerX = (containerRect.width - upgradeRect.width) / 2
-      const centerY = 200 // 중앙 아래쪽에 배치
-
-      setUpgradeProgressPosition({ x: centerX, y: centerY })
-    }
-  }
 
   useEffect(() => {
     // Electron API가 사용 가능한지 확인
@@ -160,13 +117,6 @@ export function OverlayApp() {
         setConnectionStatus('connected')
         const unsubscribe = electronAPI.onUpdateCenterPosition((data: CenterPositionData) => {
           setCenterPosition(data)
-          setLastUpdateTime(new Date())
-          setUpdateCount(prev => prev + 1)
-
-          // 이벤트 타입 감지 (콘솔 로그 기반 추정)
-          if (data.x && data.y) {
-            setLastEventType('immediate') // 실제로는 더 정확한 방법이 필요하지만 일단 immediate로 설정
-          }
         })
 
         return unsubscribe
@@ -192,11 +142,12 @@ export function OverlayApp() {
         const result = await window.presetAPI.getFeaturesOnly()
 
         if (result?.success && result.data) {
-          console.log('✅ [Overlay] 프리셋 데이터 로드 성공:', result.data)
+          if (isDevelopment) console.log('✅ [Overlay] 프리셋 데이터 로드 성공:', result.data)
+          
           if (result.data.featureStates && Array.isArray(result.data.featureStates)) {
             setPresetFeatures(result.data.featureStates)
           } else {
-            console.warn('⚠️ [Overlay] featureStates가 없거나 배열이 아님, 기본값 사용')
+            if (isDevelopment) console.warn('⚠️ [Overlay] featureStates가 없거나 배열이 아님, 기본값 사용')
             setPresetFeatures(getDefaultFeatureStates())
           }
 
@@ -207,7 +158,6 @@ export function OverlayApp() {
           if (result.data.upgradeSettings) {
             setPresetUpgradeSettings(result.data.upgradeSettings)
           } else {
-            console.log('ℹ️ [Overlay] 업그레이드 설정이 없음')
             setPresetUpgradeSettings(null)
           }
         } else {
@@ -236,20 +186,22 @@ export function OverlayApp() {
 
       if (data.featureStates && Array.isArray(data.featureStates)) {
         setPresetFeatures(data.featureStates)
-      } else {
+      } else if (isDevelopment) {
         console.warn('⚠️ [Overlay] 실시간 동기화: featureStates가 없거나 배열이 아님')
       }
 
       // 종족 정보가 있는 경우 업데이트
       if (data.selectedRace !== undefined) {
-        console.log('🔄 [Overlay] 종족 변경 (features-changed):', data.selectedRace,
-          '(', data.selectedRace === 0 ? 'Zerg' : data.selectedRace === 1 ? 'Terran' : 'Protoss', ')')
+        if (isDevelopment) {
+          const raceNames = ['Zerg', 'Terran', 'Protoss']
+          console.log('🔄 [Overlay] 종족 변경:', raceNames[data.selectedRace] || 'Unknown')
+        }
         setSelectedRace(data.selectedRace)
       }
 
       // 업그레이드 설정 업데이트
       if (data.upgradeSettings !== undefined) {
-        console.log('🔄 [Overlay] 업그레이드 설정 변경:', data.upgradeSettings)
+        if (isDevelopment) console.log('🔄 [Overlay] 업그레이드 설정 변경:', data.upgradeSettings)
         setPresetUpgradeSettings(data.upgradeSettings)
       }
     })
@@ -279,29 +231,26 @@ export function OverlayApp() {
       const electronAPI = window.electronAPI as any
 
       // WorkerManager 이벤트 리스너들
-      const removeWorkerStatusListener = electronAPI.onWorkerStatusChanged && electronAPI.onWorkerStatusChanged((data: any) => {
-        console.log('👷 [Overlay] 일꾼 상태 변경:', data)
+      const removeWorkerStatusListener = electronAPI.onWorkerStatusChanged && electronAPI.onWorkerStatusChanged((data: WorkerStatusData) => {
+        if (isDevelopment) console.log('👷 [Overlay] 일꾼 상태 변경:', data)
         setWorkerStatus(data)
-        setLastWorkerEvent('status-changed')
 
         // eventType에 따른 효과 트리거
         if (data.eventType && workerStatusRef.current) {
           const effectType = data.eventType as EffectType
           if (effectType === 'ProductionCompleted' || effectType === 'WorkerDied') {
-            console.log(`✨ [Overlay] ${effectType} 효과 트리거`)
+            if (isDevelopment) console.log(`✨ [Overlay] ${effectType} 효과 트리거`)
             workerStatusRef.current.triggerEffect(effectType)
           }
         }
       })
 
       const removeGasAlertListener = electronAPI.onGasBuildingAlert && electronAPI.onGasBuildingAlert(() => {
-        console.log('⛽ [Overlay] 가스 건물 채취 중단 알림')
-        setLastWorkerEvent('gas-alert')
+        if (isDevelopment) console.log('⛽ [Overlay] 가스 건물 채취 중단 알림')
       })
 
-      const removePresetChangedListener = electronAPI.onWorkerPresetChanged && electronAPI.onWorkerPresetChanged((data: any) => {
-        console.log('⚙️ [Overlay] 일꾼 프리셋 변경:', data)
-        setLastWorkerEvent('preset-changed')
+      const removePresetChangedListener = electronAPI.onWorkerPresetChanged && electronAPI.onWorkerPresetChanged((data: WorkerPresetData) => {
+        if (isDevelopment) console.log('⚙️ [Overlay] 일꾼 프리셋 변경:', data)
 
         // Idle 플래그 확인 (flags 배열 또는 mask 값으로 체크)
         if (data?.success && data?.currentPreset) {
@@ -324,50 +273,25 @@ export function OverlayApp() {
       })
 
       // 업그레이드 이벤트 리스너들 (Core에서 직접 전달되는 이벤트들)
-      const removeUpgradeInitListener = electronAPI.onUpgradeInit && electronAPI.onUpgradeInit((data: any) => {
-        console.log('🚀 [Overlay] 업그레이드 카테고리 변경:', {
-          timestamp: new Date().toISOString(),
-          categories: data.categories?.length || 0,
-          categoryDetails: data.categories?.map((cat: any) => ({
-            id: cat.id,
-            name: cat.name,
-            itemCount: cat.items?.length || 0,
-            items: cat.items?.map((item: any) => ({
-              type: item.item?.type,
-              value: item.item?.value,
-              level: item.level,
-              remainingFrames: item.remainingFrames,
-              currentUpgradeLevel: item.currentUpgradeLevel
-            }))
-          })),
-          rawData: data
-        })
+      const removeUpgradeInitListener = electronAPI.onUpgradeInit && electronAPI.onUpgradeInit((data: UpgradeEventData) => {
+        if (isDevelopment) {
+          console.log('🚀 [Overlay] 업그레이드 카테고리 변경:', {
+            categories: data.categories?.length || 0
+          })
+        }
 
         // 현재 데이터로 새롭게 초기화 (기존 데이터와 병합하지 않음)
         if (data.categories) {
           setUpgradeCategories(data.categories)
         }
-        setLastUpgradeEvent('upgrade-init')
       })
 
-      const removeUpgradeDataUpdatedListener = electronAPI.onUpgradeDataUpdated && electronAPI.onUpgradeDataUpdated((data: any) => {
-        console.log('🔧 [Overlay] 업그레이드 데이터 업데이트:', {
-          timestamp: new Date().toISOString(),
-          categories: data.categories?.length || 0,
-          categoryDetails: data.categories?.map((cat: any) => ({
-            id: cat.id,
-            name: cat.name,
-            itemCount: cat.items?.length || 0,
-            items: cat.items?.map((item: any) => ({
-              type: item.item?.type,
-              value: item.item?.value,
-              level: item.level,
-              remainingFrames: item.remainingFrames,
-              currentUpgradeLevel: item.currentUpgradeLevel
-            }))
-          })),
-          rawData: data
-        })
+      const removeUpgradeDataUpdatedListener = electronAPI.onUpgradeDataUpdated && electronAPI.onUpgradeDataUpdated((data: UpgradeEventData) => {
+        if (isDevelopment) {
+          console.log('🔧 [Overlay] 업그레이드 데이터 업데이트:', {
+            categories: data.categories?.length || 0
+          })
+        }
 
         // 개별 아이템 단위로 업데이트 (카테고리 전체 덮어쓰기 방지)
         if (data.categories) {
@@ -375,7 +299,7 @@ export function OverlayApp() {
             const updatedCategories = [...prevCategories];
 
             // 각 업데이트된 카테고리에 대해 처리
-            data.categories.forEach((updatedCategory: any) => {
+            data.categories!.forEach((updatedCategory) => {
               const categoryIndex = updatedCategories.findIndex(cat => cat.id === updatedCategory.id);
 
               if (categoryIndex !== -1) {
@@ -384,8 +308,8 @@ export function OverlayApp() {
                 const updatedItems = [...existingCategory.items];
 
                 // 업데이트된 아이템들만 처리 (기존 아이템은 그대로 유지)
-                updatedCategory.items.forEach((updatedItem: any) => {
-                  const itemIndex = updatedItems.findIndex((item: any) =>
+                updatedCategory.items.forEach((updatedItem: UpgradeItemData) => {
+                  const itemIndex = updatedItems.findIndex((item) =>
                     item.item.type === updatedItem.item.type && item.item.value === updatedItem.item.value
                   );
 
@@ -410,30 +334,24 @@ export function OverlayApp() {
             return updatedCategories;
           });
         }
-        setLastUpgradeEvent('data-updated')
       })
 
-      const removeUpgradeCancelListener = electronAPI.onUpgradeCancelled && electronAPI.onUpgradeCancelled((data: any) => {
-        console.log('❌ [Overlay] 업그레이드 취소:', {
-          timestamp: new Date().toISOString(),
-          item: data.item,
-          categoryId: data.categoryId,
-          categoryName: data.categoryName,
-          rawData: data
-        })
-        setLastUpgradeEvent('upgrade-cancelled')
+      const removeUpgradeCancelListener = electronAPI.onUpgradeCancelled && electronAPI.onUpgradeCancelled((data: UpgradeEventData) => {
+        if (isDevelopment) {
+          console.log('❌ [Overlay] 업그레이드 취소:', data.item)
+        }
 
         // 취소된 업그레이드 아이템의 상태를 개별 업데이트 (진행중 -> 비활성)
-        if (data.item && data.categoryId !== undefined) {
+        if (data.item && typeof data.categoryId === 'number') {
           setUpgradeCategories(prevCategories => {
             const updatedCategories = [...prevCategories];
-            const categoryIndex = updatedCategories.findIndex(cat => cat.id === data.categoryId);
+            const categoryIndex = updatedCategories.findIndex(cat => cat.id === String(data.categoryId));
 
             if (categoryIndex !== -1) {
               const category = updatedCategories[categoryIndex];
               const updatedItems = [...category.items];
-              const itemIndex = updatedItems.findIndex((item: any) =>
-                item.item.type === data.item.type && item.item.value === data.item.value
+              const itemIndex = updatedItems.findIndex((item) =>
+                item.item.type === data.item!.type && item.item.value === data.item!.value
               );
 
               if (itemIndex !== -1) {
@@ -462,28 +380,22 @@ export function OverlayApp() {
         }
       })
 
-      const removeUpgradeCompleteListener = electronAPI.onUpgradeCompleted && electronAPI.onUpgradeCompleted((data: any) => {
-        console.log('✅ [Overlay] 업그레이드 완료:', {
-          timestamp: new Date().toISOString(),
-          item: data.item,
-          level: data.level,
-          categoryId: data.categoryId,
-          categoryName: data.categoryName,
-          rawData: data
-        })
-        setLastUpgradeEvent('upgrade-completed')
+      const removeUpgradeCompleteListener = electronAPI.onUpgradeCompleted && electronAPI.onUpgradeCompleted((data: UpgradeEventData) => {
+        if (isDevelopment) {
+          console.log('✅ [Overlay] 업그레이드 완료:', data.item, 'level:', data.level)
+        }
 
         // 완료된 업그레이드 아이템의 상태를 개별 업데이트 (즉시 완료 또는 진행중 -> 완료)
-        if (data.item && data.categoryId !== undefined) {
+        if (data.item && typeof data.categoryId === 'number') {
           setUpgradeCategories(prevCategories => {
             const updatedCategories = [...prevCategories];
-            const categoryIndex = updatedCategories.findIndex(cat => cat.id === data.categoryId);
+            const categoryIndex = updatedCategories.findIndex(cat => cat.id === String(data.categoryId));
 
             if (categoryIndex !== -1) {
               const category = updatedCategories[categoryIndex];
               const updatedItems = [...category.items];
-              const itemIndex = updatedItems.findIndex((item: any) =>
-                item.item.type === data.item.type && item.item.value === data.item.value
+              const itemIndex = updatedItems.findIndex((item) =>
+                item.item.type === data.item!.type && item.item.value === data.item!.value
               );
 
               if (itemIndex !== -1) {
@@ -498,14 +410,12 @@ export function OverlayApp() {
                   level: data.level !== undefined ? data.level : currentItem.level // 완료된 레벨로 업데이트
                 };
 
-                console.log('📝 [Overlay] 업그레이드 완료 상태 업데이트:', {
-                  itemType: data.item.type,
-                  itemValue: data.item.value,
-                  wasInProgress: currentItem.remainingFrames > 0,
-                  previousLevel: currentItem.level,
-                  newLevel: data.level !== undefined ? data.level : currentItem.level,
-                  isInstantComplete: currentItem.remainingFrames === 0
-                })
+                if (isDevelopment) {
+                  console.log('📝 [Overlay] 업그레이드 상태 업데이트:', {
+                    item: data.item!.type,
+                    newLevel: data.level !== undefined ? data.level : currentItem.level
+                  })
+                }
 
                 updatedCategories[categoryIndex] = {
                   ...category,
@@ -537,22 +447,6 @@ export function OverlayApp() {
     }
   }, [])
 
-  // 프레임 레이트 계산
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now()
-      if (lastUpdateTime) {
-        const timeDiff = now - lastUpdateTime.getTime()
-        if (timeDiff < 5000) { // 5초 이내 업데이트가 있었다면
-          setFrameRate(Math.round(1000 / 16)) // 16ms throttling 기준 예상 FPS
-        } else {
-          setFrameRate(0)
-        }
-      }
-    }, 1000) // 1초마다 계산
-
-    return () => clearInterval(interval)
-  }, [lastUpdateTime])
 
   // Electron IPC를 통한 편집 모드 토글
   useEffect(() => {
@@ -561,16 +455,16 @@ export function OverlayApp() {
 
       // 편집 모드 토글 이벤트 리스너
       if (electronAPI.onToggleEditMode) {
-        console.log('🎯 편집 모드 IPC 리스너 등록')
+        if (isDevelopment) console.log('🎯 편집 모드 IPC 리스너 등록')
         const unsubscribeEditMode = electronAPI.onToggleEditMode((data: { isEditMode: boolean }) => {
-          console.log('🎯 편집 모드 토글 IPC 이벤트 수신:', data.isEditMode)
+          if (isDevelopment) console.log('🎯 편집 모드 토글:', data.isEditMode)
           setIsEditMode(data.isEditMode)
         })
 
         // 게임 상태 변경 이벤트 리스너 추가 (coreAPI에서 가져오기)
         const coreAPI = (window as any).coreAPI
         const unsubscribeGameStatus = coreAPI && coreAPI.onGameStatusChanged && coreAPI.onGameStatusChanged((data: { status: string }) => {
-          console.log('🎮 [Overlay] 게임 상태 변경:', data.status, '| 현재 workerStatus:', workerStatus ? 'EXISTS' : 'NULL')
+          if (isDevelopment) console.log('🎮 [Overlay] 게임 상태 변경:', data.status)
           setGameStatus(data.status)
 
           // InGame 상태에서 벗어나면 모든 오버레이 컴포넌트 즉시 숨기기
@@ -647,10 +541,10 @@ export function OverlayApp() {
 
     // 각 컴포넌트 위치 조정
     setTimeout(() => {
-      console.log('📏 [OverlayApp] 화면 크기 변경으로 인한 위치 조정 시작:',
-        previousContainerSize ?
-          `${previousContainerSize.width}x${previousContainerSize.height} → ${currentContainerSize.width}x${currentContainerSize.height}` :
-          `초기 크기: ${currentContainerSize.width}x${currentContainerSize.height}`)
+      if (isDevelopment) {
+        console.log('📏 [OverlayApp] 화면 크기 변경으로 인한 위치 조정:',
+          `${currentContainerSize.width}x${currentContainerSize.height}`)
+      }
 
       adjustPositionWithRatio(workerPosition, '.worker-status', setWorkerPosition, 'workerStatus')
       adjustPositionWithRatio(populationWarningPosition, '.population-warning', setPopulationWarningPosition, 'populationWarning')
@@ -658,7 +552,6 @@ export function OverlayApp() {
 
       // 현재 컨테이너 크기를 이전 크기로 저장
       setPreviousContainerSize(currentContainerSize)
-      console.log('✅ [OverlayApp] 모든 컴포넌트 위치 조정 완료')
     }, 100) // DOM 업데이트 후 실행
 
   }, [centerPosition?.gameAreaBounds.width, centerPosition?.gameAreaBounds.height, isDraggingAny])
@@ -680,7 +573,7 @@ export function OverlayApp() {
 
     dynamicBodyStyleElement.textContent = createDynamicBodyStyles(width, height)
 
-    console.log('🔧 [Body 크기 조정]', { width, height })
+    if (isDevelopment) console.log('🔧 [Body 크기 조정]', { width, height })
   }, [centerPosition])
 
 
