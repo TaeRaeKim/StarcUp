@@ -221,7 +221,8 @@ function ActiveUpgradeRow({
   
   // 진행 중인 업그레이드의 목표 레벨은 currentUpgradeLevel
   const targetLevel = item.currentUpgradeLevel;
-  const targetLevelColor = targetLevel <= 3 ? LEVEL_COLORS[targetLevel as 1|2|3] : LEVEL_COLORS.check;
+  const isTech = upgradeInfo.maxLevel === 1 && targetLevel === 1;
+  const targetLevelColor = isTech ? { text: '#fff', background: '#4A90E2' } : (targetLevel <= 3 ? LEVEL_COLORS[targetLevel as 1|2|3] : LEVEL_COLORS.check);
   
   // 진행률과 시간 계산
   const progress = calculateProgress(item.remainingFrames, upgradeInfo.totalFrames);
@@ -276,7 +277,7 @@ function ActiveUpgradeRow({
             {upgradeInfo.name}
           </span>
           
-          {/* +레벨 태그 */}
+          {/* +레벨 태그 또는 Tech 태그 */}
           {item.remainingFrames > 0 && item.currentUpgradeLevel > 0 && (
             <span 
               style={{
@@ -295,7 +296,7 @@ function ActiveUpgradeRow({
                 marginLeft: '8px'
               }}
             >
-              +{targetLevel}
+              {isTech ? 'T' : `+${targetLevel}`}
             </span>
           )}
         </div>
@@ -304,11 +305,12 @@ function ActiveUpgradeRow({
         {item.remainingFrames > 0 && (showRemainingTime || showProgressBar || showProgressPercentage) && (
           <div 
             className="flex items-center"
-            style={{ width: '100%', gap: '8px' }}
+            style={{ width: '100%', gap: '4px'}}
           >
             {/* 잔여시간 */}
             {showRemainingTime && (
               <span 
+              className="flex justify-center"
                 style={{ 
                   fontSize: '11px',
                   fontWeight: '600',
@@ -347,12 +349,12 @@ function ActiveUpgradeRow({
             {/* 진행률 */}
             {showProgressPercentage && (
               <span 
+              className="flex justify-center"
                 style={{ 
                   fontSize: '10px',
                   fontWeight: '400',
                   color: styles.timeColor,
-                  minWidth: '28px',
-                  textAlign: 'right'
+                  minWidth: '28px'
                 }}
               >
                 {progress}%
@@ -630,7 +632,7 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
         backgroundColor: 'transparent',
         borderRadius: '8px',
         padding: '4px',
-        minWidth: '200px',
+        minWidth: '100px',
         maxWidth: '300px',
         cursor: isEditMode ? 'move' : 'default',
         userSelect: 'none',
