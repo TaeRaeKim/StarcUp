@@ -21,7 +21,6 @@
   position: absolute;
   background: var(--color-success, #00d084);
   opacity: 0.8;
-  transition: all 0.15s ease-out;
   box-shadow: 0 0 8px rgba(0, 208, 132, 0.6);
 }
 
@@ -49,16 +48,16 @@
 
 /* 화면 경계 스냅 가이드 */
 .snap-guide-line.screen-edge {
-  background: var(--color-primary, #0099ff);
-  box-shadow: 0 0 12px rgba(0, 153, 255, 0.8);
+  background: var(--color-success, #00d084);
+  box-shadow: 0 0 12px rgba(0, 208, 132, 0.8);
 }
 
 .snap-guide-line.screen-edge.vertical {
   background: linear-gradient(
     to bottom,
     transparent 0%,
-    var(--color-primary, #0099ff) 10%,
-    var(--color-primary, #0099ff) 90%,
+    var(--color-success, #00d084) 10%,
+    var(--color-success, #00d084) 90%,
     transparent 100%
   );
 }
@@ -67,8 +66,8 @@
   background: linear-gradient(
     to right,
     transparent 0%,
-    var(--color-primary, #0099ff) 10%,
-    var(--color-primary, #0099ff) 90%,
+    var(--color-success, #00d084) 10%,
+    var(--color-success, #00d084) 90%,
     transparent 100%
   );
 }
@@ -107,19 +106,23 @@
   }
 }
 
-/* 펄스 애니메이션 (강조 효과) */
+/* 펄스 애니메이션 */
 @keyframes pulse {
   0%, 100% {
-    opacity: 0.8;
+    opacity: 0.7;
+    transform: scale(1);
   }
   50% {
     opacity: 1;
+    transform: scale(1.05);
   }
 }
 
 .snap-guide-line {
-  animation: pulse 1.5s ease-in-out infinite;
+  animation: pulse 1.2s ease-in-out infinite;
 }
+
+
 
 /* CSS 변수 fallback */
 :root {

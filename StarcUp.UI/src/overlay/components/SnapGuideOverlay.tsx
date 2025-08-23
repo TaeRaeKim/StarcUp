@@ -8,9 +8,10 @@ import './SnapGuideOverlay.css'
 
 interface SnapGuideOverlayProps {
   isEditMode: boolean
+  isDraggingAny: boolean
 }
 
-export function SnapGuideOverlay({ isEditMode }: SnapGuideOverlayProps) {
+export function SnapGuideOverlay({ isEditMode, isDraggingAny }: SnapGuideOverlayProps) {
   const [guides, setGuides] = useState<SnapGuide[]>([])
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
 
@@ -34,12 +35,13 @@ export function SnapGuideOverlay({ isEditMode }: SnapGuideOverlayProps) {
 
   // SnapManager의 가이드 업데이트 콜백 등록
   useEffect(() => {
-    if (isEditMode) {
+    if (isEditMode && isDraggingAny) {
+      // 편집 모드이고 드래그 중일 때만 가이드 표시
       snapManager.setGuideUpdateCallback((newGuides) => {
         setGuides(newGuides)
       })
     } else {
-      // 편집 모드가 아닐 때는 가이드 제거
+      // 편집 모드가 아니거나 드래그 중이 아닐 때는 가이드 제거
       setGuides([])
       snapManager.clearGuides()
     }
@@ -47,10 +49,10 @@ export function SnapGuideOverlay({ isEditMode }: SnapGuideOverlayProps) {
     return () => {
       snapManager.clearGuides()
     }
-  }, [isEditMode])
+  }, [isEditMode, isDraggingAny])
 
-  // 편집 모드가 아니거나 가이드가 없으면 렌더링하지 않음
-  if (!isEditMode || guides.length === 0) {
+  // 편집 모드가 아니거나 드래그 중이 아니거나 가이드가 없으면 렌더링하지 않음
+  if (!isEditMode || !isDraggingAny || guides.length === 0) {
     return null
   }
 

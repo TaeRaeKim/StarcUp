@@ -89,7 +89,7 @@ export function DraggableWrapper({
     }
   }, [id])
 
-  // 위치 변경 시 SnapManager 업데이트
+  // 위치 변경 시 SnapManager 업데이트 (드래그 중이 아닐 때는 스냅 상태 확인 안 함)
   useEffect(() => {
     snapManager.updateOverlay(id, { position })
   }, [id, position])
@@ -98,6 +98,33 @@ export function DraggableWrapper({
   useEffect(() => {
     containerRef.current = document.querySelector('.overlay-container')
   }, [])
+  
+  // 초기 스냅 상태 설정 (컴포넌트 마운트 시에만)
+  useEffect(() => {
+    if (!containerRef.current || !elementRef.current || !snapEnabled || elementSize.width === 0) return
+    
+    const timeoutId = setTimeout(() => {
+      const containerRect = containerRef.current?.getBoundingClientRect()
+      if (containerRect) {
+        const snapResult = snapManager.calculateSnap(
+          id,
+          position,
+          elementSize,
+          { width: containerRect.width, height: containerRect.height }
+        )
+        
+        if (snapResult.snapped) {
+          console.log(`🎯 [DraggableWrapper] ${id} 컴포넌트 마운트 시 스냅 초기화:`, snapResult.position)
+          setSnapPosition(snapResult.position)
+          if (snapResult.position.x !== position.x || snapResult.position.y !== position.y) {
+            onPositionChange(snapResult.position)
+          }
+        }
+      }
+    }, 100) // DOM이 준비될 때까지 대기
+    
+    return () => clearTimeout(timeoutId)
+  }, [elementSize.width, elementSize.height]) // 요소 크기가 확정된 후에만 실행
 
   // 마우스 다운 핸들러
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -202,20 +229,29 @@ export function DraggableWrapper({
   const handleMouseUp = useCallback(() => {
     if (!isDragging) return
     
-    console.log(`🛑 [DraggableWrapper] ${id} 드래그 종료 - 최종 위치:`, position)
+    const finalPosition = snapPosition || position
+    console.log(`🛑 [DraggableWrapper] ${id} 드래그 종료`)
+    console.log(`   📍 최종 위치: (${finalPosition.x.toFixed(1)}, ${finalPosition.y.toFixed(1)})`)
+    console.log(`   🎯 스냅 적용: ${snapPosition ? '예' : '아니오'}`)
+    if (snapPosition) {
+      console.log(`   📌 스냅 위치: (${snapPosition.x.toFixed(1)}, ${snapPosition.y.toFixed(1)})`)
+    }
+    console.log(`   📏 요소 크기: ${elementSize.width}x${elementSize.height}`)
+    
     setIsDragging(false)
     onDragStateChange?.(false) // 드래그 종료 알림
-    setSnapPosition(null)
     
-    // 스냅 가이드 제거
+    // 스냅 가이드 제거 및 스냅 상태 초기화
+    console.log(`🧹 [DraggableWrapper] ${id} 가이드라인 정리`)
     snapManager.clearGuides()
+    setSnapPosition(null)
     
     // 애니메이션 프레임 정리
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
       animationFrameRef.current = undefined
     }
-  }, [isDragging])
+  }, [isDragging, id, position, snapPosition, elementSize])
 
   // 마우스 이벤트 리스너 등록
   useEffect(() => {

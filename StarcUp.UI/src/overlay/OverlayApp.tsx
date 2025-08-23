@@ -64,9 +64,9 @@ export function OverlayApp() {
     // WorkerStatus는 gameStatus 조건에 의해 자동으로 숨겨지므로 별도 처리 불필요
   }, [])
   const [isEditMode, setIsEditMode] = useState(false)
-  const [workerPosition, setWorkerPosition] = useState({ x: 50, y: 50 })
-  const [populationWarningPosition, setPopulationWarningPosition] = useState({ x: 100, y: 60 })
-  const [upgradeProgressPosition, setUpgradeProgressPosition] = useState({ x: 300, y: 50 })
+  const [workerPosition, setWorkerPosition] = useState({ x: 2439, y: 59.2 })
+  const [populationWarningPosition, setPopulationWarningPosition] = useState({ x: 1193.1, y: 960 })
+  const [upgradeProgressPosition, setUpgradeProgressPosition] = useState({ x: 20, y: 642.5 })
   const [previousContainerSize, setPreviousContainerSize] = useState<{ width: number; height: number } | null>(null)
   const [isDraggingAny, setIsDraggingAny] = useState(false) // 전역 드래그 상태
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -680,6 +680,13 @@ export function OverlayApp() {
       height: centerPosition.gameAreaBounds.height
     }
 
+    // 화면 크기가 실제로 변경되었는지 확인
+    if (previousContainerSize && 
+        previousContainerSize.width === currentContainerSize.width && 
+        previousContainerSize.height === currentContainerSize.height) {
+      return // 크기가 변경되지 않았으면 조정하지 않음
+    }
+
     const adjustPositionWithRatio = (
       currentPosition: { x: number; y: number },
       elementSelector: string,
@@ -725,7 +732,7 @@ export function OverlayApp() {
       console.log('✅ [OverlayApp] 모든 컴포넌트 위치 조정 완료')
     }, 100) // DOM 업데이트 후 실행
 
-  }, [centerPosition, previousContainerSize, isDraggingAny])
+  }, [centerPosition?.gameAreaBounds.width, centerPosition?.gameAreaBounds.height, isDraggingAny])
 
   // 윈도우 크기에 따른 body 크기 동적 조정
   useEffect(() => {
@@ -1005,7 +1012,7 @@ export function OverlayApp() {
       )}
 
       {/* 스냅 가이드 오버레이 */}
-      <SnapGuideOverlay isEditMode={isEditMode} />
+      <SnapGuideOverlay isEditMode={isEditMode} isDraggingAny={isDraggingAny} />
 
       {/* 오버레이 설정 패널 */}
       <OverlaySettingsPanel

@@ -622,7 +622,7 @@ export function OverlaySettingsPanel({ isOpen, onClose, settings, onSettingsChan
               lineHeight: '1.4',
               margin: 0
             }}>
-              <strong style={{ color: '#ffffff' }}>편집 모드:</strong> Shift + Tab 키를 눌러 오버레이 위치를 드래그로 조정할 수 있습니다.
+              <strong style={{ color: '#ffffff' }}>편집 모드:</strong> Ctrl + Tab 키를 눌러 오버레이 위치를 드래그로 조정할 수 있습니다.
               <br /><br />
               <strong style={{ color: '#ffffff' }}>🚧 개발 중:</strong> 빌드 오더, 유닛 수 기능은 현재 개발 중입니다.
               <br /><br />
