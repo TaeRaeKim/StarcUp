@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
+import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import { useEffectSystem, type EffectType } from '../hooks/useEffectSystem'
 import { getIconStyle } from '../../utils/iconUtils'
 import { HDIcon } from './HDIcon'
@@ -38,8 +38,6 @@ export const WorkerStatus = forwardRef<WorkerStatusRef, WorkerStatusProps>(({
   isPreview = false,
   selectedRace = RaceType.Protoss
 }, ref) => {
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const workerStatusRef = useRef<HTMLDivElement>(null)
   const { triggerEffect } = useEffectSystem()
   
@@ -64,71 +62,12 @@ export const WorkerStatus = forwardRef<WorkerStatusRef, WorkerStatusProps>(({
     }
   }), [triggerEffect])
 
-  // 드래그 시작
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!isEditMode) return
-    
-    e.preventDefault()
-    setIsDragging(true)
-    
-    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement
-    if (overlayContainer) {
-      const containerRect = overlayContainer.getBoundingClientRect()
-      setDragOffset({
-        x: e.clientX - containerRect.left - position.x,
-        y: e.clientY - containerRect.top - position.y
-      })
-    }
-  }
-
-  // 드래그 중
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging || !isEditMode) return
-    
-    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement
-    if (!overlayContainer || !onPositionChange) return
-    
-    const containerRect = overlayContainer.getBoundingClientRect()
-    const newPosition = {
-      x: e.clientX - containerRect.left - dragOffset.x,
-      y: e.clientY - containerRect.top - dragOffset.y
-    }
-    
-    // 경계 제한 (실제 컴포넌트 크기 계산)
-    const workerStatusElement = document.querySelector('.worker-status') as HTMLElement
-    const componentWidth = workerStatusElement ? workerStatusElement.offsetWidth : 100
-    const componentHeight = workerStatusElement ? workerStatusElement.offsetHeight : 40
-    
-    const clampedX = Math.max(0, Math.min(containerRect.width - componentWidth, newPosition.x))
-    const clampedY = Math.max(0, Math.min(containerRect.height - componentHeight, newPosition.y))
-    
-    onPositionChange({ x: clampedX, y: clampedY })
-  }, [isDragging, isEditMode, dragOffset, onPositionChange])
-
-  // 드래그 종료
-  const handleMouseUp = useCallback(() => {
-    if (!isDragging) return
-    setIsDragging(false)
-  }, [isDragging])
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
-      }
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp])
 
   return (
     <div style={{ position: 'relative' }}>
       <div
         ref={workerStatusRef}
-        className={`worker-status ${isEditMode ? 'edit-mode' : ''} ${isDragging ? 'dragging' : ''} ${isPreview ? 'preview-mode' : ''}`}
-        onMouseDown={handleMouseDown}
+        className={`worker-status ${isEditMode ? 'edit-mode' : ''} ${isPreview ? 'preview-mode' : ''}`}
         style={{
           // 편집 모드일 때는 미리보기 투명도만 적용, 일반 모드일 때는 배경색 opacity만 조절
           opacity: isEditMode && isPreview ? 0.75 : 1,

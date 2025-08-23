@@ -438,8 +438,6 @@ function InactiveUpgradeIcon({
 const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
   ({ categories, position, isEditMode, onPositionChange, unitIconStyle = 'default', opacity = 1, isPreview = false, isInGame = false, presetUpgradeSettings }, ref) => {
     
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const upgradeProgressRef = useRef<HTMLDivElement>(null);
   
   // 완료 애니메이션을 추적하기 위한 상태
@@ -504,64 +502,6 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
     return [];
   }, [categories, presetUpgradeSettings]);
 
-  // 드래그 시작
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!isEditMode) return;
-    
-    e.preventDefault();
-    setIsDragging(true);
-    
-    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement;
-    if (overlayContainer) {
-      const containerRect = overlayContainer.getBoundingClientRect();
-      setDragOffset({
-        x: e.clientX - containerRect.left - position.x,
-        y: e.clientY - containerRect.top - position.y
-      });
-    }
-  };
-
-  // 드래그 중
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging || !isEditMode) return;
-    
-    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement;
-    if (!overlayContainer || !onPositionChange) return;
-    
-    const containerRect = overlayContainer.getBoundingClientRect();
-    const newPosition = {
-      x: e.clientX - containerRect.left - dragOffset.x,
-      y: e.clientY - containerRect.top - dragOffset.y
-    };
-    
-    // 경계 제한
-    const upgradeElement = upgradeProgressRef.current;
-    const componentWidth = upgradeElement ? upgradeElement.offsetWidth : 200;
-    const componentHeight = upgradeElement ? upgradeElement.offsetHeight : 100;
-    
-    const clampedX = Math.max(0, Math.min(containerRect.width - componentWidth, newPosition.x));
-    const clampedY = Math.max(0, Math.min(containerRect.height - componentHeight, newPosition.y));
-    
-    onPositionChange({ x: clampedX, y: clampedY });
-  }, [isDragging, isEditMode, dragOffset, onPositionChange]);
-
-  // 드래그 종료
-  const handleMouseUp = useCallback(() => {
-    if (!isDragging) return;
-    setIsDragging(false);
-  }, [isDragging]);
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   // 업그레이드 완료 감지 및 애니메이션 트리거
   useEffect(() => {
@@ -623,7 +563,6 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
     <div 
       ref={upgradeProgressRef}
       className="upgrade-progress-container"
-      onMouseDown={handleMouseDown}
       style={{
         opacity: opacity,
         backgroundColor: 'transparent',
@@ -631,10 +570,10 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
         padding: '4px',
         minWidth: '100px',
         maxWidth: '300px',
-        cursor: isEditMode ? 'move' : 'default',
+        cursor: 'default',
         userSelect: 'none',
         zIndex: isEditMode ? 1002 : 1000,
-        transition: isDragging ? 'none' : 'all 0.2s ease',
+        transition: 'all 0.2s ease',
         pointerEvents: 'auto'
       }}
     >

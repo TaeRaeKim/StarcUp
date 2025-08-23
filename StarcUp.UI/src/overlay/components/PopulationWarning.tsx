@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { AlertTriangle } from 'lucide-react'
 
 interface PopulationWarningProps {
@@ -26,8 +26,6 @@ export function PopulationWarning({
 }: PopulationWarningProps) {
   const [isAnimating, setIsAnimating] = useState(false)
   const [shouldRender, setShouldRender] = useState(false)
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
   // isVisible 변경 감지 및 애니메이션 관리
   useEffect(() => {
@@ -66,64 +64,6 @@ export function PopulationWarning({
     }
   }, [isVisible, isAnimating, shouldRender, onRenderingChange, onHide])
 
-  // 드래그 시작
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!isEditMode) return
-    
-    e.preventDefault()
-    setIsDragging(true)
-    
-    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement
-    if (overlayContainer) {
-      const containerRect = overlayContainer.getBoundingClientRect()
-      setDragOffset({
-        x: e.clientX - containerRect.left - position.x,
-        y: e.clientY - containerRect.top - position.y
-      })
-    }
-  }
-
-  // 드래그 중
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging || !isEditMode) return
-    
-    const overlayContainer = document.querySelector('.overlay-container') as HTMLElement
-    if (!overlayContainer || !onPositionChange) return
-    
-    const containerRect = overlayContainer.getBoundingClientRect()
-    const newPosition = {
-      x: e.clientX - containerRect.left - dragOffset.x,
-      y: e.clientY - containerRect.top - dragOffset.y
-    }
-    
-    // 경계 제한 (실제 컴포넌트 크기 계산)
-    const populationWarningElement = document.querySelector('.population-warning') as HTMLElement
-    const componentWidth = populationWarningElement ? populationWarningElement.offsetWidth : 180
-    const componentHeight = populationWarningElement ? populationWarningElement.offsetHeight : 60
-    
-    const clampedX = Math.max(0, Math.min(containerRect.width - componentWidth, newPosition.x))
-    const clampedY = Math.max(0, Math.min(containerRect.height - componentHeight, newPosition.y))
-    
-    onPositionChange({ x: clampedX, y: clampedY })
-  }, [isDragging, isEditMode, dragOffset, onPositionChange])
-
-  // 드래그 종료
-  const handleMouseUp = useCallback(() => {
-    if (!isDragging) return
-    setIsDragging(false)
-  }, [isDragging])
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
-      }
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp])
 
   // 미리보기 모드가 아니고 렌더링하지 않을 때는 null 반환
   if (!shouldRender && !isPreview) {
@@ -133,8 +73,7 @@ export function PopulationWarning({
   return (
     <div style={{ position: 'relative' }}>
       <div
-        className={`population-warning ${isEditMode ? 'edit-mode' : ''} ${isDragging ? 'dragging' : ''} ${isPreview ? 'preview-mode' : ''}`}
-        onMouseDown={handleMouseDown}
+        className={`population-warning ${isEditMode ? 'edit-mode' : ''} ${isPreview ? 'preview-mode' : ''}`}
         style={{
           backgroundColor: 'var(--color-error)',
           color: 'var(--color-text-primary)',
@@ -155,12 +94,12 @@ export function PopulationWarning({
           // Prototype의 정확한 opacity 계산 방식 적용
           opacity: (isAnimating || isPreview) ? (opacity / 100) : 0,
           // 부드러운 전환 애니메이션
-          transition: isDragging ? 'none' : 'opacity 0.5s ease-out, transform 0.5s ease-out',
+          transition: 'opacity 0.5s ease-out, transform 0.5s ease-out',
           // 나타날 때는 아래에서 위로, 사라질 때는 위로 살짝 이동
           transform: (isAnimating || isPreview) ? 'translateY(0)' : 'translateY(10px)',
           // 포인터 이벤트는 완전히 보일 때만 활성화 (편집 모드 제외)
           pointerEvents: (isAnimating || isEditMode) ? 'auto' : 'none',
-          cursor: isEditMode ? 'move' : 'default',
+          cursor: 'default',
           // 미리보기 모드일 때 추가 시각적 효과
           filter: isPreview ? 'brightness(0.9)' : 'none'
         }}

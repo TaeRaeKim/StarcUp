@@ -663,21 +663,6 @@ export function OverlayApp() {
     }
   }, [isEditMode, isSettingsOpen])
 
-  // 윈도우 위치/크기 변경 감지 및 아이템 위치 조정 (window-position-changed 이벤트 기반)
-  useEffect(() => {
-    if (!centerPosition) return
-
-    const adjustItemPositions = () => {
-      // 오버레이 윈도우의 실제 크기 (게임 영역 크기)
-      const overlayWidth = centerPosition.gameAreaBounds.width
-      const overlayHeight = centerPosition.gameAreaBounds.height
-
-    }
-
-    // centerPosition이 변경될 때마다 위치 조정 실행
-    setTimeout(adjustItemPositions, 100) // DOM 업데이트 후 실행하기 위해 지연
-    
-  }, [centerPosition, workerPosition, populationWarningPosition, upgradeProgressPosition])
 
   // 윈도우 크기에 따른 body 크기 동적 조정
   useEffect(() => {
