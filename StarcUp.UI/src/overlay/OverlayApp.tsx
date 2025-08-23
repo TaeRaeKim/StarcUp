@@ -10,12 +10,9 @@ import { snapManager } from './services/SnapManager'
 import { type EffectType } from './hooks/useEffectSystem'
 import { RaceType } from '../types/game'
 import { 
-  UpgradeCategory, 
-  UpgradeProgressData, 
-  UpgradeCancelData, 
-  UpgradeCompleteData 
-} from './types/upgrade'
+  UpgradeCategory} from './types/upgrade'
 import './styles/OverlayApp.css'
+import { WorkerPresetFlags } from '@/utils/presetUtils'
 
 /**
  * OverlayApp - 스타크래프트 게임 위에 표시되는 오버레이 컴포넌트들의 메인 컨테이너
@@ -39,6 +36,7 @@ export function OverlayApp() {
   const [workerStatus, setWorkerStatus] = useState<any>(null)
   const [lastWorkerEvent, setLastWorkerEvent] = useState<string | null>(null)
   const [gameStatus, setGameStatus] = useState<string>('waiting') // 'waiting', 'playing', 'game-ended'
+  const [showIdleWorkers, setShowIdleWorkers] = useState(true) // Idle 플래그에 따른 표시 여부
   
   // PopulationManager 이벤트 상태
   const [showSupplyAlert, setShowSupplyAlert] = useState(false)
@@ -381,6 +379,16 @@ export function OverlayApp() {
       const removePresetChangedListener = electronAPI.onWorkerPresetChanged && electronAPI.onWorkerPresetChanged((data: any) => {
         console.log('⚙️ [Overlay] 일꾼 프리셋 변경:', data)
         setLastWorkerEvent('preset-changed')
+        
+        // Idle 플래그 확인 (flags 배열 또는 mask 값으로 체크)
+        if (data?.success && data?.currentPreset) {
+          const preset = data.currentPreset
+          if (preset.mask !== undefined) {
+            const hasIdleFlag = (preset.mask & WorkerPresetFlags.Idle) !== 0  // Idle 플래그는 비트 2 (값 4)
+            setShowIdleWorkers(hasIdleFlag)
+            console.log('🚩 [Overlay] Idle 플래그 상태 (mask):', hasIdleFlag ? '있음' : '없음')
+          }
+        }
       })
 
       // PopulationManager supply-alert 이벤트 리스너
@@ -931,6 +939,7 @@ export function OverlayApp() {
               opacity={overlaySettings.opacity}
               isPreview={isEditMode && !workerStatus}
               selectedRace={selectedRace}
+              showIdleWorkers={showIdleWorkers}
             />
           </DraggableWrapper>
         ) : null

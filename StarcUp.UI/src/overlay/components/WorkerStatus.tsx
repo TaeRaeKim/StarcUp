@@ -18,6 +18,7 @@ interface WorkerStatusProps {
   opacity?: number // 오버레이 설정의 투명도 (0-100)
   isPreview?: boolean // 편집 모드에서 미리보기로 표시되는지 여부
   selectedRace?: RaceType // 선택된 종족
+  showIdleWorkers?: boolean // Idle 일꾼 수 표시 여부 (프리셋에 따라 결정)
 }
 
 export interface WorkerStatusRef {
@@ -36,7 +37,8 @@ export const WorkerStatus = forwardRef<WorkerStatusRef, WorkerStatusProps>(({
   teamColor = '#0099FF',
   opacity = 90,
   isPreview = false,
-  selectedRace = RaceType.Protoss
+  selectedRace = RaceType.Protoss,
+  showIdleWorkers = true
 }, ref) => {
   const workerStatusRef = useRef<HTMLDivElement>(null)
   const { triggerEffect } = useEffectSystem()
@@ -124,7 +126,7 @@ export const WorkerStatus = forwardRef<WorkerStatusRef, WorkerStatusProps>(({
           {calculatedTotal}
         </span>
         
-        {idleWorkers > 0 && (
+        {showIdleWorkers && idleWorkers > 0 && (
           <span
             style={{
               fontSize: '14px',
