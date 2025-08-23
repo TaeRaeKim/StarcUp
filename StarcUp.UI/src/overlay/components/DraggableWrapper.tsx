@@ -18,6 +18,7 @@ interface DraggableWrapperProps {
   style?: React.CSSProperties
   snapEnabled?: boolean
   showControls?: boolean
+  onDragStateChange?: (isDragging: boolean) => void // 드래그 상태 변경 콜백
 }
 
 export function DraggableWrapper({
@@ -29,7 +30,8 @@ export function DraggableWrapper({
   className = '',
   style = {},
   snapEnabled = true,
-  showControls = true
+  showControls = true,
+  onDragStateChange
 }: DraggableWrapperProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
@@ -111,6 +113,7 @@ export function DraggableWrapper({
     
     console.log(`🚀 [DraggableWrapper] ${id} 드래그 시작 - 현재 위치:`, position)
     setIsDragging(true)
+    onDragStateChange?.(true) // 드래그 시작 알림
     
     const rect = elementRef.current?.getBoundingClientRect()
     const containerRect = containerRef.current?.getBoundingClientRect()
@@ -201,6 +204,7 @@ export function DraggableWrapper({
     
     console.log(`🛑 [DraggableWrapper] ${id} 드래그 종료 - 최종 위치:`, position)
     setIsDragging(false)
+    onDragStateChange?.(false) // 드래그 종료 알림
     setSnapPosition(null)
     
     // 스냅 가이드 제거

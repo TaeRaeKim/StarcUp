@@ -67,7 +67,15 @@ export function OverlayApp() {
   const [workerPosition, setWorkerPosition] = useState({ x: 50, y: 50 })
   const [populationWarningPosition, setPopulationWarningPosition] = useState({ x: 100, y: 60 })
   const [upgradeProgressPosition, setUpgradeProgressPosition] = useState({ x: 300, y: 50 })
+  const [previousContainerSize, setPreviousContainerSize] = useState<{ width: number; height: number } | null>(null)
+  const [isDraggingAny, setIsDraggingAny] = useState(false) // 전역 드래그 상태
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
+  // 드래그 상태 관리 콜백
+  const handleDragStateChange = useCallback((isDragging: boolean) => {
+    setIsDraggingAny(isDragging)
+    console.log(`🎯 [OverlayApp] 전역 드래그 상태:`, isDragging ? '시작' : '종료')
+  }, [])
   const workerStatusRef = useRef<WorkerStatusRef>(null)
   const upgradeProgressRef = useRef<UpgradeProgressRef>(null)
   
@@ -665,28 +673,31 @@ export function OverlayApp() {
 
   // 화면 크기 변경 시 컴포넌트 위치 조정 (전체화면 ↔ 창모드 대응)
   useEffect(() => {
-    if (!centerPosition) return
+    if (!centerPosition || isDraggingAny) return // 드래그 중일 때는 위치 조정하지 않음
 
-    const adjustPositionIfOutOfBounds = (
+    const currentContainerSize = {
+      width: centerPosition.gameAreaBounds.width,
+      height: centerPosition.gameAreaBounds.height
+    }
+
+    const adjustPositionWithRatio = (
       currentPosition: { x: number; y: number },
       elementSelector: string,
       setPosition: (pos: { x: number; y: number }) => void,
       overlayId: string
     ) => {
-      const containerWidth = centerPosition.gameAreaBounds.width
-      const containerHeight = centerPosition.gameAreaBounds.height
-      
       // 요소의 크기 추정 (실제 DOM 요소가 없을 경우 기본값 사용)
       const element = document.querySelector(elementSelector) as HTMLElement
       const elementWidth = element ? element.offsetWidth : 100
       const elementHeight = element ? element.offsetHeight : 50
       
-      // SnapManager를 사용하여 위치 조정
+      // SnapManager를 사용하여 위치 조정 (이전 크기 정보 포함)
       const adjustedPosition = snapManager.adjustPositionForScreenSize(
         overlayId,
         currentPosition,
         { width: elementWidth, height: elementHeight },
-        { width: containerWidth, height: containerHeight }
+        currentContainerSize,
+        previousContainerSize || undefined
       )
       
       // 위치가 변경되었으면 적용
@@ -700,12 +711,15 @@ export function OverlayApp() {
 
     // 각 컴포넌트 위치 조정
     setTimeout(() => {
-      adjustPositionIfOutOfBounds(workerPosition, '.worker-status', setWorkerPosition, 'workerStatus')
-      adjustPositionIfOutOfBounds(populationWarningPosition, '.population-warning', setPopulationWarningPosition, 'populationWarning')
-      adjustPositionIfOutOfBounds(upgradeProgressPosition, '.upgrade-progress-container', setUpgradeProgressPosition, 'upgradeProgress')
+      adjustPositionWithRatio(workerPosition, '.worker-status', setWorkerPosition, 'workerStatus')
+      adjustPositionWithRatio(populationWarningPosition, '.population-warning', setPopulationWarningPosition, 'populationWarning')
+      adjustPositionWithRatio(upgradeProgressPosition, '.upgrade-progress-container', setUpgradeProgressPosition, 'upgradeProgress')
+      
+      // 현재 컨테이너 크기를 이전 크기로 저장
+      setPreviousContainerSize(currentContainerSize)
     }, 100) // DOM 업데이트 후 실행
 
-  }, [centerPosition, workerPosition, populationWarningPosition, upgradeProgressPosition])
+  }, [centerPosition, previousContainerSize, isDraggingAny])
 
   // 윈도우 크기에 따른 body 크기 동적 조정
   useEffect(() => {
@@ -888,6 +902,7 @@ export function OverlayApp() {
             onPositionChange={setWorkerPosition}
             isEditMode={isEditMode}
             className="worker-status-wrapper"
+            onDragStateChange={handleDragStateChange}
           >
             <WorkerStatus
               ref={workerStatusRef}
@@ -921,6 +936,7 @@ export function OverlayApp() {
             onPositionChange={setPopulationWarningPosition}
             isEditMode={isEditMode}
             className="population-warning-wrapper"
+            onDragStateChange={handleDragStateChange}
           >
             <PopulationWarning
               isVisible={isVisibleState}
@@ -947,6 +963,7 @@ export function OverlayApp() {
             onPositionChange={setUpgradeProgressPosition}
             isEditMode={isEditMode}
             className="upgrade-progress-wrapper"
+            onDragStateChange={handleDragStateChange}
           >
             <UpgradeProgress
               ref={upgradeProgressRef}

@@ -49,6 +49,7 @@ export interface DefaultPositions {
   [key: string]: Position
 }
 
+
 class SnapManager {
   private overlays: Map<string, OverlayInfo> = new Map()
   private config: SnapManagerConfig = {
@@ -393,14 +394,56 @@ class SnapManager {
   }
 
   /**
+   * 비율 기반으로 새 화면 크기에 맞는 위치 계산
+   */
+  calculateProportionalPosition(
+    currentPosition: Position,
+    elementSize: Size,
+    oldContainerSize: Size,
+    newContainerSize: Size
+  ): Position {
+    // 기존 화면에서의 비율 계산 (0.0 ~ 1.0)
+    const xRatio = oldContainerSize.width > 0 ? currentPosition.x / oldContainerSize.width : 0
+    const yRatio = oldContainerSize.height > 0 ? currentPosition.y / oldContainerSize.height : 0
+    
+    // 새 화면 크기에 비율 적용
+    let newX = xRatio * newContainerSize.width
+    let newY = yRatio * newContainerSize.height
+    
+    // 경계 제한 (요소가 화면 밖으로 나가지 않도록)
+    newX = Math.max(0, Math.min(newContainerSize.width - elementSize.width, newX))
+    newY = Math.max(0, Math.min(newContainerSize.height - elementSize.height, newY))
+    
+    return { x: newX, y: newY }
+  }
+
+  /**
    * 화면 크기 변경 시 위치를 경계 내로 조정
    */
   adjustPositionForScreenSize(
     id: string,
     currentPosition: Position,
     elementSize: Size,
-    containerSize: Size
+    containerSize: Size,
+    oldContainerSize?: Size
   ): Position {
+    // 이전 컨테이너 크기가 제공된 경우 비율 기반 계산 사용
+    if (oldContainerSize && oldContainerSize.width > 0 && oldContainerSize.height > 0) {
+      const proportionalPosition = this.calculateProportionalPosition(
+        currentPosition,
+        elementSize,
+        oldContainerSize,
+        containerSize
+      )
+      
+      console.log(`📐 [SnapManager] ${this.getDisplayName(id)} 비율 유지 조정:`, 
+                 `${currentPosition.x}, ${currentPosition.y} → ${proportionalPosition.x.toFixed(1)}, ${proportionalPosition.y.toFixed(1)}`,
+                 `비율: ${(currentPosition.x / oldContainerSize.width * 100).toFixed(1)}%, ${(currentPosition.y / oldContainerSize.height * 100).toFixed(1)}%`)
+      
+      return proportionalPosition
+    }
+
+    // 이전 크기 정보가 없으면 기존 경계 체크 로직 사용
     let newX = currentPosition.x
     let newY = currentPosition.y
     let adjusted = false
@@ -432,7 +475,7 @@ class SnapManager {
     const finalPosition = { x: Math.max(0, newX), y: Math.max(0, newY) }
     
     if (adjusted) {
-      console.log(`📐 [SnapManager] ${this.getDisplayName(id)} 화면 크기 조정:`, 
+      console.log(`📐 [SnapManager] ${this.getDisplayName(id)} 경계 기반 조정:`, 
                  `${currentPosition.x}, ${currentPosition.y} → ${finalPosition.x}, ${finalPosition.y}`)
     }
 
