@@ -711,12 +711,18 @@ export function OverlayApp() {
 
     // 각 컴포넌트 위치 조정
     setTimeout(() => {
+      console.log('📏 [OverlayApp] 화면 크기 변경으로 인한 위치 조정 시작:', 
+                 previousContainerSize ? 
+                 `${previousContainerSize.width}x${previousContainerSize.height} → ${currentContainerSize.width}x${currentContainerSize.height}` :
+                 `초기 크기: ${currentContainerSize.width}x${currentContainerSize.height}`)
+
       adjustPositionWithRatio(workerPosition, '.worker-status', setWorkerPosition, 'workerStatus')
       adjustPositionWithRatio(populationWarningPosition, '.population-warning', setPopulationWarningPosition, 'populationWarning')
       adjustPositionWithRatio(upgradeProgressPosition, '.upgrade-progress-container', setUpgradeProgressPosition, 'upgradeProgress')
       
       // 현재 컨테이너 크기를 이전 크기로 저장
       setPreviousContainerSize(currentContainerSize)
+      console.log('✅ [OverlayApp] 모든 컴포넌트 위치 조정 완료')
     }, 100) // DOM 업데이트 후 실행
 
   }, [centerPosition, previousContainerSize, isDraggingAny])
