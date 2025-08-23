@@ -233,13 +233,17 @@ export class ServiceContainer implements IServiceContainer {
     })
 
     coreService.onUpgradeCompleted((data: any) => {
+      console.log('🎯 [ServiceContainer] 업그레이드 완료 이벤트 수신:', data)
       // Overlay 윈도우에 업그레이드 완료 이벤트 전송
       windowManager.sendToOverlayWindow('upgrade-completed', data)
+      console.log('📡 [ServiceContainer] 업그레이드 완료 이벤트 오버레이로 전송 완료')
     })
 
     coreService.onUpgradeCancelled((data: any) => {
+      console.log('🎯 [ServiceContainer] 업그레이드 취소 이벤트 수신:', data)
       // Overlay 윈도우에 업그레이드 취소 이벤트 전송
       windowManager.sendToOverlayWindow('upgrade-cancelled', data)
+      console.log('📡 [ServiceContainer] 업그레이드 취소 이벤트 오버레이로 전송 완료')
     })
     
     console.log('🔗 게임 이벤트 핸들러 설정 완료')

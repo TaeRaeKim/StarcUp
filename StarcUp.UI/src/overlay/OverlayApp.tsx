@@ -337,12 +337,13 @@ export function OverlayApp() {
       })
 
       const removeUpgradeCancelListener = electronAPI.onUpgradeCancelled && electronAPI.onUpgradeCancelled((data: UpgradeEventData) => {
+        console.log('🎯 [Overlay] 업그레이드 취소 이벤트 수신:', data)
         if (isDevelopment) {
           console.log('❌ [Overlay] 업그레이드 취소:', data.item)
         }
 
         // 취소된 업그레이드 아이템의 상태를 개별 업데이트 (진행중 -> 비활성)
-        if (data.item && typeof data.categoryId === 'number') {
+        if (data.item && data.categoryId !== undefined) {
           setUpgradeCategories(prevCategories => {
             const updatedCategories = [...prevCategories];
             const categoryIndex = updatedCategories.findIndex(cat => cat.id === String(data.categoryId));
@@ -381,12 +382,13 @@ export function OverlayApp() {
       })
 
       const removeUpgradeCompleteListener = electronAPI.onUpgradeCompleted && electronAPI.onUpgradeCompleted((data: UpgradeEventData) => {
+        console.log('🎯 [Overlay] 업그레이드 완료 이벤트 수신:', data)
         if (isDevelopment) {
           console.log('✅ [Overlay] 업그레이드 완료:', data.item, 'level:', data.level)
         }
 
         // 완료된 업그레이드 아이템의 상태를 개별 업데이트 (즉시 완료 또는 진행중 -> 완료)
-        if (data.item && typeof data.categoryId === 'number') {
+        if (data.item && data.categoryId !== undefined) {
           setUpgradeCategories(prevCategories => {
             const updatedCategories = [...prevCategories];
             const categoryIndex = updatedCategories.findIndex(cat => cat.id === String(data.categoryId));
