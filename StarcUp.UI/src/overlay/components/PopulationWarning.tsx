@@ -136,9 +136,6 @@ export function PopulationWarning({
         className={`population-warning ${isEditMode ? 'edit-mode' : ''} ${isDragging ? 'dragging' : ''} ${isPreview ? 'preview-mode' : ''}`}
         onMouseDown={handleMouseDown}
         style={{
-          position: 'absolute',
-          left: `${position.x}px`,
-          top: `${position.y}px`,
           backgroundColor: 'var(--color-error)',
           color: 'var(--color-text-primary)',
           padding: '12px 16px',

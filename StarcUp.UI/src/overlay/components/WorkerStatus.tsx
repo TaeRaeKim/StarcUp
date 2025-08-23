@@ -130,8 +130,6 @@ export const WorkerStatus = forwardRef<WorkerStatusRef, WorkerStatusProps>(({
         className={`worker-status ${isEditMode ? 'edit-mode' : ''} ${isDragging ? 'dragging' : ''} ${isPreview ? 'preview-mode' : ''}`}
         onMouseDown={handleMouseDown}
         style={{
-          left: `${position.x}px`,
-          top: `${position.y}px`,
           // 편집 모드일 때는 미리보기 투명도만 적용, 일반 모드일 때는 배경색 opacity만 조절
           opacity: isEditMode && isPreview ? 0.75 : 1,
           backgroundColor: isEditMode ? 'var(--color-overlay-bg)' : `rgba(0, 0, 0, ${opacity / 100})`,

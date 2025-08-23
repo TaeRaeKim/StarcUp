@@ -4,6 +4,9 @@ import { WorkerStatus, type WorkerStatusRef } from './components/WorkerStatus'
 import { PopulationWarning } from './components/PopulationWarning'
 import { UpgradeProgress, type UpgradeProgressRef } from './components/UpgradeProgress'
 import { OverlaySettingsPanel, type OverlaySettings } from './components/OverlaySettings'
+import { DraggableWrapper } from './components/DraggableWrapper'
+import { SnapGuideOverlay } from './components/SnapGuideOverlay'
+import { snapManager } from './services/SnapManager'
 import { type EffectType } from './hooks/useEffectSystem'
 import { RaceType } from '../types/game'
 import { 
@@ -668,47 +671,7 @@ export function OverlayApp() {
       // 오버레이 윈도우의 실제 크기 (게임 영역 크기)
       const overlayWidth = centerPosition.gameAreaBounds.width
       const overlayHeight = centerPosition.gameAreaBounds.height
-      
-      console.log('🔧 [위치 조정] 오버레이 크기:', { width: overlayWidth, height: overlayHeight })
-      
-      // WorkerStatus 위치 조정
-      const workerStatusElement = document.querySelector('.worker-status') as HTMLElement
-      if (workerStatusElement) {
-        const workerRect = workerStatusElement.getBoundingClientRect()
-        const newWorkerX = Math.max(0, Math.min(overlayWidth - workerRect.width, workerPosition.x))
-        const newWorkerY = Math.max(0, Math.min(overlayHeight - workerRect.height, workerPosition.y))
-        
-        if (newWorkerX !== workerPosition.x || newWorkerY !== workerPosition.y) {
-          console.log('🔧 [위치 조정] WorkerStatus:', { from: workerPosition, to: { x: newWorkerX, y: newWorkerY } })
-          setWorkerPosition({ x: newWorkerX, y: newWorkerY })
-        }
-      }
 
-      // PopulationWarning 위치 조정
-      const populationWarningElement = document.querySelector('.population-warning') as HTMLElement
-      if (populationWarningElement) {
-        const warningRect = populationWarningElement.getBoundingClientRect()
-        const newWarningX = Math.max(0, Math.min(overlayWidth - warningRect.width, populationWarningPosition.x))
-        const newWarningY = Math.max(0, Math.min(overlayHeight - warningRect.height, populationWarningPosition.y))
-        
-        if (newWarningX !== populationWarningPosition.x || newWarningY !== populationWarningPosition.y) {
-          console.log('🔧 [위치 조정] PopulationWarning:', { from: populationWarningPosition, to: { x: newWarningX, y: newWarningY } })
-          setPopulationWarningPosition({ x: newWarningX, y: newWarningY })
-        }
-      }
-
-      // UpgradeProgress 위치 조정
-      const upgradeProgressElement = document.querySelector('.upgrade-progress') as HTMLElement
-      if (upgradeProgressElement) {
-        const upgradeRect = upgradeProgressElement.getBoundingClientRect()
-        const newUpgradeX = Math.max(0, Math.min(overlayWidth - upgradeRect.width, upgradeProgressPosition.x))
-        const newUpgradeY = Math.max(0, Math.min(overlayHeight - upgradeRect.height, upgradeProgressPosition.y))
-        
-        if (newUpgradeX !== upgradeProgressPosition.x || newUpgradeY !== upgradeProgressPosition.y) {
-          console.log('🔧 [위치 조정] UpgradeProgress:', { from: upgradeProgressPosition, to: { x: newUpgradeX, y: newUpgradeY } })
-          setUpgradeProgressPosition({ x: newUpgradeX, y: newUpgradeY })
-        }
-      }
     }
 
     // centerPosition이 변경될 때마다 위치 조정 실행
@@ -803,7 +766,13 @@ export function OverlayApp() {
         >
           <span>편집 모드 활성화</span>
           <button
-            onClick={resetToCenter}
+            onClick={() => {
+              // SnapManager를 사용하여 모든 위치를 기본값으로 리셋
+              const defaultPositions = snapManager.resetAllToDefaultPositions()
+              setWorkerPosition(defaultPositions.workerStatus || { x: 50, y: 50 })
+              setPopulationWarningPosition(defaultPositions.populationWarning || { x: 300, y: 50 })
+              setUpgradeProgressPosition(defaultPositions.upgradeProgress || { x: 50, y: 200 })
+            }}
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.2)',
               color: 'white',
@@ -885,21 +854,29 @@ export function OverlayApp() {
         } : dummyWorkerData
         
         return shouldShow ? (
-          <WorkerStatus
-            ref={workerStatusRef}
-            totalWorkers={workerData.totalWorkers}
-            idleWorkers={workerData.idleWorkers}
-            productionWorkers={workerData.productionWorkers}
-            calculatedTotal={workerData.calculatedTotal}
+          <DraggableWrapper
+            id="workerStatus"
             position={workerPosition}
-            isEditMode={isEditMode}
             onPositionChange={setWorkerPosition}
-            unitIconStyle={overlaySettings.unitIconStyle}
-            teamColor={overlaySettings.teamColor}
-            opacity={overlaySettings.opacity}
-            isPreview={isEditMode && !workerStatus}
-            selectedRace={selectedRace}
-          />
+            isEditMode={isEditMode}
+            className="worker-status-wrapper"
+          >
+            <WorkerStatus
+              ref={workerStatusRef}
+              totalWorkers={workerData.totalWorkers}
+              idleWorkers={workerData.idleWorkers}
+              productionWorkers={workerData.productionWorkers}
+              calculatedTotal={workerData.calculatedTotal}
+              position={{ x: 0, y: 0 }} // DraggableWrapper가 위치를 처리하므로 0,0으로 설정
+              isEditMode={false} // DraggableWrapper가 편집 모드를 처리
+              onPositionChange={() => {}} // DraggableWrapper가 위치 변경을 처리
+              unitIconStyle={overlaySettings.unitIconStyle}
+              teamColor={overlaySettings.teamColor}
+              opacity={overlaySettings.opacity}
+              isPreview={isEditMode && !workerStatus}
+              selectedRace={selectedRace}
+            />
+          </DraggableWrapper>
         ) : null
       })()}
 
@@ -910,15 +887,23 @@ export function OverlayApp() {
         const isVisibleState = isEditMode ? true : showSupplyAlert
         
         return shouldShow ? (
-          <PopulationWarning
-            isVisible={isVisibleState}
-            message="인구수 한계 도달!"
-            opacity={overlaySettings.opacity}
+          <DraggableWrapper
+            id="populationWarning"
             position={populationWarningPosition}
-            isEditMode={isEditMode}
             onPositionChange={setPopulationWarningPosition}
-            isPreview={isEditMode}
-          />
+            isEditMode={isEditMode}
+            className="population-warning-wrapper"
+          >
+            <PopulationWarning
+              isVisible={isVisibleState}
+              message="인구수 한계 도달!"
+              opacity={overlaySettings.opacity}
+              position={{ x: 0, y: 0 }} // DraggableWrapper가 위치를 처리하므로 0,0으로 설정
+              isEditMode={false} // DraggableWrapper가 편집 모드를 처리
+              onPositionChange={() => {}} // DraggableWrapper가 위치 변경을 처리
+              isPreview={isEditMode}
+            />
+          </DraggableWrapper>
         ) : null
       })()}
 
@@ -928,18 +913,26 @@ export function OverlayApp() {
         const shouldShow = ((gameStatus === 'playing') || isEditMode) && overlaySettings.showUpgradeProgress
                 
         return shouldShow ? (
-          <UpgradeProgress
-            ref={upgradeProgressRef}
-            categories={upgradeCategories}
+          <DraggableWrapper
+            id="upgradeProgress"
             position={upgradeProgressPosition}
-            isEditMode={isEditMode}
             onPositionChange={setUpgradeProgressPosition}
-            unitIconStyle={overlaySettings.upgradeIconStyle}
-            opacity={overlaySettings.opacity}
-            isPreview={isEditMode && upgradeCategories.length === 0}
-            isInGame={gameStatus === 'playing'}
-            presetUpgradeSettings={presetUpgradeSettings}
-          />
+            isEditMode={isEditMode}
+            className="upgrade-progress-wrapper"
+          >
+            <UpgradeProgress
+              ref={upgradeProgressRef}
+              categories={upgradeCategories}
+              position={{ x: 0, y: 0 }} // DraggableWrapper가 위치를 처리하므로 0,0으로 설정
+              isEditMode={false} // DraggableWrapper가 편집 모드를 처리
+              onPositionChange={() => {}} // DraggableWrapper가 위치 변경을 처리
+              unitIconStyle={overlaySettings.upgradeIconStyle}
+              opacity={overlaySettings.opacity}
+              isPreview={isEditMode && upgradeCategories.length === 0}
+              isInGame={gameStatus === 'playing'}
+              presetUpgradeSettings={presetUpgradeSettings}
+            />
+          </DraggableWrapper>
         ) : null
       })()}
 
@@ -959,6 +952,9 @@ export function OverlayApp() {
           스타크래프트 윈도우 위치를 대기 중...
         </div>
       )}
+
+      {/* 스냅 가이드 오버레이 */}
+      <SnapGuideOverlay isEditMode={isEditMode} />
 
       {/* 오버레이 설정 패널 */}
       <OverlaySettingsPanel

@@ -625,9 +625,6 @@ const UpgradeProgress = forwardRef<UpgradeProgressRef, UpgradeProgressProps>(
       className="upgrade-progress-container"
       onMouseDown={handleMouseDown}
       style={{
-        position: 'absolute',
-        left: `${position.x}px`,
-        top: `${position.y}px`,
         opacity: opacity,
         backgroundColor: 'transparent',
         borderRadius: '8px',

@@ -1,0 +1,107 @@
+/**
+ * DraggableWrapper 스타일
+ */
+
+.draggable-wrapper {
+  position: absolute;
+  will-change: transform, left, top;
+}
+
+/* 드래그 중 상태 */
+.draggable-wrapper.dragging {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* 편집 모드 */
+.draggable-wrapper.edit-mode:hover {
+  box-shadow: 0 4px 12px rgba(0, 153, 255, 0.2);
+}
+
+/* 컨트롤 버튼 컨테이너 */
+.draggable-controls {
+  position: absolute;
+  top: -28px;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.draggable-wrapper.edit-mode:hover .draggable-controls {
+  opacity: 1;
+}
+
+/* 컨트롤 버튼 스타일 */
+.control-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease-out;
+  padding: 0;
+}
+
+.control-btn:hover {
+  background: var(--color-primary, #0099ff);
+  transform: scale(1.1);
+}
+
+.control-btn:active {
+  transform: scale(0.95);
+}
+
+/* 이동 버튼 */
+.move-btn {
+  cursor: move;
+}
+
+/* 리셋 버튼 */
+.reset-btn {
+  background: var(--color-warning, #ffa502) !important;
+}
+
+.reset-btn:hover {
+  background: var(--color-warning, #ff7675) !important;
+}
+
+/* 편집 모드 테두리 애니메이션 */
+@keyframes border-pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.edit-mode-border {
+  animation: border-pulse 2s ease-in-out infinite;
+}
+
+.edit-mode-border.snapping {
+  animation: none;
+  opacity: 1;
+}
+
+/* 컨텐츠 영역 */
+.draggable-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* CSS 변수 정의 (fallback) */
+:root {
+  --color-primary: #0099ff;
+  --color-success: #00d084;
+  --color-error: #ff4757;
+}
