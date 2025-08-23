@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Users, Wrench, AlertTriangle, Skull, Fuel, Info, Zap, Clock, Settings2 } from 'lucide-react';
 import {
-  calculateWorkerSettingsMask,
-  debugWorkerSettings,
-  type PresetUpdateMessage,
-  type WorkerPreset
+  debugWorkerSettings
 } from '../../utils/presetUtils';
 import { WorkerSettings } from '../../types/preset';
 import { ProFeatureWrapper } from './ProFeatureWrapper';
@@ -203,7 +200,7 @@ export function WorkerDetailSettings({
     }
   ];
 
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
     // 일꾼 설정 정보 구성
     const settingsToSave: WorkerSettings = {
       workerCountDisplay,
@@ -224,40 +221,8 @@ export function WorkerDetailSettings({
       onSaveWorkerSettings(currentPreset.id, settingsToSave);
     }
 
-    // 비트마스크 계산 (Core 전송용)
-    const workerMask = calculateWorkerSettingsMask(settingsToSave);
-
     // 디버깅 정보 출력
     debugWorkerSettings(settingsToSave);
-
-    // Core로 전송할 프리셋 업데이트 메시지 구성
-    const updateMessage: PresetUpdateMessage = {
-      type: 'preset-update',
-      timestamp: Date.now(),
-      presetType: 'worker',
-      data: {
-        enabled: true, // 일꾼 기능이 활성화되어 있다고 가정
-        settingsMask: workerMask
-      } as WorkerPreset
-    };
-
-    try {
-      // Core API를 통해 프리셋 업데이트 전송
-      if (window.coreAPI?.sendPresetUpdate) {
-        console.log('🔄 일꾼 프리셋 업데이트 전송:', updateMessage);
-        const response = await window.coreAPI.sendPresetUpdate(updateMessage);
-
-        if (response?.success) {
-          console.log('✅ 일꾼 프리셋 업데이트 성공:', response.data);
-        } else {
-          console.error('❌ 일꾼 프리셋 업데이트 실패:', response?.error);
-        }
-      } else {
-        console.warn('⚠️ coreAPI.sendPresetUpdate 함수가 사용 불가능합니다');
-      }
-    } catch (error) {
-      console.error('💥 일꾼 프리셋 업데이트 중 오류 발생:', error);
-    }
 
     // 설정 창 닫기
     onClose();
